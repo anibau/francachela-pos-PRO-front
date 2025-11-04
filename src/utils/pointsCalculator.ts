@@ -15,10 +15,10 @@ export function calculateTotalPoints(items: SaleItem[]): number {
 
 /**
  * Calcula los puntos para un producto basado en su precio
- * Por defecto: 1 punto por cada sol gastado
+ * Por defecto: 1 punto por cada S/ 10 gastados
  */
-export function calculateProductPoints(price: number, pointsPerSol: number = 1): number {
-  return Math.floor(price * pointsPerSol);
+export function calculateProductPoints(product: Product): number {
+  return Math.floor(product.price / 10);
 }
 
 /**
@@ -30,7 +30,7 @@ export function canRedeemPoints(clientPoints: number, pointsToRedeem: number): b
 
 /**
  * Convierte puntos a descuento en soles
- * Por defecto: 1 punto = 0.10 soles
+ * Por defecto: 10 puntos = 1 sol
  */
 export function pointsToDiscount(points: number, solsPerPoint: number = 0.10): number {
   return points * solsPerPoint;
@@ -46,19 +46,15 @@ export function discountToPoints(discount: number, solsPerPoint: number = 0.10):
 /**
  * Genera un objeto SaleItem con puntos calculados
  */
-export function createSaleItemWithPoints(
-  product: Product,
-  quantity: number,
-  pointsPerSol: number = 1
-): SaleItem {
-  const pointsValue = calculateProductPoints(product.PRECIO, pointsPerSol);
+export function createSaleItemWithPoints(product: Product, quantity: number = 1): SaleItem {
+  const pointsValue = calculateProductPoints(product);
   
   return {
     productId: product.id,
-    productName: product.PRODUCTO_DESCRIPCION,
+    productName: product.name,
     quantity,
-    price: product.PRECIO,
-    subtotal: product.PRECIO * quantity,
+    price: product.price,
+    subtotal: product.price * quantity,
     pointsValue,
   };
 }
