@@ -18,6 +18,7 @@ import type {
   Settings,
   InventoryMovement,
 } from '@/types';
+import type { User } from '@/contexts/AuthContext';
 
 const GOOGLE_SHEETS_CONFIG = {
   SCRIPT_URL: import.meta.env.VITE_GOOGLE_SHEETS_SCRIPT_URL || '',
@@ -369,4 +370,25 @@ export const googleSheetsSettings = {
     sheet: 'Configuracion',
     data: settings,
   }),
+};
+
+/**
+ * Servicio de autenticación con Google Sheets
+ */
+export const googleSheetsAuth = {
+  login: async (username: string, password: string): Promise<User> => {
+    const users = await executeSheetOperation<User[]>({
+      action: 'read',
+      sheet: 'Usuarios',
+    });
+    
+    const user = users.find(u => u.username === username && (u as any).password === password);
+    if (!user) {
+      throw new Error('Usuario o contraseña incorrectos');
+    }
+    
+    // No retornar la contraseña
+    const { password: _, ...userWithoutPassword } = user as any;
+    return userWithoutPassword;
+  },
 };

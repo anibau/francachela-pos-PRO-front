@@ -9,6 +9,13 @@ import type {
   DeliveryOrder,
   Settings,
 } from '@/types';
+import type { User } from '@/contexts/AuthContext';
+
+export const mockUsers: User[] = [
+  { id: 1, username: 'admin', role: 'administrador', nombre: 'Administrador Sistema' },
+  { id: 2, username: 'supervisor1', role: 'supervisor', nombre: 'María Supervisor' },
+  { id: 3, username: 'cajero1', role: 'cajero', nombre: 'Juan Cajero' },
+];
 
 export const mockProducts: Product[] = [
   { id: 1, name: 'Inca Kola 500ml', barcode: '7750885005609', category: 'Bebidas', price: 3.50, cost: 2.00, stock: 150, minStock: 20, supplier: 'Lindley' },

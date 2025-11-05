@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
+import { AppHeader } from "./AppHeader";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -13,7 +14,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         <main className="flex-1 overflow-auto">
           <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
             <SidebarTrigger />
-            <h1 className="text-xl font-bold text-primary">Francachela POS</h1>
+            <div className="flex-1" />
+            <AppHeader />
           </header>
           <div className="p-6">
             {children}

@@ -160,6 +160,16 @@ export const salesAPI = {
       } as Sale
     ),
   
+  cancel: (id: number) =>
+    apiCall<Sale>(
+      `/sales/${id}/cancel`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+      },
+      { ...mockSales.find(s => s.id === id), status: 'cancelada' } as Sale
+    ),
+  
   getStats: () =>
     apiCall<SalesStats>(
       '/sales/stats',
@@ -188,6 +198,19 @@ export const inventoryAPI = {
         outOfStock: mockProducts.filter(p => p.stock === 0).length,
         toReorder: mockProducts.filter(p => p.stock < p.minStock).length,
       }
+    ),
+  
+  getMovements: () => apiCall<any[]>('/inventory/movements', {}, []),
+  
+  createMovement: (movement: any) =>
+    apiCall<any>(
+      '/inventory/movements',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(movement),
+      },
+      { ...movement, id: Date.now() }
     ),
 };
 

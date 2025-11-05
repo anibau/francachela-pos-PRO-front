@@ -18,6 +18,24 @@ Esta guía te ayudará a conectar tu sistema POS con Google Sheets para almacena
 2. Crea una nueva hoja de cálculo llamada `POS_Francachela`
 3. Crea las siguientes pestañas (hojas):
 
+### Pestaña: **Usuarios** ⚠️ IMPORTANTE
+Crea los siguientes encabezados en la primera fila:
+
+```
+ID | USERNAME | PASSWORD | ROL | NOMBRE
+```
+
+**Roles disponibles:** `administrador`, `supervisor`, `cajero`
+
+**Datos de ejemplo:**
+```
+1 | admin | admin123 | administrador | Administrador Sistema
+2 | supervisor1 | super123 | supervisor | María García
+3 | cajero1 | caja123 | cajero | Juan Pérez
+```
+
+⚠️ **SEGURIDAD:** Usa contraseñas seguras y restringe el acceso a tu Google Sheet.
+
 ### Pestaña: **Ventas**
 Crea los siguientes encabezados en la primera fila:
 
