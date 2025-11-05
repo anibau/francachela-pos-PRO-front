@@ -32,6 +32,7 @@ export const mockSales: Sale[] = [
   {
     id: 1,
     ticketNumber: 'T-001',
+    ticketId: '1',
     date: '2025-10-02T10:30:00',
     clientId: 1,
     clientName: 'Juan Pérez',
@@ -45,10 +46,13 @@ export const mockSales: Sale[] = [
     paymentMethod: 'Efectivo',
     cashier: 'Admin',
     pointsEarned: 12,
+    pointsUsed: 0,
+    status: 'completada',
   },
   {
     id: 2,
     ticketNumber: 'T-002',
+    ticketId: '2',
     date: '2025-10-02T11:15:00',
     clientId: 2,
     clientName: 'María García',
@@ -61,6 +65,8 @@ export const mockSales: Sale[] = [
     paymentMethod: 'Yape',
     cashier: 'Admin',
     pointsEarned: 22,
+    pointsUsed: 0,
+    status: 'completada',
   },
 ];
 

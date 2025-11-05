@@ -20,11 +20,15 @@ export default function POS() {
   const [products, setProducts] = useState<Product[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('Efectivo');
   const [notes, setNotes] = useState('');
   const [discount, setDiscount] = useState(0);
+  
+  const PRODUCTS_PER_PAGE = 9;
   
   const {
     tickets,
@@ -69,6 +73,19 @@ export default function POS() {
       product.barcode.includes(searchTerm)
   );
 
+  const filteredClients = clients.filter(
+    (client) =>
+      client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+      client.dni?.includes(clientSearchTerm) ||
+      client.phone?.includes(clientSearchTerm)
+  );
+
+  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * PRODUCTS_PER_PAGE,
+    currentPage * PRODUCTS_PER_PAGE
+  );
+
   const activeTicket = getActiveTicket();
   const total = getTicketTotal();
   const pointsEarned = activeTicket ? calculateTotalPoints(activeTicket.items) : 0;
@@ -85,6 +102,7 @@ export default function POS() {
   const handleSelectClient = (client: Client) => {
     setTicketClient(client.id, client.name);
     setIsClientDialogOpen(false);
+    setClientSearchTerm('');
     toast({
       title: 'Cliente seleccionado',
       description: `${client.name} - Puntos: ${client.points}`,
@@ -144,64 +162,24 @@ export default function POS() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Left Panel - Products */}
-      <div className="flex-1 p-6 overflow-y-auto">
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold">Punto de Venta</h1>
-            <Button onClick={createTicket} variant="outline" size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo Ticket
-            </Button>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Buscar productos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+    <div className="flex flex-col lg:flex-row h-screen bg-background">
+      {/* Main Panel - Tickets & Payment (Now Left/Top) */}
+      <div className="flex-1 bg-card border-r lg:border-r border-b lg:border-b-0 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h1 className="text-2xl font-bold">Punto de Venta</h1>
+          <Button onClick={createTicket} variant="outline" size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Ticket
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredProducts.map((product) => (
-            <Card
-              key={product.id}
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => handleAddProduct(product)}
-            >
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-2">{product.name}</h3>
-                <div className="flex justify-between items-center">
-                  <span className="text-2xl font-bold text-primary">
-                    S/ {product.price.toFixed(2)}
-                  </span>
-                  <Badge variant={product.stock > 10 ? 'default' : 'destructive'}>
-                    Stock: {product.stock}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {calculateProductPoints(product)} puntos
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      {/* Right Panel - Cart */}
-      <div className="w-96 bg-card border-l flex flex-col">
-        <Tabs value={activeTicketId} onValueChange={switchTicket} className="flex-1 flex flex-col">
-          <TabsList className="w-full justify-start rounded-none border-b bg-muted/50">
+        <Tabs value={activeTicketId} onValueChange={switchTicket} className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="w-full justify-start rounded-none border-b bg-muted/50 overflow-x-auto flex-shrink-0">
             {tickets.map((ticket) => (
               <TabsTrigger 
                 key={ticket.id} 
                 value={ticket.id} 
-                className="relative data-[state=active]:bg-background"
+                className="relative data-[state=active]:bg-background whitespace-nowrap"
               >
                 <ShoppingCart className="h-4 w-4 mr-2" />
                 Ticket {ticket.id}
@@ -236,8 +214,24 @@ export default function POS() {
                         Asocia un cliente a esta venta para acumular puntos
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                      {clients.map((client) => (
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <Input
+                          type="text"
+                          placeholder="Buscar por nombre, DNI, teléfono..."
+                          value={clientSearchTerm}
+                          onChange={(e) => setClientSearchTerm(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+                      <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {filteredClients.length === 0 ? (
+                          <p className="text-center text-muted-foreground py-4">
+                            No se encontraron clientes
+                          </p>
+                        ) : (
+                          filteredClients.map((client) => (
                         <Button
                           key={client.id}
                           variant="outline"
@@ -251,8 +245,10 @@ export default function POS() {
                               {client.phone} • {client.points} pts
                             </div>
                           </div>
-                        </Button>
-                      ))}
+                          </Button>
+                          ))
+                        )}
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -463,6 +459,87 @@ export default function POS() {
             </div>
           </TabsContent>
         </Tabs>
+      </div>
+
+      {/* Secondary Panel - Products (Now Right/Bottom) */}
+      <div className="w-full lg:w-96 bg-background p-4 lg:p-6 overflow-y-auto flex flex-col">
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Buscar productos..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 space-y-3 mb-4">
+          {paginatedProducts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+              <Search className="h-12 w-12 mb-2" />
+              <p>No se encontraron productos</p>
+            </div>
+          ) : (
+            paginatedProducts.map((product) => (
+              <Card
+                key={product.id}
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => handleAddProduct(product)}
+              >
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm truncate mb-1">{product.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold text-primary">
+                          S/ {product.price.toFixed(2)}
+                        </span>
+                        <Badge variant={product.stock > 10 ? 'default' : 'destructive'} className="text-xs">
+                          {product.stock}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {calculateProductPoints(product)} pts
+                      </p>
+                    </div>
+                    <Plus className="h-5 w-5 text-primary flex-shrink-0" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Anterior
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Página {currentPage} de {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Siguiente
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

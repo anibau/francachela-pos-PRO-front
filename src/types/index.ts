@@ -38,6 +38,7 @@ export interface SaleItem {
 export interface Sale {
   id: number;
   ticketNumber: string;
+  ticketId?: string;
   date: string;
   clientId?: number;
   clientName?: string;
@@ -49,6 +50,8 @@ export interface Sale {
   cashier: string;
   notes?: string;
   pointsEarned?: number;
+  pointsUsed?: number;
+  status: 'completada' | 'cancelada';
 }
 
 export interface Promotion {

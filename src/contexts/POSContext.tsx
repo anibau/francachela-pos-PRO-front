@@ -192,8 +192,29 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
       const ticket = getActiveTicket();
       if (!ticket || ticket.items.length === 0) return;
 
-      // Here you would call salesAPI.create() with real backend
-      // For now, just clear the ticket
+      // Preparar datos de la venta con todos los campos requeridos para Google Sheets
+      const saleData = {
+        ticketNumber: `T-${Date.now()}`,
+        ticketId: activeTicketId,
+        date: new Date().toISOString(),
+        clientId: ticket.clientId,
+        clientName: ticket.clientName,
+        items: ticket.items,
+        subtotal: ticket.items.reduce((sum, item) => sum + item.subtotal, 0),
+        discount: ticket.discount,
+        total: getTicketTotal(),
+        paymentMethod,
+        cashier: 'Sistema',
+        notes: ticket.notes,
+        pointsEarned: ticket.items.reduce((sum, item) => sum + (item.pointsValue * item.quantity), 0),
+        pointsUsed: 0,
+        status: 'completada' as const,
+      };
+
+      // Aquí se llamaría a salesAPI.create(saleData) con backend real
+      console.log('Venta completada:', saleData);
+      
+      // Limpiar el ticket actual
       setTickets(prev =>
         prev.map(t =>
           t.id === activeTicketId
@@ -202,7 +223,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         )
       );
     },
-    [activeTicketId, getActiveTicket]
+    [activeTicketId, getActiveTicket, getTicketTotal]
   );
 
   return (

@@ -144,11 +144,41 @@ export const googleSheetsSales = {
     id,
   }),
 
-  create: (sale: Omit<Sale, 'id'>) => executeSheetOperation<Sale>({
-    action: 'write',
-    sheet: 'Ventas',
-    data: sale,
-  }),
+  create: (sale: Omit<Sale, 'id'>) => {
+    // Formatear datos según estructura de Google Sheets
+    // Campos: ID, FECHA, CLIENTE_ID, LISTA_PRODUCTOS, SUB_TOTAL, DESCUENTO, 
+    // TOTAL, METODO_PAGO, COMENTARIO, CAJERO, ESTADO, PUNTOS_OTORGADOS, PUNTOS_USADOS, TICKET_ID
+    const subTotal = sale.items.reduce((sum, item) => sum + item.subtotal, 0);
+    
+    const formattedSale = {
+      FECHA: sale.date,
+      CLIENTE_ID: sale.clientId || '',
+      LISTA_PRODUCTOS: JSON.stringify(sale.items.map(item => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        price: item.price,
+        subtotal: item.subtotal,
+        pointsValue: item.pointsValue,
+      }))),
+      SUB_TOTAL: subTotal,
+      DESCUENTO: sale.discount || 0,
+      TOTAL: sale.total,
+      METODO_PAGO: sale.paymentMethod,
+      COMENTARIO: sale.notes || '',
+      CAJERO: sale.cashier || 'Sistema',
+      ESTADO: sale.status,
+      PUNTOS_OTORGADOS: sale.pointsEarned || 0,
+      PUNTOS_USADOS: sale.pointsUsed || 0,
+      TICKET_ID: sale.ticketId || '',
+    };
+    
+    return executeSheetOperation<Sale>({
+      action: 'write',
+      sheet: 'Ventas',
+      data: formattedSale,
+    });
+  },
 
   // Anular venta (actualiza estado y revierte inventario)
   cancel: (id: number) => executeSheetOperation<Sale>({
