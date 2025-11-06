@@ -30,6 +30,12 @@ export default function Productos() {
     stock: 0,
     minStock: 0,
     supplier: '',
+    description: '',
+    image: '',
+    wholesalePrice: 0,
+    pointsValue: 0,
+    showInCatalog: true,
+    useInventory: true,
   });
   const [movementData, setMovementData] = useState({
     type: 'entrada' as 'entrada' | 'salida' | 'ajuste',
@@ -134,6 +140,12 @@ export default function Productos() {
       stock: product.stock,
       minStock: product.minStock,
       supplier: product.supplier,
+      description: product.description || '',
+      image: product.image || '',
+      wholesalePrice: product.wholesalePrice || 0,
+      pointsValue: product.pointsValue || 0,
+      showInCatalog: product.showInCatalog ?? true,
+      useInventory: product.useInventory ?? true,
     });
     setIsDialogOpen(true);
   };
@@ -154,6 +166,12 @@ export default function Productos() {
       stock: 0,
       minStock: 0,
       supplier: '',
+      description: '',
+      image: '',
+      wholesalePrice: 0,
+      pointsValue: 0,
+      showInCatalog: true,
+      useInventory: true,
     });
   };
 
@@ -294,6 +312,63 @@ export default function Productos() {
                       value={formData.supplier}
                       onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
                       required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Descripción</Label>
+                    <Input
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Descripción del producto"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="image">URL de Imagen</Label>
+                    <Input
+                      id="image"
+                      value={formData.image}
+                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                      placeholder="https://ejemplo.com/imagen.jpg"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="wholesalePrice">Precio Mayoreo S/</Label>
+                    <Input
+                      id="wholesalePrice"
+                      type="number"
+                      step="0.01"
+                      value={formData.wholesalePrice}
+                      onChange={(e) => setFormData({ ...formData, wholesalePrice: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pointsValue">Valor en Puntos</Label>
+                    <Input
+                      id="pointsValue"
+                      type="number"
+                      value={formData.pointsValue}
+                      onChange={(e) => setFormData({ ...formData, pointsValue: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="showInCatalog">Mostrar en Catálogo</Label>
+                    <Input
+                      id="showInCatalog"
+                      type="checkbox"
+                      checked={formData.showInCatalog}
+                      onChange={(e) => setFormData({ ...formData, showInCatalog: e.target.checked })}
+                      className="w-4 h-4"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="useInventory">Usa Inventario</Label>
+                    <Input
+                      id="useInventory"
+                      type="checkbox"
+                      checked={formData.useInventory}
+                      onChange={(e) => setFormData({ ...formData, useInventory: e.target.checked })}
+                      className="w-4 h-4"
                     />
                   </div>
                   <DialogFooter>

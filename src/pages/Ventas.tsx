@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { TrendingUp, Calendar, User, CreditCard, Download, Eye, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { salesAPI } from "@/services/api";
@@ -16,6 +17,8 @@ export default function Ventas() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const [dateFilter, setDateFilter] = useState({
     startDate: '',
     endDate: '',
@@ -163,7 +166,9 @@ export default function Ventas() {
       </Card>
 
       <div className="grid gap-4">
-        {filteredVentas.map((venta) => (
+        {filteredVentas
+          .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+          .map((venta) => (
           <Card key={venta.id} className="hover:shadow-lg transition-all">
             <CardHeader className="pb-3">
               <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
@@ -228,6 +233,61 @@ export default function Ventas() {
           </Card>
         ))}
       </div>
+
+      {filteredVentas.length > ITEMS_PER_PAGE && (
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+              />
+            </PaginationItem>
+            {Array.from({ length: Math.ceil(filteredVentas.length / ITEMS_PER_PAGE) }, (_, i) => i + 1)
+              .filter(page => {
+                const totalPages = Math.ceil(filteredVentas.length / ITEMS_PER_PAGE);
+                return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
+              })
+              .map((page, idx, arr) => {
+                if (idx > 0 && page - arr[idx - 1] > 1) {
+                  return (
+                    <React.Fragment key={`ellipsis-${page}`}>
+                      <PaginationItem>
+                        <span className="px-4">...</span>
+                      </PaginationItem>
+                      <PaginationItem>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(page)}
+                          isActive={currentPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    </React.Fragment>
+                  );
+                }
+                return (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(page)}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+            <PaginationItem>
+              <PaginationNext 
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredVentas.length / ITEMS_PER_PAGE), p + 1))}
+                className={currentPage >= Math.ceil(filteredVentas.length / ITEMS_PER_PAGE) ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
 
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

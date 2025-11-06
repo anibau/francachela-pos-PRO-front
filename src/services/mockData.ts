@@ -18,14 +18,14 @@ export const mockUsers: User[] = [
 ];
 
 export const mockProducts: Product[] = [
-  { id: 1, name: 'Inca Kola 500ml', barcode: '7750885005609', category: 'Bebidas', price: 3.50, cost: 2.00, stock: 150, minStock: 20, supplier: 'Lindley' },
-  { id: 2, name: 'Coca Cola 500ml', barcode: '7750885005616', category: 'Bebidas', price: 3.50, cost: 2.00, stock: 200, minStock: 20, supplier: 'Lindley' },
-  { id: 3, name: 'Chips Lays 180g', barcode: '7750670000536', category: 'Snacks', price: 5.00, cost: 3.50, stock: 80, minStock: 15, supplier: 'PepsiCo' },
-  { id: 4, name: 'Galletas Oreo', barcode: '7622210100672', category: 'Snacks', price: 4.50, cost: 3.00, stock: 60, minStock: 10, supplier: 'Mondelez' },
-  { id: 5, name: 'Cerveza Pilsen 330ml', barcode: '7750182003476', category: 'Bebidas', price: 4.00, cost: 2.50, stock: 120, minStock: 30, supplier: 'Backus' },
-  { id: 6, name: 'Pan Molde Bimbo', barcode: '7501000112345', category: 'Panadería', price: 6.50, cost: 4.00, stock: 40, minStock: 10, supplier: 'Bimbo' },
-  { id: 7, name: 'Leche Gloria 1L', barcode: '7750670003057', category: 'Lácteos', price: 4.80, cost: 3.20, stock: 5, minStock: 15, supplier: 'Gloria' },
-  { id: 8, name: 'Yogurt Gloria 1L', barcode: '7750670004123', category: 'Lácteos', price: 6.00, cost: 4.00, stock: 0, minStock: 10, supplier: 'Gloria' },
+  { id: 1, name: 'Inca Kola 500ml', barcode: '7750885005609', category: 'Bebidas', price: 3.50, cost: 2.00, stock: 150, minStock: 20, supplier: 'Lindley', description: 'Bebida gaseosa sabor Inca Kola', image: '', wholesalePrice: 3.00, pointsValue: 3, showInCatalog: true, useInventory: true },
+  { id: 2, name: 'Coca Cola 500ml', barcode: '7750885005616', category: 'Bebidas', price: 3.50, cost: 2.00, stock: 200, minStock: 20, supplier: 'Lindley', description: 'Bebida gaseosa sabor cola', image: '', wholesalePrice: 3.00, pointsValue: 3, showInCatalog: true, useInventory: true },
+  { id: 3, name: 'Chips Lays 180g', barcode: '7750670000536', category: 'Snacks', price: 5.00, cost: 3.50, stock: 80, minStock: 15, supplier: 'PepsiCo', description: 'Papas fritas clásicas', image: '', wholesalePrice: 4.50, pointsValue: 5, showInCatalog: true, useInventory: true },
+  { id: 4, name: 'Galletas Oreo', barcode: '7622210100672', category: 'Snacks', price: 4.50, cost: 3.00, stock: 60, minStock: 10, supplier: 'Mondelez', description: 'Galletas de chocolate con crema', image: '', wholesalePrice: 4.00, pointsValue: 4, showInCatalog: true, useInventory: true },
+  { id: 5, name: 'Cerveza Pilsen 330ml', barcode: '7750182003476', category: 'Bebidas', price: 4.00, cost: 2.50, stock: 120, minStock: 30, supplier: 'Backus', description: 'Cerveza rubia', image: '', wholesalePrice: 3.50, pointsValue: 4, showInCatalog: true, useInventory: true },
+  { id: 6, name: 'Pan Molde Bimbo', barcode: '7501000112345', category: 'Panadería', price: 6.50, cost: 4.00, stock: 40, minStock: 10, supplier: 'Bimbo', description: 'Pan de molde integral', image: '', wholesalePrice: 6.00, pointsValue: 6, showInCatalog: true, useInventory: true },
+  { id: 7, name: 'Leche Gloria 1L', barcode: '7750670003057', category: 'Lácteos', price: 4.80, cost: 3.20, stock: 5, minStock: 15, supplier: 'Gloria', description: 'Leche evaporada entera', image: '', wholesalePrice: 4.50, pointsValue: 4, showInCatalog: true, useInventory: true },
+  { id: 8, name: 'Yogurt Gloria 1L', barcode: '7750670004123', category: 'Lácteos', price: 6.00, cost: 4.00, stock: 0, minStock: 10, supplier: 'Gloria', description: 'Yogurt natural', image: '', wholesalePrice: 5.50, pointsValue: 6, showInCatalog: true, useInventory: true },
 ];
 
 export const mockClients: Client[] = [

@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Gift, Calendar, Plus, Pencil, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
 import { promotionsAPI, combosAPI, productsAPI } from "@/services/api";
@@ -23,6 +24,9 @@ export default function Promociones() {
   const [isComboDialogOpen, setIsComboDialogOpen] = useState(false);
   const [editingPromo, setEditingPromo] = useState<Promotion | null>(null);
   const [editingCombo, setEditingCombo] = useState<Combo | null>(null);
+  const [currentPromoPage, setCurrentPromoPage] = useState(1);
+  const [currentComboPage, setCurrentComboPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   
   const [promoFormData, setPromoFormData] = useState({
     name: '',
@@ -298,7 +302,9 @@ export default function Promociones() {
           </div>
 
           <div className="grid gap-4">
-            {promociones.map((promo) => (
+            {promociones
+              .slice((currentPromoPage - 1) * ITEMS_PER_PAGE, currentPromoPage * ITEMS_PER_PAGE)
+              .map((promo) => (
               <Card key={promo.id} className="hover:shadow-lg transition-all">
                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
                   <CardTitle className="flex items-center gap-3 text-lg">
@@ -331,6 +337,36 @@ export default function Promociones() {
               </Card>
             ))}
           </div>
+
+          {promociones.length > ITEMS_PER_PAGE && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPromoPage(p => Math.max(1, p - 1))}
+                    className={currentPromoPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                {Array.from({ length: Math.ceil(promociones.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map(page => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      onClick={() => setCurrentPromoPage(page)}
+                      isActive={currentPromoPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentPromoPage(p => Math.min(Math.ceil(promociones.length / ITEMS_PER_PAGE), p + 1))}
+                    className={currentPromoPage >= Math.ceil(promociones.length / ITEMS_PER_PAGE) ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </TabsContent>
 
         <TabsContent value="combos" className="space-y-6">
@@ -416,7 +452,9 @@ export default function Promociones() {
           </div>
 
           <div className="grid gap-4">
-            {combos.map((combo) => (
+            {combos
+              .slice((currentComboPage - 1) * ITEMS_PER_PAGE, currentComboPage * ITEMS_PER_PAGE)
+              .map((combo) => (
               <Card key={combo.id} className="hover:shadow-lg transition-all">
                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
                   <CardTitle className="flex items-center gap-3 text-lg">
@@ -455,6 +493,36 @@ export default function Promociones() {
               </Card>
             ))}
           </div>
+
+          {combos.length > ITEMS_PER_PAGE && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentComboPage(p => Math.max(1, p - 1))}
+                    className={currentComboPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                {Array.from({ length: Math.ceil(combos.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map(page => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      onClick={() => setCurrentComboPage(page)}
+                      isActive={currentComboPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentComboPage(p => Math.min(Math.ceil(combos.length / ITEMS_PER_PAGE), p + 1))}
+                    className={currentComboPage >= Math.ceil(combos.length / ITEMS_PER_PAGE) ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </TabsContent>
       </Tabs>
     </div>

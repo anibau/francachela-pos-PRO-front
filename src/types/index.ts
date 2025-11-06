@@ -11,6 +11,7 @@ export interface Product {
   stock: number;
   minStock: number;
   supplier: string;
+  description?: string;
   image?: string;
   wholesalePrice?: number;
   pointsValue?: number;

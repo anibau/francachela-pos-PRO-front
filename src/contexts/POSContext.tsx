@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { PaymentMethod, SaleItem } from '@/types';
+import { salesAPI } from '@/services/api';
+import { toast } from 'sonner';
 
 interface Ticket {
   id: string;
@@ -195,7 +197,6 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
       // Preparar datos de la venta con todos los campos requeridos para Google Sheets
       const saleData = {
         ticketNumber: `T-${Date.now()}`,
-        ticketId: activeTicketId,
         date: new Date().toISOString(),
         clientId: ticket.clientId,
         clientName: ticket.clientName,
@@ -206,13 +207,19 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         paymentMethod,
         cashier: 'Sistema',
         notes: ticket.notes,
-        pointsEarned: ticket.items.reduce((sum, item) => sum + (item.pointsValue * item.quantity), 0),
+        pointsEarned: ticket.items.reduce((sum, item) => sum + ((item.pointsValue || 0) * item.quantity), 0),
         pointsUsed: 0,
         status: 'completada' as const,
       };
 
-      // Aquí se llamaría a salesAPI.create(saleData) con backend real
-      console.log('Venta completada:', saleData);
+      try {
+        // Enviar venta a Google Sheets
+        await salesAPI.create(saleData as any);
+        toast.success('Venta registrada y guardada correctamente');
+      } catch (error) {
+        console.error('Error al guardar venta:', error);
+        toast.error('La venta se procesó pero hubo un error al guardar');
+      }
       
       // Limpiar el ticket actual
       setTickets(prev =>
