@@ -166,11 +166,16 @@ export default function Productos() {
     });
   };
 
-  const filteredProductos = productos.filter(producto =>
-    producto.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    producto.barcode.includes(searchTerm) ||
-    producto.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProductos = productos.filter(producto => {
+    if (!producto?.name || !producto?.barcode || !producto?.category) return false;
+    
+    const searchTermLower = searchTerm.toLowerCase();
+    return (
+      producto.name.toLowerCase().includes(searchTermLower) ||
+      producto.barcode.includes(searchTerm) ||
+      producto.category.toLowerCase().includes(searchTermLower)
+    );
+  });
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64">Cargando productos...</div>;

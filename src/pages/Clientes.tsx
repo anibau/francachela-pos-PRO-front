@@ -97,11 +97,16 @@ export default function Clientes() {
     });
   };
 
-  const filteredClientes = clientes.filter(cliente =>
-    cliente.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.dni.includes(searchTerm) ||
-    cliente.phone.includes(searchTerm)
-  );
+  const filteredClientes = clientes.filter(cliente => {
+    if (!cliente?.name || !cliente?.dni || !cliente?.phone) return false;
+    
+    const searchTermLower = searchTerm.toLowerCase();
+    return (
+      cliente.name.toLowerCase().includes(searchTermLower) ||
+      cliente.dni.includes(searchTerm) ||
+      cliente.phone.includes(searchTerm)
+    );
+  });
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64">Cargando clientes...</div>;

@@ -19,9 +19,10 @@ import type {
   InventoryMovement,
 } from '@/types';
 import type { User } from '@/contexts/AuthContext';
+import { mockUsers, mockProducts, mockClients, mockSales } from './mockData';
 
 const GOOGLE_SHEETS_CONFIG = {
-  SCRIPT_URL: import.meta.env.VITE_GOOGLE_SHEETS_SCRIPT_URL || '',
+  SCRIPT_URL: (import.meta.env.VITE_GOOGLE_SHEETS_SCRIPT_URL || '').trim(),
   USE_SHEETS: import.meta.env.VITE_USE_GOOGLE_SHEETS === 'true',
 };
 
@@ -37,23 +38,84 @@ interface SheetOperation {
  * Ejecuta una operación en Google Sheets
  */
 async function executeSheetOperation<T>(operation: SheetOperation): Promise<T> {
-  if (!GOOGLE_SHEETS_CONFIG.USE_SHEETS || !GOOGLE_SHEETS_CONFIG.SCRIPT_URL) {
-    throw new Error('Google Sheets integration not configured');
+  // If Google Sheets integration is disabled, use local mocks for common reads
+  if (!GOOGLE_SHEETS_CONFIG.USE_SHEETS) {
+    // Provide a small set of mock fallbacks commonly used by the app
+    if (operation.action === 'read') {
+      switch (operation.sheet) {
+        case 'Usuarios':
+          return (mockUsers as unknown) as T;
+        case 'Productos':
+          return (mockProducts as unknown) as T;
+        case 'Clientes':
+          return (mockClients as unknown) as T;
+        case 'Ventas':
+          return (mockSales as unknown) as T;
+        default:
+          throw new Error(`Mock for sheet ${operation.sheet} not implemented`);
+      }
+    }
+
+    // For write/update/delete in mock mode, return a generic successful response
+    return ({ success: true, message: 'Operación simulada (mock)' } as unknown) as T;
   }
+
+  if (!GOOGLE_SHEETS_CONFIG.SCRIPT_URL) {
+    throw new Error('Google Sheets SCRIPT_URL not configured');
+  }
+
+  // Para evitar problemas de CORS, enviamos todos los parámetros directamente en el body
+  const params = new URLSearchParams();
+  
+  // Convertir la operación en parámetros planos
+  params.append('action', operation.action);
+  params.append('sheet', operation.sheet);
+  if (operation.data) {
+    params.append('data', JSON.stringify(operation.data));
+  }
+  if (operation.id) {
+    params.append('id', operation.id.toString());
+  }
+  if (operation.range) {
+    params.append('range', operation.range);
+  }
+
+  console.log('Sending request to sheets:', {
+    url: GOOGLE_SHEETS_CONFIG.SCRIPT_URL,
+    params: Object.fromEntries(params)
+  });
 
   const response = await fetch(GOOGLE_SHEETS_CONFIG.SCRIPT_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(operation),
+    mode: 'cors',
+    redirect: 'follow',
+    body: params
   });
 
   if (!response.ok) {
-    throw new Error(`Google Sheets API Error: ${response.statusText}`);
+    console.error('API Error:', response.status, response.statusText);
+    throw new Error(`Google Sheets API Error: ${response.status} ${response.statusText}`);
   }
 
-  return response.json();
+  const result = await response.json();
+  console.log('Sheet operation response:', result);
+
+  // Manejar el formato de respuesta estándar
+  if (result.ok === false) {
+    throw new Error(result.error || 'Error en la operación');
+  }
+
+  // Si hay datos en la respuesta, devolverlos
+  if (result.data) {
+    return result.data as T;
+  }
+
+  // Si no hay datos pero la operación fue exitosa
+  if (result.ok) {
+    return result as T;
+  }
+
+  return result;
 }
 
 /**
@@ -377,18 +439,54 @@ export const googleSheetsSettings = {
  */
 export const googleSheetsAuth = {
   login: async (username: string, password: string): Promise<User> => {
-    const users = await executeSheetOperation<User[]>({
-      action: 'read',
-      sheet: 'Usuarios',
-    });
+    console.log('Attempting login for user:', username);
     
-    const user = users.find(u => u.username === username && (u as any).password === password);
-    if (!user) {
+    try {
+      if (!GOOGLE_SHEETS_CONFIG.USE_SHEETS) {
+        // Mock login
+        const mockUsersWithPass = [
+          { ...mockUsers[0], password: 'admin123' },
+          { ...mockUsers[1], password: 'super123' },
+          { ...mockUsers[2], password: 'caja123' },
+        ];
+        
+        const user = mockUsersWithPass.find(u => 
+          u.username === username && u.password === password
+        );
+        
+        if (!user) {
+          console.error('Mock login failed: Invalid credentials');
+          throw new Error('Usuario o contraseña incorrectos');
+        }
+        
+        const { password: _, ...userWithoutPassword } = user;
+        console.log('Mock login successful for:', userWithoutPassword);
+        return userWithoutPassword;
+      }
+      
+      // Login usando el executeSheetOperation para mantener consistencia
+      const loginOperation = {
+        action: 'read' as const,
+        sheet: 'Usuarios',
+        data: { username, password }
+      };
+
+      const response = await executeSheetOperation<{ users?: User[] }>(loginOperation);
+      console.log('Auth response:', response);
+
+      if (!response || !Array.isArray(response.users)) {
+        throw new Error('Formato de respuesta inválido');
+      }
+
+      const user = response.users.find(u => u.username === username);
+      if (!user) {
+        throw new Error('Usuario o contraseña incorrectos');
+      }
+
+      return user;
+    } catch (error) {
+      console.error('Login error:', error);
       throw new Error('Usuario o contraseña incorrectos');
     }
-    
-    // No retornar la contraseña
-    const { password: _, ...userWithoutPassword } = user as any;
-    return userWithoutPassword;
-  },
+  }
 };

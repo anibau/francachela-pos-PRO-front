@@ -67,11 +67,15 @@ export default function POS() {
     loadData();
   }, []);
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredProducts = products.filter((product) => {
+    if (!product?.name || !product?.barcode) return false;
+    
+    const searchTermLower = searchTerm.toLowerCase();
+    return (
+      product.name.toLowerCase().includes(searchTermLower) ||
       product.barcode.includes(searchTerm)
-  );
+    );
+  });
 
   const filteredClients = clients.filter(
     (client) =>

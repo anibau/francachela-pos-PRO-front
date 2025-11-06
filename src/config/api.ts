@@ -1,5 +1,5 @@
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
+  BASE_URL: import.meta.env.VITE_API_BASE_URL || '',
   USE_MOCKS: import.meta.env.VITE_USE_MOCKS === 'true',
   USE_GOOGLE_SHEETS: import.meta.env.VITE_USE_GOOGLE_SHEETS === 'true',
   GOOGLE_SHEETS_SCRIPT_URL: import.meta.env.VITE_GOOGLE_SHEETS_SCRIPT_URL || '',

@@ -1,3 +1,6 @@
+// Tipos base
+export type PaymentMethod = 'efectivo' | 'yape' | 'plin' | 'tarjeta';
+
 export interface Product {
   id: number;
   name: string;
@@ -8,7 +11,6 @@ export interface Product {
   stock: number;
   minStock: number;
   supplier: string;
-  image?: string;
 }
 
 export interface Client {
@@ -18,62 +20,41 @@ export interface Client {
   phone: string;
   email?: string;
   address?: string;
-  points: number;
-  debt: number;
   birthday?: string;
-  createdAt: string;
-}
-
-export type PaymentMethod = 'Efectivo' | 'Yape' | 'Plin' | 'Tarjeta';
-
-export interface SaleItem {
-  productId: number;
-  productName: string;
-  quantity: number;
-  price: number;
-  subtotal: number;
-  pointsValue: number;
+  points: number;
 }
 
 export interface Sale {
   id: number;
-  ticketNumber: string;
-  ticketId?: string;
   date: string;
-  clientId?: number;
-  clientName?: string;
-  items: SaleItem[];
-  subtotal: number;
-  discount: number;
+  client?: Client;
+  products: {
+    product: Product;
+    quantity: number;
+  }[];
   total: number;
-  paymentMethod: PaymentMethod;
-  cashier: string;
-  notes?: string;
-  pointsEarned?: number;
-  pointsUsed?: number;
-  status: 'completada' | 'cancelada';
+  paymentMethod: 'efectivo' | 'yape' | 'plin' | 'tarjeta';
+  status: 'completed' | 'cancelled';
 }
 
 export interface Promotion {
   id: number;
   name: string;
   description: string;
-  type: 'percentage' | 'fixed' | '2x1' | '3x2';
-  value: number;
   startDate: string;
   endDate: string;
-  active: boolean;
-  applicableProducts?: number[];
+  discount: number;
+  products: Product[];
 }
 
 export interface Combo {
   id: number;
   name: string;
-  description: string;
-  products: { productId: number; quantity: number }[];
-  originalPrice: number;
-  comboPrice: number;
-  active: boolean;
+  products: {
+    product: Product;
+    quantity: number;
+  }[];
+  price: number;
 }
 
 export interface CashRegister {
@@ -85,8 +66,8 @@ export interface CashRegister {
   finalCash?: number;
   totalSales: number;
   totalExpenses: number;
-  status: 'open' | 'closed' | 'pending';
-  paymentBreakdown?: {
+  status: 'open' | 'closed';
+  paymentBreakdown: {
     efectivo: number;
     yape: number;
     plin: number;
@@ -97,88 +78,43 @@ export interface CashRegister {
 export interface Expense {
   id: number;
   date: string;
-  category: string;
   description: string;
   amount: number;
-  paymentMethod: PaymentMethod;
-  cashRegisterId?: number;
-}
-
-export interface PointTransaction {
-  id: number;
-  clientId: number;
-  date: string;
-  points: number;
-  type: 'earned' | 'redeemed';
-  saleId?: number;
-  description: string;
+  category: string;
+  paymentMethod: 'efectivo' | 'yape' | 'plin' | 'tarjeta';
 }
 
 export interface DeliveryOrder {
   id: number;
-  saleId: number;
-  clientId: number;
+  client: Client;
   address: string;
-  phone: string;
-  status: 'pending' | 'in-transit' | 'delivered' | 'cancelled';
-  driver?: string;
+  products: {
+    product: Product;
+    quantity: number;
+  }[];
+  total: number;
+  status: 'pending' | 'delivered' | 'cancelled';
   deliveryFee: number;
-  estimatedTime?: string;
   notes?: string;
 }
 
 export interface Settings {
-  general: {
-    businessName: string;
-    ruc: string;
-    address: string;
-    phone: string;
-    email: string;
-  };
-  payments: {
-    acceptCash: boolean;
-    acceptYape: boolean;
-    acceptPlin: boolean;
-    acceptCard: boolean;
-  };
-  points: {
-    enabled: boolean;
-    pointsPerSol: number;
-    solsPerPoint: number;
-  };
-  notifications: {
-    lowStock: boolean;
-    dailyReport: boolean;
-    emailNotifications: boolean;
-  };
-}
-
-export interface InventoryStats {
-  totalProducts: number;
-  totalValue: number;
-  lowStock: number;
-  outOfStock: number;
-  toReorder: number;
+  storeName: string;
+  address: string;
+  phone: string;
+  email: string;
+  ruc: string;
+  pointsPerSole: number;
+  solesPerPoint: number;
+  deliveryFee: number;
 }
 
 export interface InventoryMovement {
   id: number;
-  HORA: string;
-  CODIGO_BARRA?: string;
-  DESCRIPCION: string;
-  COSTO: number;
-  PRECIO_VENTA: number;
-  EXISTENCIA: number;
-  INV_MINIMO: number;
-  TIPO: 'salida' | 'ajuste' | 'entrada';
-  CANTIDAD: number;
-  CAJERO: string;
-  PROVEEDOR?: string;
-}
-
-export interface SalesStats {
-  today: number;
-  transactions: number;
-  averageTicket: number;
-  clientsServed: number;
+  type: 'entrada' | 'salida' | 'ajuste';
+  product: Product;
+  quantity: number;
+  date: string;
+  notes?: string;
+  user: string;
 }
