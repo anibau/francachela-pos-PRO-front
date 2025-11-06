@@ -29,17 +29,16 @@ export const mockProducts: Product[] = [
 ];
 
 export const mockClients: Client[] = [
-  { id: 1, name: 'Juan Pérez', dni: '12345678', phone: '+51987654321', email: 'juan@email.com', points: 450, debt: 0, birthday: '1990-05-15', createdAt: '2024-01-15', address: 'Av. Principal 123' },
-  { id: 2, name: 'María García', dni: '87654321', phone: '+51987654322', email: 'maria@email.com', points: 320, debt: 50, birthday: '1985-12-20', createdAt: '2024-02-10', address: 'Jr. Comercio 456' },
-  { id: 3, name: 'Carlos López', dni: '11223344', phone: '+51987654323', points: 180, debt: 0, birthday: '2025-10-05', createdAt: '2024-03-05', address: 'Calle Lima 789' },
-  { id: 4, name: 'Ana Torres', dni: '44332211', phone: '+51987654324', points: 520, debt: 120, birthday: '1992-08-30', createdAt: '2024-01-20', address: 'Av. Los Olivos 321' },
+  { id: 1, name: 'Juan Pérez', dni: '12345678', phone: '+51987654321', email: 'juan@email.com', points: 450, birthday: '1990-05-15', address: 'Av. Principal 123' },
+  { id: 2, name: 'María García', dni: '87654321', phone: '+51987654322', email: 'maria@email.com', points: 320, birthday: '1985-12-20', address: 'Jr. Comercio 456' },
+  { id: 3, name: 'Carlos López', dni: '11223344', phone: '+51987654323', points: 180, birthday: '2025-10-05', address: 'Calle Lima 789' },
+  { id: 4, name: 'Ana Torres', dni: '44332211', phone: '+51987654324', points: 520, birthday: '1992-08-30', address: 'Av. Los Olivos 321' },
 ];
 
 export const mockSales: Sale[] = [
   {
     id: 1,
     ticketNumber: 'T-001',
-    ticketId: '1',
     date: '2025-10-02T10:30:00',
     clientId: 1,
     clientName: 'Juan Pérez',
@@ -59,7 +58,6 @@ export const mockSales: Sale[] = [
   {
     id: 2,
     ticketNumber: 'T-002',
-    ticketId: '2',
     date: '2025-10-02T11:15:00',
     clientId: 2,
     clientName: 'María García',
@@ -78,8 +76,8 @@ export const mockSales: Sale[] = [
 ];
 
 export const mockPromotions: Promotion[] = [
-  { id: 1, name: '2x1 en Bebidas', description: 'Lleva 2 bebidas y paga 1', type: '2x1', value: 50, startDate: '2025-10-01', endDate: '2025-10-31', active: true, applicableProducts: [1, 2, 5] },
-  { id: 2, name: '20% OFF Snacks', description: '20% de descuento en todos los snacks', type: 'percentage', value: 20, startDate: '2025-10-01', endDate: '2025-10-15', active: true, applicableProducts: [3, 4] },
+  { id: 1, name: '2x1 en Bebidas', description: 'Lleva 2 bebidas y paga 1', type: 'percentage', value: 50, startDate: '2025-10-01', endDate: '2025-10-31', active: true, productIds: [1, 2, 5] },
+  { id: 2, name: '20% OFF Snacks', description: '20% de descuento en todos los snacks', type: 'percentage', value: 20, startDate: '2025-10-01', endDate: '2025-10-15', active: true, productIds: [3, 4] },
   { id: 3, name: 'S/5 OFF compras >S/50', description: 'S/5 de descuento en compras mayores a S/50', type: 'fixed', value: 5, startDate: '2025-09-01', endDate: '2025-09-30', active: false },
 ];
 
@@ -147,17 +145,45 @@ export const mockCashRegisters: CashRegister[] = [
 ];
 
 export const mockExpenses: Expense[] = [
-  { id: 1, date: '2025-10-02T09:00:00', category: 'Servicios', description: 'Pago de luz', amount: 150.00, paymentMethod: 'Efectivo', cashRegisterId: 1 },
-  { id: 2, date: '2025-10-02T10:30:00', category: 'Suministros', description: 'Compra de bolsas', amount: 30.00, paymentMethod: 'Efectivo', cashRegisterId: 1 },
-  { id: 3, date: '2025-10-01T14:00:00', category: 'Mantenimiento', description: 'Reparación de refrigerador', amount: 200.00, paymentMethod: 'Yape', cashRegisterId: 2 },
+  { id: 1, date: '2025-10-02T09:00:00', category: 'Servicios', description: 'Pago de luz', amount: 150.00, paymentMethod: 'Efectivo' },
+  { id: 2, date: '2025-10-02T10:30:00', category: 'Suministros', description: 'Compra de bolsas', amount: 30.00, paymentMethod: 'Efectivo' },
+  { id: 3, date: '2025-10-01T14:00:00', category: 'Mantenimiento', description: 'Reparación de refrigerador', amount: 200.00, paymentMethod: 'Yape' },
 ];
 
 export const mockDeliveryOrders: DeliveryOrder[] = [
-  { id: 1, saleId: 2, clientId: 2, address: 'Jr. Comercio 456', phone: '+51987654322', status: 'in-transit', driver: 'Carlos Ramos', deliveryFee: 5.00, estimatedTime: '30 min' },
-  { id: 2, saleId: 1, clientId: 1, address: 'Av. Principal 123', phone: '+51987654321', status: 'delivered', driver: 'Luis Mendoza', deliveryFee: 5.00 },
+  { 
+    id: 1, 
+    client: mockClients[1], 
+    address: 'Jr. Comercio 456', 
+    phone: '+51987654322', 
+    products: [],
+    total: 0,
+    status: 'in-transit', 
+    driver: 'Carlos Ramos', 
+    deliveryFee: 5.00 
+  },
+  { 
+    id: 2, 
+    client: mockClients[0], 
+    address: 'Av. Principal 123', 
+    phone: '+51987654321', 
+    products: [],
+    total: 0,
+    status: 'delivered', 
+    driver: 'Luis Mendoza', 
+    deliveryFee: 5.00 
+  },
 ];
 
 export const mockSettings: Settings = {
+  storeName: 'Francachela POS',
+  address: 'Av. Principal 100, Lima, Perú',
+  phone: '+51987654320',
+  email: 'francachela@negocio.com',
+  ruc: '20123456789',
+  pointsPerSole: 1,
+  solesPerPoint: 0.10,
+  deliveryFee: 5.00,
   general: {
     businessName: 'Francachela POS',
     ruc: '20123456789',

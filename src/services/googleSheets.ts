@@ -208,32 +208,20 @@ export const googleSheetsSales = {
   }),
 
   create: (sale: Omit<Sale, 'id'>) => {
-    // Formatear datos según estructura de Google Sheets
-    // Campos: ID, FECHA, CLIENTE_ID, LISTA_PRODUCTOS, SUB_TOTAL, DESCUENTO, 
-    // TOTAL, METODO_PAGO, COMENTARIO, CAJERO, ESTADO, PUNTOS_OTORGADOS, PUNTOS_USADOS, TICKET_ID
-    const subTotal = sale.items.reduce((sum, item) => sum + item.subtotal, 0);
-    
     const formattedSale = {
       FECHA: sale.date,
       CLIENTE_ID: sale.clientId || '',
-      LISTA_PRODUCTOS: JSON.stringify(sale.items.map(item => ({
-        productId: item.productId,
-        productName: item.productName,
-        quantity: item.quantity,
-        price: item.price,
-        subtotal: item.subtotal,
-        pointsValue: item.pointsValue,
-      }))),
-      SUB_TOTAL: subTotal,
-      DESCUENTO: sale.discount || 0,
+      LISTA_PRODUCTOS: JSON.stringify(sale.items),
+      SUB_TOTAL: sale.subtotal,
+      DESCUENTO: sale.discount,
       TOTAL: sale.total,
       METODO_PAGO: sale.paymentMethod,
       COMENTARIO: sale.notes || '',
-      CAJERO: sale.cashier || 'Sistema',
+      CAJERO: sale.cashier,
       ESTADO: sale.status,
-      PUNTOS_OTORGADOS: sale.pointsEarned || 0,
-      PUNTOS_USADOS: sale.pointsUsed || 0,
-      TICKET_ID: sale.ticketId || '',
+      PUNTOS_OTORGADOS: sale.pointsEarned,
+      PUNTOS_USADOS: sale.pointsUsed,
+      TICKET_ID: sale.ticketNumber,
     };
     
     return executeSheetOperation<Sale>({
@@ -243,7 +231,6 @@ export const googleSheetsSales = {
     });
   },
 
-  // Anular venta (actualiza estado y revierte inventario)
   cancel: (id: number) => executeSheetOperation<Sale>({
     action: 'update',
     sheet: 'Ventas',

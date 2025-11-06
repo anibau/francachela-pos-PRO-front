@@ -251,6 +251,20 @@ export const salesAPI = {
       return handleApiError(error);
     }
   },
+
+  cancel: async (id: number): Promise<Sale> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        return await googleSheetsSales.cancel(id);
+      }
+      const index = mockSales.findIndex(s => s.id === id);
+      if (index === -1) throw new Error('Venta no encontrada');
+      mockSales[index] = { ...mockSales[index], status: 'cancelada' };
+      return mockSales[index];
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
 };
 
 
@@ -280,6 +294,34 @@ export const promotionsAPI = {
       return handleApiError(error);
     }
   },
+
+  update: async (id: number, promotion: Partial<Promotion>): Promise<Promotion> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        return await googleSheetsPromotions.update(id, promotion);
+      }
+      const index = mockPromotions.findIndex(p => p.id === id);
+      if (index === -1) throw new Error('Promoción no encontrada');
+      mockPromotions[index] = { ...mockPromotions[index], ...promotion };
+      return mockPromotions[index];
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  delete: async (id: number): Promise<void> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        await googleSheetsPromotions.delete(id);
+        return;
+      }
+      const index = mockPromotions.findIndex(p => p.id === id);
+      if (index === -1) throw new Error('Promoción no encontrada');
+      mockPromotions.splice(index, 1);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
 };
 
 // Combos
@@ -304,6 +346,208 @@ export const combosAPI = {
         return await googleSheetsCombos.create(combo);
       }
       return { ...combo, id: Math.max(...mockCombos.map(c => c.id)) + 1 } as Combo;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  update: async (id: number, combo: Partial<Combo>): Promise<Combo> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        return await googleSheetsCombos.update(id, combo);
+      }
+      const index = mockCombos.findIndex(c => c.id === id);
+      if (index === -1) throw new Error('Combo no encontrado');
+      mockCombos[index] = { ...mockCombos[index], ...combo };
+      return mockCombos[index];
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  delete: async (id: number): Promise<void> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        await googleSheetsCombos.delete(id);
+        return;
+      }
+      const index = mockCombos.findIndex(c => c.id === id);
+      if (index === -1) throw new Error('Combo no encontrado');
+      mockCombos.splice(index, 1);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+};
+
+// CashRegister
+export const cashRegisterAPI = {
+  getCurrent: async (): Promise<CashRegister | null> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        return await googleSheetsCashRegister.getCurrent();
+      }
+      return mockCashRegisters.find(r => r.status === 'open') || null;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getHistory: async (): Promise<CashRegister[]> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        return await googleSheetsCashRegister.getHistory();
+      }
+      return mockCashRegisters;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  open: async (initialCash: number, cashier: string): Promise<CashRegister> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        return await googleSheetsCashRegister.open(initialCash, cashier);
+      }
+      const newRegister: CashRegister = {
+        id: Math.max(...mockCashRegisters.map(r => r.id)) + 1,
+        cashier,
+        openedAt: new Date().toISOString(),
+        initialCash,
+        totalSales: 0,
+        totalExpenses: 0,
+        status: 'open',
+        paymentBreakdown: { efectivo: 0, yape: 0, plin: 0, tarjeta: 0 },
+      };
+      mockCashRegisters.push(newRegister);
+      return newRegister;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  close: async (id: number, finalCash: number): Promise<CashRegister> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        return await googleSheetsCashRegister.close(id, finalCash);
+      }
+      const index = mockCashRegisters.findIndex(r => r.id === id);
+      if (index === -1) throw new Error('Caja no encontrada');
+      mockCashRegisters[index] = {
+        ...mockCashRegisters[index],
+        closedAt: new Date().toISOString(),
+        finalCash,
+        status: 'closed',
+      };
+      return mockCashRegisters[index];
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+};
+
+// Expenses
+export const expensesAPI = {
+  getAll: async (): Promise<Expense[]> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        return await googleSheetsExpenses.getAll();
+      }
+      return mockExpenses;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  create: async (expense: Omit<Expense, 'id'>): Promise<Expense> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        return await googleSheetsExpenses.create(expense);
+      }
+      const newExpense = { ...expense, id: Math.max(...mockExpenses.map(e => e.id)) + 1 };
+      mockExpenses.push(newExpense);
+      return newExpense;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  delete: async (id: number): Promise<void> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        await googleSheetsExpenses.delete(id);
+        return;
+      }
+      const index = mockExpenses.findIndex(e => e.id === id);
+      if (index === -1) throw new Error('Gasto no encontrado');
+      mockExpenses.splice(index, 1);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+};
+
+// Delivery
+export const deliveryAPI = {
+  getAll: async (): Promise<DeliveryOrder[]> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        return await googleSheetsDelivery.getAll();
+      }
+      return mockDeliveryOrders;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  create: async (order: Omit<DeliveryOrder, 'id'>): Promise<DeliveryOrder> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        return await googleSheetsDelivery.create(order);
+      }
+      const newOrder = { ...order, id: Math.max(...mockDeliveryOrders.map(o => o.id)) + 1 };
+      mockDeliveryOrders.push(newOrder);
+      return newOrder;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  update: async (id: number, order: Partial<DeliveryOrder>): Promise<DeliveryOrder> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        return await googleSheetsDelivery.update(id, order);
+      }
+      const index = mockDeliveryOrders.findIndex(o => o.id === id);
+      if (index === -1) throw new Error('Pedido no encontrado');
+      mockDeliveryOrders[index] = { ...mockDeliveryOrders[index], ...order };
+      return mockDeliveryOrders[index];
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+};
+
+// Settings
+export const settingsAPI = {
+  get: async (): Promise<Settings> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        return await googleSheetsSettings.get();
+      }
+      return mockSettings;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  update: async (settings: Partial<Settings>): Promise<Settings> => {
+    try {
+      if (API_CONFIG.USE_GOOGLE_SHEETS) {
+        return await googleSheetsSettings.update(settings);
+      }
+      Object.assign(mockSettings, settings);
+      return mockSettings;
     } catch (error) {
       return handleApiError(error);
     }

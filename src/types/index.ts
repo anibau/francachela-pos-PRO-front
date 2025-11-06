@@ -1,5 +1,5 @@
 // Tipos base
-export type PaymentMethod = 'efectivo' | 'yape' | 'plin' | 'tarjeta';
+export type PaymentMethod = 'Efectivo' | 'Yape' | 'Plin' | 'Tarjeta';
 
 export interface Product {
   id: number;
@@ -11,6 +11,11 @@ export interface Product {
   stock: number;
   minStock: number;
   supplier: string;
+  image?: string;
+  wholesalePrice?: number;
+  pointsValue?: number;
+  showInCatalog?: boolean;
+  useInventory?: boolean;
 }
 
 export interface Client {
@@ -24,37 +29,56 @@ export interface Client {
   points: number;
 }
 
+export interface SaleItem {
+  productId: number;
+  productName: string;
+  quantity: number;
+  price: number;
+  subtotal: number;
+  pointsValue?: number;
+}
+
 export interface Sale {
   id: number;
   date: string;
-  client?: Client;
-  products: {
-    product: Product;
-    quantity: number;
-  }[];
+  clientId?: number;
+  clientName?: string;
+  items: SaleItem[];
+  subtotal: number;
+  discount: number;
   total: number;
-  paymentMethod: 'efectivo' | 'yape' | 'plin' | 'tarjeta';
-  status: 'completed' | 'cancelled';
+  paymentMethod: PaymentMethod;
+  notes?: string;
+  cashier: string;
+  status: 'completada' | 'cancelada';
+  pointsEarned: number;
+  pointsUsed: number;
+  ticketNumber: string;
 }
 
 export interface Promotion {
   id: number;
   name: string;
   description: string;
+  type: 'percentage' | 'fixed';
+  value: number;
   startDate: string;
   endDate: string;
-  discount: number;
-  products: Product[];
+  active: boolean;
+  productIds?: number[];
 }
 
 export interface Combo {
   id: number;
   name: string;
+  description: string;
   products: {
-    product: Product;
+    productId: number;
     quantity: number;
   }[];
-  price: number;
+  originalPrice: number;
+  comboPrice: number;
+  active: boolean;
 }
 
 export interface CashRegister {
@@ -81,20 +105,22 @@ export interface Expense {
   description: string;
   amount: number;
   category: string;
-  paymentMethod: 'efectivo' | 'yape' | 'plin' | 'tarjeta';
+  paymentMethod: PaymentMethod;
 }
 
 export interface DeliveryOrder {
   id: number;
   client: Client;
   address: string;
+  phone: string;
   products: {
     product: Product;
     quantity: number;
   }[];
   total: number;
-  status: 'pending' | 'delivered' | 'cancelled';
+  status: 'pending' | 'in-transit' | 'delivered' | 'cancelled';
   deliveryFee: number;
+  driver?: string;
   notes?: string;
 }
 
@@ -107,14 +133,38 @@ export interface Settings {
   pointsPerSole: number;
   solesPerPoint: number;
   deliveryFee: number;
+  general: {
+    businessName: string;
+    ruc: string;
+    address: string;
+    phone: string;
+    email: string;
+  };
+  payments: {
+    acceptCash: boolean;
+    acceptYape: boolean;
+    acceptPlin: boolean;
+    acceptCard: boolean;
+  };
+  points: {
+    enabled: boolean;
+    pointsPerSol: number;
+    solsPerPoint: number;
+  };
+  notifications: {
+    lowStock: boolean;
+    dailyReport: boolean;
+    emailNotifications: boolean;
+  };
 }
 
 export interface InventoryMovement {
   id: number;
-  type: 'entrada' | 'salida' | 'ajuste';
-  product: Product;
-  quantity: number;
-  date: string;
-  notes?: string;
-  user: string;
+  TIPO: 'entrada' | 'salida' | 'ajuste';
+  PRODUCTO_ID: number;
+  PRODUCTO_NOMBRE?: string;
+  CANTIDAD: number;
+  HORA: string;
+  DESCRIPCION?: string;
+  CAJERO: string;
 }

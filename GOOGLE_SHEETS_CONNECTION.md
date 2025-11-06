@@ -43,9 +43,27 @@ Crea los siguientes encabezados en la primera fila:
 ID | FECHA | CLIENTE_ID | LISTA_PRODUCTOS | SUB_TOTAL | DESCUENTO | TOTAL | METODO_PAGO | COMENTARIO | CAJERO | ESTADO | PUNTOS_OTORGADOS | PUNTOS_USADOS | TICKET_ID
 ```
 
+**Datos de ejemplo:**
+```
+1 | 2025-10-02T10:30:00 | 1 | [{"productId":1,"productName":"Inca Kola 500ml","quantity":2,"price":3.50,"subtotal":7.00}] | 12.00 | 0 | 12.00 | Efectivo | | Admin | completada | 12 | 0 | T-001
+2 | 2025-10-02T11:15:00 | 2 | [{"productId":5,"productName":"Cerveza Pilsen 330ml","quantity":6,"price":4.00,"subtotal":24.00}] | 24.00 | 2.00 | 22.00 | Yape | | Admin | completada | 22 | 0 | T-002
+3 | 2025-10-02T14:20:00 | 3 | [{"productId":3,"productName":"Chips Lays 180g","quantity":3,"price":5.00,"subtotal":15.00}] | 15.00 | 0 | 15.00 | Plin | | Cajero1 | completada | 15 | 0 | T-003
+4 | 2025-10-02T16:45:00 | | [{"productId":2,"productName":"Coca Cola 500ml","quantity":1,"price":3.50,"subtotal":3.50}] | 3.50 | 0 | 3.50 | Tarjeta | Sin cliente | Admin | completada | 3 | 0 | T-004
+5 | 2025-10-02T18:00:00 | 1 | [{"productId":1,"productName":"Inca Kola 500ml","quantity":1,"price":3.50,"subtotal":3.50}] | 3.50 | 0 | 3.50 | Efectivo | | Admin | cancelada | 0 | 0 | T-005
+```
+
 ### Pestaña: **Productos**
 ```
 ID | PRODUCTO_DESCRIPCION | CODIGO_BARRA | IMAGEN | COSTO | PRECIO | PRECIO_MAYOREO | CANTIDAD_ACTUAL | CANTIDAD_MINIMA | PROVEEDOR | CATEGORIA | VALOR_PUNTOS | MOSTRAR | USA_INVENTARIO
+```
+
+**Datos de ejemplo:**
+```
+1 | Inca Kola 500ml | 7750885005609 | | 2.00 | 3.50 | 3.00 | 150 | 20 | Lindley | Bebidas | 3 | true | true
+2 | Coca Cola 500ml | 7750885005616 | | 2.00 | 3.50 | 3.00 | 200 | 20 | Lindley | Bebidas | 3 | true | true
+3 | Chips Lays 180g | 7750670000536 | | 3.50 | 5.00 | 4.50 | 80 | 15 | PepsiCo | Snacks | 5 | true | true
+4 | Galletas Oreo | 7622210100672 | | 3.00 | 4.50 | 4.00 | 60 | 10 | Mondelez | Snacks | 4 | true | true
+5 | Cerveza Pilsen 330ml | 7750182003476 | | 2.50 | 4.00 | 3.50 | 120 | 30 | Backus | Bebidas | 4 | true | true
 ```
 
 ### Pestaña: **Clientes**
@@ -53,9 +71,27 @@ ID | PRODUCTO_DESCRIPCION | CODIGO_BARRA | IMAGEN | COSTO | PRECIO | PRECIO_MAYO
 ID | NOMBRES | APELLIDOS | DNI | FECHA_NACIMIENTO | TELEFONO | FECHA_REGISTRO | PUNTOS_ACUMULADOS | HISTORIAL_COMPRAS | HISTORIAL_CANJES
 ```
 
+**Datos de ejemplo:**
+```
+1 | Juan | Pérez | 12345678 | 1990-05-15 | +51987654321 | 2025-01-01 | 450 | [] | []
+2 | María | García | 87654321 | 1985-12-20 | +51987654322 | 2025-01-01 | 320 | [] | []
+3 | Carlos | López | 11223344 | 2000-10-05 | +51987654323 | 2025-01-01 | 180 | [] | []
+4 | Ana | Torres | 44332211 | 1992-08-30 | +51987654324 | 2025-01-01 | 520 | [] | []
+5 | Luis | Ramírez | 55667788 | 1988-03-10 | +51987654325 | 2025-01-02 | 0 | [] | []
+```
+
 ### Pestaña: **Promociones**
 ```
 ID | NOMBRE | DESCRIPCION | TIPO | DESCUENTO | FECHA_INICIO | FECHA_FIN | ACTIVO
+```
+
+**Datos de ejemplo:**
+```
+1 | 2x1 en Bebidas | Lleva 2 bebidas y paga 1 | percentage | 50 | 2025-10-01 | 2025-10-31 | true
+2 | 20% OFF Snacks | 20% de descuento en todos los snacks | percentage | 20 | 2025-10-01 | 2025-10-15 | true
+3 | S/5 OFF compras >S/50 | S/5 de descuento en compras mayores a S/50 | fixed | 5 | 2025-09-01 | 2025-09-30 | false
+4 | Combo Familiar | 3 productos al precio de 2 | percentage | 33 | 2025-10-01 | 2025-10-31 | true
+5 | Descuento Cumpleaños | 10% de descuento en tu cumpleaños | percentage | 10 | 2025-01-01 | 2025-12-31 | true
 ```
 
 ### Pestaña: **Combos**
@@ -63,9 +99,27 @@ ID | NOMBRE | DESCRIPCION | TIPO | DESCUENTO | FECHA_INICIO | FECHA_FIN | ACTIVO
 ID | NOMBRE | DESCRIPCION | PRODUCTOS | PRECIO | PUNTOS_EXTRA | ACTIVO
 ```
 
+**Datos de ejemplo:**
+```
+1 | Combo Lonchera | Bebida + Snack + Pan | [{"productId":1,"quantity":1},{"productId":3,"quantity":1}] | 12.00 | 5 | true
+2 | Combo Fiesta | 6 Cervezas + 2 Snacks | [{"productId":5,"quantity":6},{"productId":3,"quantity":2}] | 28.00 | 10 | true
+3 | Combo Familiar | 4 Bebidas + 3 Snacks | [{"productId":2,"quantity":4},{"productId":4,"quantity":3}] | 25.00 | 8 | true
+4 | Combo Desayuno | Café + Pan + Leche | [{"productId":1,"quantity":1},{"productId":7,"quantity":1}] | 10.00 | 3 | true
+5 | Combo Película | 2 Bebidas + 2 Snacks Grandes | [{"productId":2,"quantity":2},{"productId":3,"quantity":2}] | 16.00 | 6 | false
+```
+
 ### Pestaña: **Caja**
 ```
 ID | FECHA_APERTURA | FECHA_CIERRE | MONTO_INICIAL | TOTAL_VENTAS | TOTAL_GASTOS | MONTO_FINAL | CAJERO | ESTADO | DIFERENCIA
+```
+
+**Datos de ejemplo:**
+```
+1 | 2025-10-02T08:00:00 | | 100.00 | 450.00 | 50.00 | | Admin | open | 
+2 | 2025-10-01T08:00:00 | 2025-10-01T20:00:00 | 100.00 | 520.00 | 40.00 | 580.00 | Admin | closed | 0
+3 | 2025-09-30T08:00:00 | 2025-09-30T20:00:00 | 100.00 | 380.00 | 30.00 | 450.00 | Cajero1 | closed | 0
+4 | 2025-09-29T08:00:00 | 2025-09-29T20:00:00 | 100.00 | 620.00 | 60.00 | 660.00 | Supervisor1 | closed | 0
+5 | 2025-09-28T08:00:00 | 2025-09-28T20:00:00 | 100.00 | 490.00 | 45.00 | 545.00 | Admin | closed | 0
 ```
 
 ### Pestaña: **Gastos**
@@ -73,9 +127,27 @@ ID | FECHA_APERTURA | FECHA_CIERRE | MONTO_INICIAL | TOTAL_VENTAS | TOTAL_GASTOS
 ID | FECHA | DESCRIPCION | MONTO | CATEGORIA | CAJERO | COMPROBANTE
 ```
 
+**Datos de ejemplo:**
+```
+1 | 2025-10-02T09:00:00 | Pago de luz | 150.00 | Servicios | Admin | 
+2 | 2025-10-02T10:30:00 | Compra de bolsas | 30.00 | Suministros | Admin | 
+3 | 2025-10-01T14:00:00 | Reparación de refrigerador | 200.00 | Mantenimiento | Supervisor1 | 
+4 | 2025-09-30T11:00:00 | Compra de etiquetas | 45.00 | Suministros | Cajero1 | 
+5 | 2025-09-29T15:00:00 | Servicio de internet | 120.00 | Servicios | Admin | 
+```
+
 ### Pestaña: **Delivery**
 ```
 ID | FECHA | CLIENTE_ID | PEDIDO_ID | DIRECCION | ESTADO | REPARTIDOR | HORA_SALIDA | HORA_ENTREGA
+```
+
+**Datos de ejemplo:**
+```
+1 | 2025-10-02T10:30:00 | 1 | T-001 | Av. Principal 123 | delivered | Luis Mendoza | 2025-10-02T10:35:00 | 2025-10-02T11:00:00
+2 | 2025-10-02T11:15:00 | 2 | T-002 | Jr. Comercio 456 | in-transit | Carlos Ramos | 2025-10-02T11:20:00 | 
+3 | 2025-10-02T14:00:00 | 3 | T-006 | Calle Lima 789 | pending | | | 
+4 | 2025-10-01T16:30:00 | 4 | T-007 | Av. Los Olivos 321 | delivered | Pedro Silva | 2025-10-01T16:35:00 | 2025-10-01T17:05:00
+5 | 2025-10-01T18:00:00 | 1 | T-008 | Av. Principal 123 | cancelled | | | 
 ```
 
 ---
@@ -320,14 +392,20 @@ Para comenzar a usar el sistema, agrega algunos datos de ejemplo:
 
 ### Productos (pestaña Productos):
 ```
-1 | Coca Cola 500ml | 7501234567890 | | 2.50 | 4.00 | 3.50 | 50 | 10 | Bebidas SA | Bebidas | 4 | true | true
-2 | Pan Francés | 7501234567891 | | 0.20 | 0.50 | 0.40 | 100 | 20 | Panadería | Panadería | 1 | true | true
+1 | Inca Kola 500ml | 7750885005609 | | 2.00 | 3.50 | 3.00 | 150 | 20 | Lindley | Bebidas | 3 | true | true
+2 | Coca Cola 500ml | 7750885005616 | | 2.00 | 3.50 | 3.00 | 200 | 20 | Lindley | Bebidas | 3 | true | true
+3 | Chips Lays 180g | 7750670000536 | | 3.50 | 5.00 | 4.50 | 80 | 15 | PepsiCo | Snacks | 5 | true | true
+4 | Galletas Oreo | 7622210100672 | | 3.00 | 4.50 | 4.00 | 60 | 10 | Mondelez | Snacks | 4 | true | true
+5 | Cerveza Pilsen 330ml | 7750182003476 | | 2.50 | 4.00 | 3.50 | 120 | 30 | Backus | Bebidas | 4 | true | true
 ```
 
 ### Clientes (pestaña Clientes):
 ```
-1 | Juan | Pérez | 12345678 | 1990-01-15 | 987654321 | 2025-01-01 | 0 | [] | []
-2 | María | García | 87654321 | 1985-05-20 | 912345678 | 2025-01-01 | 50 | [] | []
+1 | Juan | Pérez | 12345678 | 1990-05-15 | +51987654321 | 2025-01-01 | 450 | [] | []
+2 | María | García | 87654321 | 1985-12-20 | +51987654322 | 2025-01-01 | 320 | [] | []
+3 | Carlos | López | 11223344 | 2000-10-05 | +51987654323 | 2025-01-01 | 180 | [] | []
+4 | Ana | Torres | 44332211 | 1992-08-30 | +51987654324 | 2025-01-01 | 520 | [] | []
+5 | Luis | Ramírez | 55667788 | 1988-03-10 | +51987654325 | 2025-01-02 | 0 | [] | []
 ```
 
 ---
