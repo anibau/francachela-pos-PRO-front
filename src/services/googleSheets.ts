@@ -303,22 +303,55 @@ export const googleSheetsClients = {
     id,
   }),
 
-  create: (client: Omit<Client, 'id' | 'FECHA_REGISTRO'>) => executeSheetOperation<Client>({
-    action: 'write',
-    sheet: 'Clientes',
-    data: {
-      ...client,
-      FECHA_REGISTRO: new Date().toISOString(),
-      PUNTOS_ACUMULADOS: 0,
-    },
-  }),
+  create: (client: Omit<Client, 'id' | 'points'>) => {
+    // Separar nombre completo en NOMBRES y APELLIDOS
+    const nameParts = (client.name || '').trim().split(' ');
+    const apellidos = nameParts.length > 1 ? nameParts.slice(-1).join(' ') : '';
+    const nombres = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : nameParts[0] || '';
+    
+    return executeSheetOperation<Client>({
+      action: 'write',
+      sheet: 'Clientes',
+      data: {
+        NOMBRES: nombres,
+        APELLIDOS: apellidos,
+        DNI: client.dni,
+        TELEFONO: client.phone,
+        EMAIL: client.email || '',
+        DIRECCION: client.address || '',
+        FECHA_NACIMIENTO: client.birthday || '',
+        FECHA_REGISTRO: new Date().toISOString(),
+        PUNTOS_ACUMULADOS: 0,
+        HISTORIAL_COMPRAS: '',
+        HISTORIAL_CANJES: '',
+      },
+    });
+  },
 
-  update: (id: number, client: Partial<Client>) => executeSheetOperation<Client>({
-    action: 'update',
-    sheet: 'Clientes',
-    id,
-    data: client,
-  }),
+  update: (id: number, client: Partial<Client>) => {
+    // Separar nombre completo en NOMBRES y APELLIDOS si viene
+    const updateData: any = {};
+    
+    if (client.name) {
+      const nameParts = client.name.trim().split(' ');
+      updateData.APELLIDOS = nameParts.length > 1 ? nameParts.slice(-1).join(' ') : '';
+      updateData.NOMBRES = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : nameParts[0] || '';
+    }
+    
+    if (client.dni) updateData.DNI = client.dni;
+    if (client.phone) updateData.TELEFONO = client.phone;
+    if (client.email !== undefined) updateData.EMAIL = client.email;
+    if (client.address !== undefined) updateData.DIRECCION = client.address;
+    if (client.birthday !== undefined) updateData.FECHA_NACIMIENTO = client.birthday;
+    if (client.points !== undefined) updateData.PUNTOS_ACUMULADOS = client.points;
+    
+    return executeSheetOperation<Client>({
+      action: 'update',
+      sheet: 'Clientes',
+      id,
+      data: updateData,
+    });
+  },
 
   delete: (id: number) => executeSheetOperation<{ success: boolean }>({
     action: 'delete',
@@ -347,19 +380,20 @@ export const googleSheetsSales = {
 
   create: (sale: Omit<Sale, 'id'>) => {
     const formattedSale = {
-      FECHA: sale.date,
+      'FECHA ': sale.date || new Date().toISOString(),
       CLIENTE_ID: sale.clientId || '',
+      CLIENTE_NOMBRE: sale.clientName || '',
       LISTA_PRODUCTOS: JSON.stringify(sale.items),
-      SUB_TOTAL: sale.subtotal,
-      DESCUENTO: sale.discount,
-      TOTAL: sale.total,
-      METODO_PAGO: sale.paymentMethod,
-      COMENTARIO: sale.notes || '',
-      CAJERO: sale.cashier,
-      ESTADO: sale.status,
-      PUNTOS_OTORGADOS: sale.pointsEarned,
-      PUNTOS_USADOS: sale.pointsUsed,
-      TICKET_ID: sale.ticketNumber,
+      SUB_TOTAL: sale.subtotal || 0,
+      'DESCUENTO ': sale.discount || 0,
+      'TOTAL ': sale.total || 0,
+      METODO_PAGO: sale.paymentMethod || 'Efectivo',
+      'COMENTARIO ': sale.notes || '',
+      'CAJERO ': sale.cashier || 'Sistema',
+      'ESTADO ': sale.status || 'completada',
+      PUNTOS_OTORGADOS: sale.pointsEarned || 0,
+      PUNTOS_USADOS: sale.pointsUsed || 0,
+      TICKET_ID: sale.ticketNumber || `T-${Date.now()}`,
     };
     
     return executeSheetOperation<Sale>({
@@ -411,15 +445,37 @@ export const googleSheetsPromotions = {
   create: (promotion: Omit<Promotion, 'id'>) => executeSheetOperation<Promotion>({
     action: 'write',
     sheet: 'Promociones',
-    data: promotion,
+    data: {
+      NOMBRE: promotion.name,
+      DESCRIPCION: promotion.description,
+      TIPO: promotion.type,
+      DESCUENTO: promotion.value,
+      PRODUCTOS_ID: promotion.productIds ? JSON.stringify(promotion.productIds) : '[]',
+      FECHA_INICIO: promotion.startDate,
+      FECHA_FIN: promotion.endDate,
+      ACTIVO: promotion.active ? 'SI' : 'NO',
+    },
   }),
 
-  update: (id: number, promotion: Partial<Promotion>) => executeSheetOperation<Promotion>({
-    action: 'update',
-    sheet: 'Promociones',
-    id,
-    data: promotion,
-  }),
+  update: (id: number, promotion: Partial<Promotion>) => {
+    const updateData: any = {};
+    
+    if (promotion.name) updateData.NOMBRE = promotion.name;
+    if (promotion.description) updateData.DESCRIPCION = promotion.description;
+    if (promotion.type) updateData.TIPO = promotion.type;
+    if (promotion.value !== undefined) updateData.DESCUENTO = promotion.value;
+    if (promotion.productIds) updateData.PRODUCTOS_ID = JSON.stringify(promotion.productIds);
+    if (promotion.startDate) updateData.FECHA_INICIO = promotion.startDate;
+    if (promotion.endDate) updateData.FECHA_FIN = promotion.endDate;
+    if (promotion.active !== undefined) updateData.ACTIVO = promotion.active ? 'SI' : 'NO';
+    
+    return executeSheetOperation<Promotion>({
+      action: 'update',
+      sheet: 'Promociones',
+      id,
+      data: updateData,
+    });
+  },
 
   delete: (id: number) => executeSheetOperation<{ success: boolean }>({
     action: 'delete',
@@ -443,15 +499,33 @@ export const googleSheetsCombos = {
   create: (combo: Omit<Combo, 'id'>) => executeSheetOperation<Combo>({
     action: 'write',
     sheet: 'Combos',
-    data: combo,
+    data: {
+      NOMBRE: combo.name,
+      DESCRIPCION: combo.description,
+      PRODUCTOS: JSON.stringify(combo.products),
+      PRECIO_ORIGINAL: combo.originalPrice,
+      COMBO_PRECIO: combo.comboPrice,
+      ACTIVE: combo.active ? 'SI' : 'NO',
+    },
   }),
 
-  update: (id: number, combo: Partial<Combo>) => executeSheetOperation<Combo>({
-    action: 'update',
-    sheet: 'Combos',
-    id,
-    data: combo,
-  }),
+  update: (id: number, combo: Partial<Combo>) => {
+    const updateData: any = {};
+    
+    if (combo.name) updateData.NOMBRE = combo.name;
+    if (combo.description) updateData.DESCRIPCION = combo.description;
+    if (combo.products) updateData.PRODUCTOS = JSON.stringify(combo.products);
+    if (combo.originalPrice !== undefined) updateData.PRECIO_ORIGINAL = combo.originalPrice;
+    if (combo.comboPrice !== undefined) updateData.COMBO_PRECIO = combo.comboPrice;
+    if (combo.active !== undefined) updateData.ACTIVE = combo.active ? 'SI' : 'NO';
+    
+    return executeSheetOperation<Combo>({
+      action: 'update',
+      sheet: 'Combos',
+      id,
+      data: updateData,
+    });
+  },
 
   delete: (id: number) => executeSheetOperation<{ success: boolean }>({
     action: 'delete',

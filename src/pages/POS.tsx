@@ -104,16 +104,33 @@ export default function POS() {
   const total = getTicketTotal();
   const pointsEarned = activeTicket ? calculateTotalPoints(activeTicket.items) : 0;
 
-  const handleAddProduct = (product: Product, isWholesale: boolean = false) => {
+  const handleAddProduct = (product: Product) => {
     const pointsValue = calculateProductPoints(product);
-    const price = isWholesale && product.wholesalePrice ? product.wholesalePrice : product.price;
-    const priceType = isWholesale ? 'Mayoreo' : 'Normal';
+    const price = product.price;
     
-    addItem(product.id, product.name, price, pointsValue, isWholesale);
+    addItem(product.id, product.name, price, pointsValue, false);
     toast({
       title: 'Producto agregado',
-      description: `${product.name} (${priceType}) - S/ ${price.toFixed(2)}`,
+      description: `${product.name} - S/ ${price.toFixed(2)}`,
     });
+  };
+
+  const handleToggleWholesale = (itemIndex: number) => {
+    const item = activeTicket?.items[itemIndex];
+    if (!item) return;
+    
+    const product = products.find(p => p.id === item.productId);
+    if (!product || !product.wholesalePrice) return;
+    
+    const isCurrentlyWholesale = (item as any).isWholesale;
+    const newPrice = isCurrentlyWholesale ? product.price : product.wholesalePrice;
+    const newName = isCurrentlyWholesale ? product.name : `${product.name} (Mayoreo)`;
+    
+    // Remover el item actual
+    removeItem(itemIndex);
+    
+    // Agregar con el nuevo precio
+    addItem(product.id, newName, newPrice, item.pointsValue, !isCurrentlyWholesale);
   };
 
   const handleSelectClient = (client: Client) => {
@@ -159,7 +176,7 @@ export default function POS() {
       return;
     }
 
-    await completeSale(selectedPaymentMethod);
+    await completeSale(selectedPaymentMethod, 'Sistema');
     
     // Enviar WhatsApp si hay cliente
     const client = clients.find(c => c.id === activeTicket.clientId);
@@ -298,49 +315,66 @@ export default function POS() {
               ) : (
                 <>
                   <div className="space-y-2">
-                    {activeTicket.items.map((item) => (
-                      <div key={item.productId} className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{item.productName}</p>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>S/ {item.price.toFixed(2)}</span>
-                            <Badge variant="secondary" className="text-xs">
-                              {item.pointsValue} pts
-                            </Badge>
+                    {activeTicket.items.map((item, itemIndex) => {
+                      const product = products.find(p => p.id === item.productId);
+                      const hasWholesalePrice = product?.wholesalePrice && product.wholesalePrice > 0;
+                      const isWholesale = (item as any).isWholesale;
+                      
+                      return (
+                        <div key={`${item.productId}-${itemIndex}`} className="flex flex-col gap-2 p-2 bg-muted/50 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{item.productName}</p>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <span>S/ {item.price.toFixed(2)}</span>
+                                <Badge variant="secondary" className="text-xs">
+                                  {item.pointsValue} pts
+                                </Badge>
+                                {hasWholesalePrice && (
+                                  <Badge 
+                                    variant={isWholesale ? "default" : "outline"} 
+                                    className="text-xs cursor-pointer"
+                                    onClick={() => handleToggleWholesale(itemIndex)}
+                                  >
+                                    {isWholesale ? '✓ Mayoreo' : 'Normal'}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-7 w-7"
+                                onClick={() => updateItemQuantity(itemIndex, -1)}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-8 text-center font-medium">{item.quantity}</span>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-7 w-7"
+                                onClick={() => updateItemQuantity(itemIndex, 1)}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <div className="text-right min-w-[80px]">
+                              <p className="font-bold">S/ {item.subtotal.toFixed(2)}</p>
+                            </div>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => removeItem(itemIndex)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-7 w-7"
-                            onClick={() => updateItemQuantity(item.productId, -1)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center font-medium">{item.quantity}</span>
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-7 w-7"
-                            onClick={() => updateItemQuantity(item.productId, 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <div className="text-right min-w-[80px]">
-                          <p className="font-bold">S/ {item.subtotal.toFixed(2)}</p>
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => removeItem(item.productId)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <Separator />
@@ -538,32 +572,18 @@ export default function POS() {
                       )}
                     </div>
                   </div>
-                  {/* Botones de acción */}
-                  <div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      size="sm"
-                      className="flex-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAddProduct(product, false);
-                      }}
-                    >
-                      Normal
-                    </Button>
-                    {product.wholesalePrice && product.wholesalePrice > 0 && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="flex-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAddProduct(product, true);
-                        }}
-                      >
-                        Mayoreo
-                      </Button>
-                    )}
-                  </div>
+                  {/* Botón para agregar producto */}
+                  <Button
+                    size="sm"
+                    className="w-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddProduct(product);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Agregar
+                  </Button>
                 </CardContent>
               </Card>
             ))

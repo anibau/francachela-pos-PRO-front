@@ -19,14 +19,14 @@ interface POSContextType {
   switchTicket: (id: string) => void;
   closeTicket: (id: string) => void;
   addItem: (productId: number, productName: string, price: number, pointsValue?: number, isWholesale?: boolean) => void;
-  updateItemQuantity: (productId: number, delta: number) => void;
-  removeItem: (productId: number) => void;
+  updateItemQuantity: (itemIndex: number, delta: number) => void;
+  removeItem: (itemIndex: number) => void;
   setTicketClient: (clientId?: number, clientName?: string) => void;
   setTicketNotes: (notes: string) => void;
   applyDiscount: (discount: number) => void;
   getActiveTicket: () => Ticket | undefined;
   getTicketTotal: (ticketId?: string) => number;
-  completeSale: (paymentMethod: PaymentMethod) => Promise<void>;
+  completeSale: (paymentMethod: PaymentMethod, cashierName: string) => Promise<void>;
 }
 
 const POSContext = createContext<POSContextType | undefined>(undefined);
@@ -64,35 +64,36 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         prev.map(ticket => {
           if (ticket.id !== activeTicketId) return ticket;
           
-          // Crear un identificador único que incluya si es mayoreo o no
-          const itemKey = `${productId}_${isWholesale ? 'wholesale' : 'retail'}`;
-          const existingItem = ticket.items.find(item => 
+          // Buscar si existe el item exactamente igual (mismo producto y mismo tipo de precio)
+          const existingItemIndex = ticket.items.findIndex(item => 
             item.productId === productId && 
             ((item as any).isWholesale === isWholesale)
           );
           
-          if (existingItem) {
+          if (existingItemIndex !== -1) {
+            // Actualizar cantidad del item existente
+            const updatedItems = [...ticket.items];
+            const existingItem = updatedItems[existingItemIndex];
+            updatedItems[existingItemIndex] = {
+              ...existingItem,
+              quantity: existingItem.quantity + 1,
+              subtotal: (existingItem.quantity + 1) * existingItem.price,
+            };
+            
             return {
               ...ticket,
-              items: ticket.items.map(item =>
-                item.productId === productId && ((item as any).isWholesale === isWholesale)
-                  ? {
-                      ...item,
-                      quantity: item.quantity + 1,
-                      subtotal: (item.quantity + 1) * item.price,
-                    }
-                  : item
-              ),
+              items: updatedItems,
             };
           }
           
+          // Agregar nuevo item
           return {
             ...ticket,
             items: [
               ...ticket.items,
               {
                 productId,
-                productName: isWholesale ? `${productName} (Mayoreo)` : productName,
+                productName,
                 quantity: 1,
                 price,
                 subtotal: price,
@@ -108,25 +109,33 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateItemQuantity = useCallback(
-    (productId: number, delta: number) => {
+    (itemIndex: number, delta: number) => {
       setTickets(prev =>
         prev.map(ticket => {
           if (ticket.id !== activeTicketId) return ticket;
           
+          const updatedItems = [...ticket.items];
+          const item = updatedItems[itemIndex];
+          
+          if (!item) return ticket;
+          
+          const newQuantity = item.quantity + delta;
+          
+          if (newQuantity <= 0) {
+            // Eliminar el item si la cantidad es 0 o menor
+            updatedItems.splice(itemIndex, 1);
+          } else {
+            // Actualizar cantidad y subtotal
+            updatedItems[itemIndex] = {
+              ...item,
+              quantity: newQuantity,
+              subtotal: newQuantity * item.price,
+            };
+          }
+          
           return {
             ...ticket,
-            items: ticket.items
-              .map(item => {
-                if (item.productId !== productId) return item;
-                const newQuantity = item.quantity + delta;
-                if (newQuantity <= 0) return null;
-                return {
-                  ...item,
-                  quantity: newQuantity,
-                  subtotal: newQuantity * item.price,
-                };
-              })
-              .filter((item): item is SaleItem => item !== null),
+            items: updatedItems,
           };
         })
       );
@@ -135,13 +144,17 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
   );
 
   const removeItem = useCallback(
-    (productId: number) => {
+    (itemIndex: number) => {
       setTickets(prev =>
         prev.map(ticket => {
           if (ticket.id !== activeTicketId) return ticket;
+          
+          const updatedItems = [...ticket.items];
+          updatedItems.splice(itemIndex, 1);
+          
           return {
             ...ticket,
-            items: ticket.items.filter(item => item.productId !== productId),
+            items: updatedItems,
           };
         })
       );
@@ -196,24 +209,28 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
   );
 
   const completeSale = useCallback(
-    async (paymentMethod: PaymentMethod) => {
+    async (paymentMethod: PaymentMethod, cashierName: string = 'Sistema') => {
       const ticket = getActiveTicket();
       if (!ticket || ticket.items.length === 0) return;
 
-      // Preparar datos de la venta con todos los campos requeridos para Google Sheets
+      const subtotal = ticket.items.reduce((sum, item) => sum + item.subtotal, 0);
+      const total = getTicketTotal();
+      const pointsEarned = ticket.items.reduce((sum, item) => sum + ((item.pointsValue || 0) * item.quantity), 0);
+
+      // Preparar datos de la venta con TODOS los campos requeridos para Google Sheets
       const saleData = {
         ticketNumber: `T-${Date.now()}`,
         date: new Date().toISOString(),
-        clientId: ticket.clientId,
-        clientName: ticket.clientName,
+        clientId: ticket.clientId || undefined,
+        clientName: ticket.clientName || '',
         items: ticket.items,
-        subtotal: ticket.items.reduce((sum, item) => sum + item.subtotal, 0),
-        discount: ticket.discount,
-        total: getTicketTotal(),
-        paymentMethod,
-        cashier: 'Sistema',
-        notes: ticket.notes,
-        pointsEarned: ticket.items.reduce((sum, item) => sum + ((item.pointsValue || 0) * item.quantity), 0),
+        subtotal: subtotal,
+        discount: ticket.discount || 0,
+        total: total,
+        paymentMethod: paymentMethod,
+        cashier: cashierName,
+        notes: ticket.notes || '',
+        pointsEarned: pointsEarned,
         pointsUsed: 0,
         status: 'completada' as const,
       };
