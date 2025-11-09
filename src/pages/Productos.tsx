@@ -360,7 +360,7 @@ export default function Productos() {
                       type="number"
                       step="0.01"
                       min="0"
-                      value={formData.wholesalePrice === 0 ? '' : formData.wholesalePrice}
+                      value={formData.wholesalePrice || ''}
                       onChange={(e) => setFormData({ ...formData, wholesalePrice: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                       placeholder="0.00"
                     />
@@ -371,7 +371,7 @@ export default function Productos() {
                       id="pointsValue"
                       type="number"
                       min="0"
-                      value={formData.pointsValue === 0 ? '' : formData.pointsValue}
+                      value={formData.pointsValue || ''}
                       onChange={(e) => setFormData({ ...formData, pointsValue: e.target.value === '' ? 0 : parseInt(e.target.value) })}
                       placeholder="0"
                     />

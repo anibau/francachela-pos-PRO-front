@@ -239,14 +239,16 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         // Enviar venta a Google Sheets
         await salesAPI.create(saleData as any);
         
-        // Actualizar puntos del cliente si existe
+        // Actualizar puntos del cliente si existe (SUMA, no reemplaza)
         if (ticket.clientId && pointsEarned > 0) {
           try {
             const { clientsAPI } = await import('@/services/api');
+            // Obtener datos frescos del cliente
             const client = await clientsAPI.getById(ticket.clientId);
-            const newPoints = (client.points || 0) + pointsEarned;
+            const currentPoints = parseInt(String(client.points || 0));
+            const newPoints = currentPoints + pointsEarned;
+            console.log(`Sumando puntos al cliente ${ticket.clientId}: ${currentPoints} + ${pointsEarned} = ${newPoints}`);
             await clientsAPI.update(ticket.clientId, { points: newPoints });
-            console.log(`Puntos actualizados para cliente ${ticket.clientId}: ${newPoints}`);
           } catch (error) {
             console.error('Error al actualizar puntos del cliente:', error);
           }

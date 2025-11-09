@@ -52,8 +52,8 @@ function mapSheetToProduct(sheetData: any): Product {
     supplier: sheetData.PROVEEDOR || sheetData.supplier,
     category: sheetData.CATEGORIA || sheetData.category || '',
     pointsValue: parseInt(sheetData.VALOR_PUNTOS || sheetData.pointsValue || 0),
-    showInCatalog: sheetData.MOSTRAR === 'SI' || sheetData.MOSTRAR === true || sheetData.showInCatalog === true,
-    useInventory: sheetData.USA_INVENTARIO === 'SI' || sheetData.USA_INVENTARIO === true || sheetData.useInventory === true,
+    showInCatalog: sheetData.MOSTRAR === 'TRUE' || sheetData.MOSTRAR === 'SI' || sheetData.MOSTRAR === true || sheetData.showInCatalog === true,
+    useInventory: sheetData.USA_INVENTARIO === 'TRUE' || sheetData.USA_INVENTARIO === 'SI' || sheetData.USA_INVENTARIO === true || sheetData.useInventory === true,
   };
 }
 
@@ -281,8 +281,8 @@ export const googleSheetsProducts = {
         PROVEEDOR: product.supplier,
         CATEGORIA: product.category,
         VALOR_PUNTOS: product.pointsValue || 0,
-        MOSTRAR: product.showInCatalog ? 'SI' : 'NO',
-        USA_INVENTARIO: product.useInventory ? 'SI' : 'NO',
+        MOSTRAR: product.showInCatalog ? 'TRUE' : 'FALSE',
+        USA_INVENTARIO: product.useInventory ? 'TRUE' : 'FALSE',
       },
     });
   },
@@ -301,8 +301,8 @@ export const googleSheetsProducts = {
     if (product.supplier) updateData.PROVEEDOR = product.supplier;
     if (product.category) updateData.CATEGORIA = product.category;
     if (product.pointsValue !== undefined) updateData.VALOR_PUNTOS = product.pointsValue;
-    if (product.showInCatalog !== undefined) updateData.MOSTRAR = product.showInCatalog ? 'SI' : 'NO';
-    if (product.useInventory !== undefined) updateData.USA_INVENTARIO = product.useInventory ? 'SI' : 'NO';
+    if (product.showInCatalog !== undefined) updateData.MOSTRAR = product.showInCatalog ? 'TRUE' : 'FALSE';
+    if (product.useInventory !== undefined) updateData.USA_INVENTARIO = product.useInventory ? 'TRUE' : 'FALSE';
     
     return executeSheetOperation<Product>({
       action: 'update',

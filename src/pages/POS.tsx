@@ -125,12 +125,13 @@ export default function POS() {
     const isCurrentlyWholesale = (item as any).isWholesale;
     const newPrice = isCurrentlyWholesale ? product.price : product.wholesalePrice;
     const newName = isCurrentlyWholesale ? product.name : `${product.name} (Mayoreo)`;
+    const pointsValue = calculateProductPoints(product);  // Siempre usar los puntos calculados del producto
     
     // Remover el item actual
     removeItem(itemIndex);
     
-    // Agregar con el nuevo precio
-    addItem(product.id, newName, newPrice, item.pointsValue, !isCurrentlyWholesale);
+    // Agregar con el nuevo precio pero los mismos puntos
+    addItem(product.id, newName, newPrice, pointsValue, !isCurrentlyWholesale);
   };
 
   const handleSelectClient = (client: Client) => {
@@ -162,10 +163,12 @@ export default function POS() {
   const sendWhatsAppMessage = (clientPhone: string, points: number, total: number) => {
     const message = `¡Gracias por tu compra! 🎉\n\nTotal: S/ ${total.toFixed(2)}\nPuntos ganados: ${points}\n\n¡Vuelve pronto!`;
     const encodedMessage = encodeURIComponent(message);
-    // Eliminar cualquier '+' o espacios y asegurar que empiece con 51
-    const cleanPhone = clientPhone.replace(/[\s+]/g, '');
+    // Limpiar el teléfono: eliminar +, espacios y asegurar formato correcto
+    let cleanPhone = clientPhone.replace(/[\s+]/g, '');
+    // Si ya empieza con 51, no duplicar
     const phoneWithCountryCode = cleanPhone.startsWith('51') ? cleanPhone : `51${cleanPhone}`;
     const whatsappUrl = `https://wa.me/${phoneWithCountryCode}?text=${encodedMessage}`;
+    console.log('WhatsApp URL generada:', whatsappUrl);
     window.open(whatsappUrl, '_blank');
   };
 
@@ -551,6 +554,7 @@ export default function POS() {
               <Card
                 key={product.id}
                 className="cursor-pointer hover:shadow-md transition-shadow group"
+                onClick={() => handleAddProduct(product)}
               >
                 <CardContent className="p-3">
                   <div className="flex items-start justify-between gap-2">
@@ -572,14 +576,14 @@ export default function POS() {
                           </div>
                         )}
                       </div>
-                      <Badge variant={product.stock > 10 ? 'default' : 'destructive'} className="text-xs">
-                        Stock: {product.stock || 0}
-                      </Badge>
-                      {product.pointsValue && product.pointsValue > 0 && (
-                        <span className="text-xs text-primary ml-2">
-                          +{product.pointsValue} pts
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <Badge variant={product.stock > 10 ? 'default' : 'destructive'} className="text-xs">
+                          Stock: {product.stock || 0}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          +{calculateProductPoints(product)} pts
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                   {/* Botón para agregar producto */}
