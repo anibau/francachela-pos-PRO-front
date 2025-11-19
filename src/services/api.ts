@@ -259,7 +259,7 @@ export const salesAPI = {
       }
       const index = mockSales.findIndex(s => s.id === id);
       if (index === -1) throw new Error('Venta no encontrada');
-      mockSales[index] = { ...mockSales[index], status: 'cancelada' };
+      mockSales[index] = { ...mockSales[index], status: 'anulada' };
       return mockSales[index];
     } catch (error) {
       return handleApiError(error);

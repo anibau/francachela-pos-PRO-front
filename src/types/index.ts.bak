@@ -51,7 +51,7 @@ export interface Sale {
   notes?: string;
   pointsEarned?: number;
   pointsUsed?: number;
-  status: 'completada' | 'cancelada';
+  status: 'completada' | 'anulada';
 }
 
 export interface Promotion {

@@ -104,7 +104,7 @@ function mapSheetToSale(sheetData: any): Sale {
     paymentMethod: (cleanData.METODO_PAGO || cleanData.paymentMethod || 'Efectivo').trim(),
     notes: cleanData.COMENTARIO || cleanData.notes,
     cashier: (cleanData.CAJERO || cleanData.cashier || '').trim(),
-    status: (cleanData.ESTADO || cleanData.status || 'completada').trim() as 'completada' | 'cancelada',
+    status: (cleanData.ESTADO || cleanData.status || 'completada').trim() as 'completada' | 'anulada',
     pointsEarned: parseInt(cleanData.PUNTOS_OTORGADOS || cleanData.pointsEarned || 0),
     pointsUsed: parseInt(cleanData.PUNTOS_USADOS || cleanData.pointsUsed || 0),
   };
@@ -451,7 +451,7 @@ export const googleSheetsSales = {
     action: 'update',
     sheet: 'Ventas',
     id,
-    data: { ESTADO: 'cancelada' },
+    data: { ESTADO: 'anulada' },
   }),
 };
 

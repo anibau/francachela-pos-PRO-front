@@ -191,7 +191,7 @@ export default function Productos() {
     const searchTermLower = searchTerm.toLowerCase();
     return (
       producto.name.toLowerCase().includes(searchTermLower) ||
-      producto.barcode.includes(searchTerm) ||
+      // producto.barcode.includes(searchTerm) ||
       producto.category.toLowerCase().includes(searchTermLower)
     );
   });

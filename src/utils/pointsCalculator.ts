@@ -15,10 +15,10 @@ export function calculateTotalPoints(items: SaleItem[]): number {
 
 /**
  * Calcula los puntos para un producto basado en su precio
- * Por defecto: 1 punto por cada S/ 10 gastados
+ * Por defecto: precio de producto * 10
  */
 export function calculateProductPoints(product: Product): number {
-  return Math.floor(product.price / 10);
+  return Math.floor(product.price * 10);
 }
 
 /**

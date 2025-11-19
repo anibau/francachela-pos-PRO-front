@@ -224,7 +224,7 @@ export default function Clientes() {
                   />
                 </div>
               </div>
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -232,9 +232,9 @@ export default function Clientes() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
-              </div>
+              </div> */}
               <div className="space-y-2">
-                <Label htmlFor="address">Dirección</Label>
+                <Label htmlFor="address">Dirección Delivery</Label>
                 <Input
                   id="address"
                   value={formData.address}

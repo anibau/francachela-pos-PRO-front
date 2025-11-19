@@ -79,7 +79,7 @@ export interface Sale {
   paymentMethod: PaymentMethod;
   notes?: string;
   cashier: string;
-  status: 'completada' | 'cancelada';
+  status: 'completada' | 'anulada';
   pointsEarned: number;
   pointsUsed: number;
   ticketNumber: string;

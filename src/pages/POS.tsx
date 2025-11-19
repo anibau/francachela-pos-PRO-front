@@ -75,8 +75,8 @@ export default function POS() {
     const productBarcode = product.barcode || '';
     
     return (
-      productName.toLowerCase().includes(searchTermLower) ||
-      productBarcode.includes(searchTerm)
+      productName.toLowerCase().includes(searchTermLower) 
+      // productBarcode.includes(searchTerm)
     );
   });
 
@@ -164,7 +164,7 @@ export default function POS() {
     const message = `¡Gracias por tu compra! 🎉\n\nTotal: S/ ${total.toFixed(2)}\nPuntos ganados: ${points}\n\n¡Vuelve pronto!`;
     const encodedMessage = encodeURIComponent(message);
     // Limpiar el teléfono: eliminar +, espacios y asegurar formato correcto
-    let cleanPhone = clientPhone.replace(/[\s+]/g, '');
+    const cleanPhone = clientPhone.replace(/[\s+]/g, '');
     // Si ya empieza con 51, no duplicar
     const phoneWithCountryCode = cleanPhone.startsWith('51') ? cleanPhone : `51${cleanPhone}`;
     const whatsappUrl = `https://wa.me/${phoneWithCountryCode}?text=${encodedMessage}`;
@@ -567,14 +567,7 @@ export default function POS() {
                             S/ {product.price?.toFixed(2) || '0.00'}
                           </span>
                         </div>
-                        {product.wholesalePrice && product.wholesalePrice > 0 && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Mayoreo:</span>
-                            <span className="text-base font-semibold text-green-600">
-                              S/ {product.wholesalePrice.toFixed(2)}
-                            </span>
-                          </div>
-                        )}
+                       
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={product.stock > 10 ? 'default' : 'destructive'} className="text-xs">
