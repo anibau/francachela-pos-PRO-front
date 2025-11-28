@@ -223,8 +223,356 @@ El sistema puede usar Google Sheets como base de datos. Ver documentación compl
 - **UI**: Tailwind CSS + shadcn/ui
 - **Estado**: React Context API
 - **Formularios**: React Hook Form + Zod
-- **Backend**: Google Sheets + Apps Script (o API REST)
+- **Backend**: API REST con POSTGRES +NEST.JS + TYPEORM + BAYLES (para el servicio de mensaje por whatsapp por cada venta)
 - **Routing**: React Router DOM
+
+## ENTIDADES BACKEND (TypeORM + PostgreSQL)
+@Entity('usuarios')
+export class Usuario {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ unique: true })
+  username: string;
+
+  @Column()
+  password: string;
+
+  @Column({ type: 'varchar', length: 20 })
+  rol: 'ADMIN' | 'CAJERO' | 'INVENTARIOS';
+
+  @Column()
+  nombre: string;
+}
+
+@Entity('productos')
+export class Producto {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  productoDescripcion: string;
+
+  @Column({ unique: true })
+  codigoBarra: string;
+
+  @Column({ nullable: true })
+  imagen: string;
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  costo: number;
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  precio: number;
+
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  precioMayoreo: number;
+
+  @Column('int')
+  cantidadActual: number;
+
+  @Column('int')
+  cantidadMinima: number;
+
+  @Column({ nullable: true })
+  proveedor: string;
+
+  @Column({ nullable: true })
+  categoria: string;
+
+  @Column('int', { default: 0 })
+  valorPuntos: number;
+
+  @Column({ default: true })
+  mostrar: boolean;
+
+  @Column({ default: true })
+  usaInventario: boolean;
+}
+
+@Entity('clientes')
+export class Cliente {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  nombres: string;
+
+  @Column()
+  apellidos: string;
+
+  @Column({ unique: true })
+  dni: string;
+
+  @Column({ type: 'date', nullable: true })
+  fechaNacimiento: Date;
+
+  @Column({ nullable: true })
+  telefono: string;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  fechaRegistro: Date;
+
+  @Column('int', { default: 0 })
+  puntosAcumulados: number;
+
+  @Column({ type: 'jsonb', default: [] })
+  historialCompras: any[];
+
+  @Column({ type: 'jsonb', default: [] })
+  historialCanjes: any[];
+
+  @Column({ nullable: true })
+  codigoCorto: string;
+
+  @Column({ nullable: true })
+  direccion: string;
+}
+
+@Entity('ventas')
+export class Venta {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  fecha: Date;
+
+  @ManyToOne(() => Cliente, { nullable: true })
+  cliente: Cliente;
+
+  @Column({ type: 'jsonb' })
+  listaProductos: any[]; // id, cantidad, precio, subtotal
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  subTotal: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  descuento: number;
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  total: number;
+
+  @Column()
+  metodoPago: string;
+
+  @Column({ nullable: true })
+  comentario: string;
+
+  @Column()
+  cajero: string;
+
+  @Column({ default: 'COMPLETADO' })
+  estado: string;
+
+  @Column('int', { default: 0 })
+  puntosOtorgados: number;
+
+  @Column('int', { default: 0 })
+  puntosUsados: number;
+
+  @Column({ nullable: true })
+  ticketId: string;
+
+  @Column({ default: 'LOCAL' })
+  tipoCompra: 'LOCAL' | 'DELIVERY';
+}
+
+@Entity('promociones')
+export class Promocion {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  nombre: string;
+
+  @Column({ nullable: true })
+  descripcion: string;
+
+  @Column()
+  tipo: 'PORCENTAJE' | 'MONTO';
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  descuento: number;
+
+  @Column({ type: 'date' })
+  fechaInicio: Date;
+
+  @Column({ type: 'date' })
+  fechaFin: Date;
+
+  @Column({ default: true })
+  activo: boolean;
+}
+
+
+@Entity('combos')
+export class Combo {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  nombre: string;
+
+  @Column({ nullable: true })
+  descripcion: string;
+
+  @Column({ type: 'jsonb' })
+  productos: any[];
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  precioOriginal: number;
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  precioCombo: number;
+
+  @Column('int', { default: 0 })
+  puntosExtra: number;
+
+  @Column({ default: true })
+  active: boolean;
+}
+
+@Entity('caja')
+export class Caja {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'timestamp' })
+  fechaApertura: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  fechaCierre: Date;
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  montoInicial: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  totalVentas: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  totalGastos: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  montoFinal: number;
+
+  @Column()
+  cajero: string;
+
+  @Column({ default: 'ABIERTA' })
+  estado: string;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  diferencia: number;
+}
+
+@Entity('gastos')
+export class Gasto {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  fecha: Date;
+
+  @Column()
+  descripcion: string;
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  monto: number;
+
+  @Column()
+  categoria: string;
+
+  @Column()
+  cajero: string;
+
+  @Column({ nullable: true })
+  comprobante: string;
+
+  @Column()
+  metodoPago: string;
+}
+
+@Entity('delivery')
+export class Delivery {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  fecha: Date;
+
+  @ManyToOne(() => Cliente, { nullable: true })
+  cliente: Cliente;
+
+  @Column()
+  pedidoId: number;
+
+  @Column()
+  direccion: string;
+
+  @Column({ default: 'PENDIENTE' })
+  estado: string;
+
+  @Column()
+  repartidor: string;
+
+  @Column({ nullable: true })
+  horaSalida: string;
+
+  @Column({ nullable: true })
+  horaEntrega: string;
+
+  @Column({ nullable: true })
+  saleId: number;
+
+  @Column({ nullable: true })
+  phone: string;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  deliveryFee: number;
+
+  @Column({ nullable: true })
+  notes: string;
+}
+
+@Entity('movimientos_inventario')
+export class MovimientoInventario {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  hora: Date;
+
+  @Column()
+  codigoBarra: string;
+
+  @Column()
+  descripcion: string;
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  costo: number;
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  precioVenta: number;
+
+  @Column('int')
+  existencia: number;
+
+  @Column('int')
+  invMinimo: number;
+
+  @Column()
+  tipo: 'ENTRADA' | 'SALIDA' | 'AJUSTE';
+
+  @Column('int')
+  cantidad: number;
+
+  @Column()
+  cajero: string;
+
+  @Column({ nullable: true })
+  proveedor: string;
+}
+
 
 ## 📄 Licencia
 

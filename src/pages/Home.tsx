@@ -57,7 +57,7 @@ const menuCards = [
     title: "Catálogo",
     description: "Vista pública para pedidos por WhatsApp",
     details: "Vista pública para pedidos por WhatsApp",
-    link: "/",
+    link: "/landing",
     icon: Star,
   },
 ];
