@@ -45,7 +45,7 @@ Crea los siguientes encabezados en la primera fila:
 ID | FECHA | CLIENTE_ID | LISTA_PRODUCTOS | SUB_TOTAL | DESCUENTO | TOTAL | METODO_PAGO | COMENTARIO | CAJERO | ESTADO | PUNTOS_OTORGADOS | PUNTOS_USADOS | TICKET_ID
 ```
 
-**ESTADOS permitidos:** `completada`, `cancelada` (en minúsculas)
+**ESTADOS permitidos:** `completada`, `anulada` (en minúsculas)
 
 **Datos de ejemplo:**
 ```
@@ -53,7 +53,7 @@ ID | FECHA | CLIENTE_ID | LISTA_PRODUCTOS | SUB_TOTAL | DESCUENTO | TOTAL | METO
 2 | 2025-10-02T11:15:00 | 2 | [{"productId":5,"productName":"Cerveza Pilsen 330ml","quantity":6,"price":4.00,"subtotal":24.00}] | 24.00 | 2.00 | 22.00 | Yape | | Admin | completada | 22 | 0 | T-002
 3 | 2025-10-02T14:20:00 | 3 | [{"productId":3,"productName":"Chips Lays 180g","quantity":3,"price":5.00,"subtotal":15.00}] | 15.00 | 0 | 15.00 | Plin | | Cajero1 | completada | 15 | 0 | T-003
 4 | 2025-10-02T16:45:00 | | [{"productId":2,"productName":"Coca Cola 500ml","quantity":1,"price":3.50,"subtotal":3.50}] | 3.50 | 0 | 3.50 | Tarjeta | Sin cliente | Admin | completada | 3 | 0 | T-004
-5 | 2025-10-02T18:00:00 | 1 | [{"productId":1,"productName":"Inca Kola 500ml","quantity":1,"price":3.50,"subtotal":3.50}] | 3.50 | 0 | 3.50 | Efectivo | | Admin | cancelada | 0 | 0 | T-005
+5 | 2025-10-02T18:00:00 | 1 | [{"productId":1,"productName":"Inca Kola 500ml","quantity":1,"price":3.50,"subtotal":3.50}] | 3.50 | 0 | 3.50 | Efectivo | | Admin | anulada | 0 | 0 | T-005
 ```
 
 ### Pestaña: **Productos**
@@ -514,7 +514,7 @@ Si tienes problemas:
   METODO_PAGO: 'Efectivo' | 'Yape' | 'Plin' | 'Tarjeta',
   COMENTARIO: string,
   CAJERO: string,
-  ESTADO: 'completada' | 'cancelada',
+  ESTADO: 'completada' | 'anulada',
   PUNTOS_OTORGADOS: number,
   PUNTOS_USADOS: number,
   TICKET_ID: string
