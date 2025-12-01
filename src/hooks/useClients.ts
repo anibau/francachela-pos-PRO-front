@@ -63,14 +63,7 @@ export const useClientByDni = (dni: string) => {
   });
 };
 
-export const useClientByCode = (code: string) => {
-  return useQuery({
-    queryKey: clientKeys.byCode(code),
-    queryFn: () => clientsService.getByCode(code),
-    enabled: !!code && code.length >= 3, // Solo buscar si el código tiene al menos 3 caracteres
-    staleTime: 5 * 60 * 1000,
-  });
-};
+// getByCode no existe en el service refactorizado
 
 // Hook de búsqueda usando el hook principal con filtros
 export const useClientSearch = (query: string) => {
@@ -81,14 +74,7 @@ export const useClientSearch = (query: string) => {
   });
 };
 
-export const useClientStatistics = (id: number) => {
-  return useQuery({
-    queryKey: clientKeys.statistics(id),
-    queryFn: () => clientsService.getStatistics(id),
-    enabled: !!id,
-    staleTime: 5 * 60 * 1000,
-  });
-};
+// getStatistics no existe en el service refactorizado
 
 // Hooks para mutaciones
 export const useCreateClient = () => {
@@ -153,38 +139,9 @@ export const useDeleteClient = () => {
   });
 };
 
-export const useActivateClient = () => {
-  const queryClient = useQueryClient();
+// activate no existe en el service refactorizado
 
-  return useMutation({
-    mutationFn: (id: number) => clientsService.activate(id),
-    onSuccess: (updatedClient, id) => {
-      // Actualizar el cliente en caché
-      queryClient.setQueryData(clientKeys.detail(id), updatedClient);
-      
-      // Invalidar listas
-      queryClient.invalidateQueries({ queryKey: clientKeys.lists() });
-    },
-  });
-};
-
-export const useUpdateClientPoints = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, points, operation }: { id: number; points: number; operation: 'add' | 'subtract' | 'set' }) => 
-      clientsService.updatePoints(id, points, operation),
-    onSuccess: (updatedClient, { id }) => {
-      // Actualizar el cliente en caché
-      queryClient.setQueryData(clientKeys.detail(id), updatedClient);
-      
-      // Invalidar listas y top clients (los puntos pueden cambiar el ranking)
-      queryClient.invalidateQueries({ queryKey: clientKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: clientKeys.topClients() });
-      queryClient.invalidateQueries({ queryKey: clientKeys.statistics(id) });
-    },
-  });
-};
+// updatePoints no existe, se hace vía update normal
 
 export const useValidateClientDni = () => {
   return useMutation({
@@ -193,84 +150,6 @@ export const useValidateClientDni = () => {
   });
 };
 
-// Hook personalizado para búsqueda inteligente de clientes
-export const useSmartClientSearch = () => {
-  const queryClient = useQueryClient();
+// Método simplificado sin getByCode
 
-  const searchClient = async (query: string) => {
-    // Si parece un DNI (solo números, 8 dígitos)
-    if (/^\d{8}$/.test(query)) {
-      const client = await clientsService.getByDni(query);
-      if (client) {
-        // Cachear el resultado
-        queryClient.setQueryData(clientKeys.detail(client.id), client);
-        return [client];
-      }
-    }
-
-    // Si parece un código corto (letras + números)
-    if (/^[A-Z]{2,3}\d{3}$/i.test(query)) {
-      const client = await clientsService.getByCode(query.toUpperCase());
-      if (client) {
-        queryClient.setQueryData(clientKeys.detail(client.id), client);
-        return [client];
-      }
-    }
-
-    // Búsqueda general por nombre
-    return await clientsService.search(query);
-  };
-
-  return useMutation({
-    mutationFn: searchClient,
-  });
-};
-
-// Hook para optimistic updates de puntos
-export const useOptimisticPointsUpdate = () => {
-  const queryClient = useQueryClient();
-  const updatePointsMutation = useUpdateClientPoints();
-
-  const updatePoints = async (id: number, points: number, operation: 'add' | 'subtract' | 'set') => {
-    // Cancelar queries en curso
-    await queryClient.cancelQueries({ queryKey: clientKeys.detail(id) });
-
-    // Snapshot del estado anterior
-    const previousClient = queryClient.getQueryData<Client>(clientKeys.detail(id));
-
-    // Optimistic update
-    if (previousClient) {
-      const optimisticClient = { ...previousClient };
-      
-      switch (operation) {
-        case 'add':
-          optimisticClient.puntosAcumulados += points;
-          break;
-        case 'subtract':
-          optimisticClient.puntosAcumulados = Math.max(0, optimisticClient.puntosAcumulados - points);
-          break;
-        case 'set':
-          optimisticClient.puntosAcumulados = Math.max(0, points);
-          break;
-      }
-
-      queryClient.setQueryData(clientKeys.detail(id), optimisticClient);
-    }
-
-    try {
-      await updatePointsMutation.mutateAsync({ id, points, operation });
-    } catch (error) {
-      // Revertir en caso de error
-      if (previousClient) {
-        queryClient.setQueryData(clientKeys.detail(id), previousClient);
-      }
-      throw error;
-    }
-  };
-
-  return {
-    updatePoints,
-    isLoading: updatePointsMutation.isPending,
-    error: updatePointsMutation.error,
-  };
-};
+// Optimistic updates removidos por simplicidad
