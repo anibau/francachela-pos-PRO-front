@@ -216,4 +216,56 @@ export interface CashRegisterStatistics {
   totalVentas: number;
   totalGastos: number;
   diferencia: number;
+  // Campos adicionales para el nuevo servicio
+  totalCajas?: number;
+  cajasAbiertas?: number;
+  cajasCerradas?: number;
+  promedioVentasPorCaja?: number;
+  cajeroMasActivo?: string;
+}
+
+// Tipos adicionales para servicios secundarios
+
+// Tipos para Promociones
+export interface PromotionCreateRequest {
+  nombre: string;
+  descripcion: string;
+  tipo: 'PORCENTAJE' | 'MONTO_FIJO';
+  descuento: number;
+  fechaInicio: string;
+  fechaFin: string;
+  productosId?: number[];
+  active: boolean;
+}
+
+// Tipos para Caja Registradora
+export interface CashRegisterOpenRequest {
+  cajero: string;
+  montoInicial: number;
+  observaciones?: string;
+}
+
+export interface CashRegisterCloseRequest {
+  montoFinal: number;
+  observaciones?: string;
+}
+
+// Tipos para Gastos
+export interface ExpenseCreateRequest {
+  descripcion: string;
+  monto: number;
+  categoria: string;
+  metodoPago: string;
+  cajero?: string;
+  observaciones?: string;
+}
+
+// Tipos para Movimientos de Inventario
+export interface InventoryMovementCreateRequest {
+  productoId: number;
+  productoNombre?: string;
+  tipo: 'ENTRADA' | 'SALIDA' | 'AJUSTE';
+  cantidad: number;
+  descripcion?: string;
+  cajero?: string;
 }

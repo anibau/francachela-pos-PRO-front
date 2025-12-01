@@ -25,6 +25,9 @@ import { productsService } from './productsService';
 import { clientsService } from './clientsService';
 import { salesService } from './salesService';
 import { promotionsService } from './promotionsService';
+import { cashRegisterService } from './cashRegisterService';
+import { expensesService } from './expensesService';
+import { inventoryService } from './inventoryService';
 
 // Importar mocks alineados con el backend
 import {
@@ -404,68 +407,82 @@ export const combosAPI = {
   },
 };
 
-// Caja Registradora
+// ============================================================================
+// CAJA REGISTRADORA - Redirigir al nuevo servicio especializado
+// ============================================================================
 export const cashRegisterAPI = {
   getCurrent: async (): Promise<CashRegister | null> => {
     try {
-      const openRegister = mockCashRegistersAligned.find(cr => cr.status === 'open');
-      return openRegister || null;
+      return await cashRegisterService.getCurrent();
     } catch (error) {
       return handleApiError(error);
     }
   },
 
-  getHistory: async (): Promise<CashRegister[]> => {
+  getHistory: async (filters?: any): Promise<CashRegister[]> => {
     try {
-      return mockCashRegistersAligned;
+      return await cashRegisterService.getHistory(filters);
     } catch (error) {
       return handleApiError(error);
     }
   },
 
-  open: async (initialCash: number, cashier: string): Promise<CashRegister> => {
+  getById: async (id: number): Promise<CashRegister> => {
     try {
-      const newRegister: CashRegister = {
-        id: Math.max(...mockCashRegistersAligned.map(cr => cr.id)) + 1,
-        cashier,
-        openedAt: new Date().toISOString(),
-        initialCash,
-        totalSales: 0,
-        totalExpenses: 0,
-        status: 'open',
-        paymentBreakdown: { efectivo: 0, yape: 0, plin: 0, tarjeta: 0 },
-      };
-      mockCashRegistersAligned.push(newRegister);
-      return newRegister;
+      return await cashRegisterService.getById(id);
     } catch (error) {
       return handleApiError(error);
     }
   },
 
-  close: async (id: number, finalCash: number): Promise<CashRegister> => {
+  open: async (openData: any): Promise<CashRegister> => {
     try {
-      const index = mockCashRegistersAligned.findIndex(cr => cr.id === id);
-      if (index === -1) throw new Error('Caja no encontrada');
-      
-      mockCashRegistersAligned[index] = {
-        ...mockCashRegistersAligned[index],
-        closedAt: new Date().toISOString(),
-        finalCash,
-        status: 'closed',
-      };
-      
-      return mockCashRegistersAligned[index];
+      return await cashRegisterService.open(openData);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  close: async (id: number, closeData: any): Promise<CashRegister> => {
+    try {
+      return await cashRegisterService.close(id, closeData);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getSummary: async (id: number): Promise<any> => {
+    try {
+      return await cashRegisterService.getSummary(id);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getStatistics: async (filters?: any): Promise<any> => {
+    try {
+      return await cashRegisterService.getStatistics(filters);
     } catch (error) {
       return handleApiError(error);
     }
   },
 };
 
-// Gastos
+// ============================================================================
+// GASTOS - Redirigir al nuevo servicio especializado
+// ============================================================================
 export const expensesAPI = {
-  getAll: async (): Promise<Expense[]> => {
+  getAll: async (params?: any): Promise<Expense[]> => {
     try {
-      return mockExpensesAligned;
+      return await expensesService.getAll(params);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getById: async (id: number): Promise<Expense> => {
+    try {
+      return await expensesService.getById(id);
     } catch (error) {
       return handleApiError(error);
     }
@@ -473,13 +490,15 @@ export const expensesAPI = {
 
   create: async (expense: Omit<Expense, 'id'>): Promise<Expense> => {
     try {
-      const newExpense = {
-        ...expense,
-        id: Math.max(...mockExpensesAligned.map(e => e.id)) + 1,
-        date: new Date().toISOString(),
-      };
-      mockExpensesAligned.push(newExpense);
-      return newExpense;
+      return await expensesService.create(expense);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  update: async (id: number, expense: Partial<Expense>): Promise<Expense> => {
+    try {
+      return await expensesService.update(id, expense);
     } catch (error) {
       return handleApiError(error);
     }
@@ -487,42 +506,77 @@ export const expensesAPI = {
 
   delete: async (id: number): Promise<void> => {
     try {
-      const index = mockExpensesAligned.findIndex(e => e.id === id);
-      if (index === -1) throw new Error('Gasto no encontrado');
-      mockExpensesAligned.splice(index, 1);
+      await expensesService.delete(id);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  // Métodos adicionales del nuevo servicio
+  getToday: async (): Promise<Expense[]> => {
+    try {
+      return await expensesService.getToday();
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getByDateRange: async (filters: any): Promise<Expense[]> => {
+    try {
+      return await expensesService.getByDateRange(filters);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getByCategory: async (categoria: string): Promise<Expense[]> => {
+    try {
+      return await expensesService.getByCategory(categoria);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  search: async (query: string): Promise<Expense[]> => {
+    try {
+      return await expensesService.search(query);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getCategories: async (): Promise<string[]> => {
+    try {
+      return await expensesService.getCategories();
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getStatistics: async (filters?: any): Promise<any> => {
+    try {
+      return await expensesService.getStatistics(filters);
     } catch (error) {
       return handleApiError(error);
     }
   },
 };
 
-// Inventario
+// ============================================================================
+// INVENTARIO - Redirigir al nuevo servicio especializado
+// ============================================================================
 export const inventoryAPI = {
-  getMovements: async (): Promise<InventoryMovement[]> => {
+  getMovements: async (params?: any): Promise<InventoryMovement[]> => {
     try {
-      // Mock de movimientos de inventario
-      return [
-        {
-          id: 1,
-          TIPO: 'entrada',
-          PRODUCTO_ID: 1,
-          PRODUCTO_NOMBRE: 'Cerveza Pilsen 650ml',
-          CANTIDAD: 50,
-          HORA: '2024-12-01T09:00:00Z',
-          DESCRIPCION: 'Compra de mercancía',
-          CAJERO: 'Juan Cajero',
-        },
-        {
-          id: 2,
-          TIPO: 'salida',
-          PRODUCTO_ID: 4,
-          PRODUCTO_NOMBRE: 'Leche Gloria 1L',
-          CANTIDAD: 10,
-          HORA: '2024-12-01T14:30:00Z',
-          DESCRIPCION: 'Venta',
-          CAJERO: 'Juan Cajero',
-        },
-      ];
+      return await inventoryService.getMovements(params);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getById: async (id: number): Promise<InventoryMovement> => {
+    try {
+      return await inventoryService.getById(id);
     } catch (error) {
       return handleApiError(error);
     }
@@ -530,12 +584,72 @@ export const inventoryAPI = {
 
   createMovement: async (movement: Omit<InventoryMovement, 'id'>): Promise<InventoryMovement> => {
     try {
-      const newMovement = {
-        ...movement,
-        id: Date.now(), // Simple ID generation
-        HORA: new Date().toISOString(),
-      };
-      return newMovement;
+      return await inventoryService.createMovement(movement);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  // Métodos adicionales del nuevo servicio
+  getToday: async (): Promise<InventoryMovement[]> => {
+    try {
+      return await inventoryService.getToday();
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getByDateRange: async (filters: any): Promise<InventoryMovement[]> => {
+    try {
+      return await inventoryService.getByDateRange(filters);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getByType: async (tipo: string): Promise<InventoryMovement[]> => {
+    try {
+      return await inventoryService.getByType(tipo);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getByCashier: async (cajero: string): Promise<InventoryMovement[]> => {
+    try {
+      return await inventoryService.getByCashier(cajero);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  createEntry: async (entryData: any): Promise<InventoryMovement> => {
+    try {
+      return await inventoryService.createEntry(entryData);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  createAdjustment: async (adjustmentData: any): Promise<InventoryMovement> => {
+    try {
+      return await inventoryService.createAdjustment(adjustmentData);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  createSaleMovement: async (saleData: any): Promise<InventoryMovement> => {
+    try {
+      return await inventoryService.createSaleMovement(saleData);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getStatistics: async (filters?: any): Promise<any> => {
+    try {
+      return await inventoryService.getStatistics(filters);
     } catch (error) {
       return handleApiError(error);
     }
