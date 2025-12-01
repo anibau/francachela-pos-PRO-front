@@ -42,7 +42,22 @@ export const productsService = {
       if (params?.limit) queryParams.append('limit', params.limit.toString());
       
       const url = `${API_ENDPOINTS.PRODUCTS.BASE}${queryParams.toString() ? `?${queryParams}` : ''}`;
-      return await httpClient.get<Product[]>(url);
+      const response = await httpClient.get<any>(url);
+      
+      // La API retorna { data: [...], total, page, ... }
+      // Extraer solo el array de productos
+      if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
+        return response.data as Product[];
+      }
+      
+      // Si es un array directo, retornarlo como está
+      if (Array.isArray(response)) {
+        return response as Product[];
+      }
+      
+      // Fallback: retornar array vacío si la estructura no es reconocida
+      console.warn('Respuesta de productos con estructura inesperada:', response);
+      return [];
     } catch (error) {
       console.error('Error getting products:', error);
       throw new Error('Error al cargar los productos');
@@ -89,7 +104,21 @@ export const productsService = {
       }
       
       const queryParams = new URLSearchParams({ q: query });
-      return await httpClient.get<Product[]>(`${API_ENDPOINTS.PRODUCTS.SEARCH}?${queryParams}`);
+      const response = await httpClient.get<any>(`${API_ENDPOINTS.PRODUCTS.SEARCH}?${queryParams}`);
+      
+      // Extraer array de productos si la respuesta tiene estructura paginada
+      if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
+        return response.data as Product[];
+      }
+      
+      // Si es un array directo, retornarlo como está
+      if (Array.isArray(response)) {
+        return response as Product[];
+      }
+      
+      // Fallback
+      console.warn('Respuesta de búsqueda con estructura inesperada:', response);
+      return [];
     } catch (error) {
       console.error('Error searching products:', error);
       throw new Error('Error al buscar productos');

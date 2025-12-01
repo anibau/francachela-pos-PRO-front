@@ -42,7 +42,21 @@ export const clientsService = {
       if (params?.limit) queryParams.append('limit', params.limit.toString());
       
       const url = `${API_ENDPOINTS.CLIENTS.BASE}${queryParams.toString() ? `?${queryParams}` : ''}`;
-      return await httpClient.get<Client[]>(url);
+      const response = await httpClient.get<any>(url);
+      
+      // Extraer array de clientes si la respuesta tiene estructura paginada
+      if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
+        return response.data as Client[];
+      }
+      
+      // Si es un array directo, retornarlo como está
+      if (Array.isArray(response)) {
+        return response as Client[];
+      }
+      
+      // Fallback
+      console.warn('Respuesta de clientes con estructura inesperada:', response);
+      return [];
     } catch (error) {
       console.error('Error getting clients:', error);
       throw new Error('Error al cargar los clientes');
@@ -90,7 +104,21 @@ export const clientsService = {
       }
       
       const queryParams = new URLSearchParams({ q: query });
-      return await httpClient.get<Client[]>(`${API_ENDPOINTS.CLIENTS.SEARCH}?${queryParams}`);
+      const response = await httpClient.get<any>(`${API_ENDPOINTS.CLIENTS.SEARCH}?${queryParams}`);
+      
+      // Extraer array de clientes si la respuesta tiene estructura paginada
+      if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
+        return response.data as Client[];
+      }
+      
+      // Si es un array directo, retornarlo como está
+      if (Array.isArray(response)) {
+        return response as Client[];
+      }
+      
+      // Fallback
+      console.warn('Respuesta de búsqueda de clientes con estructura inesperada:', response);
+      return [];
     } catch (error) {
       console.error('Error searching clients:', error);
       throw new Error('Error al buscar clientes');
@@ -117,7 +145,21 @@ export const clientsService = {
         });
       }
       
-      return await httpClient.get<Client[]>(API_ENDPOINTS.CLIENTS.BIRTHDAYS);
+      const response = await httpClient.get<any>(API_ENDPOINTS.CLIENTS.BIRTHDAYS);
+      
+      // Extraer array de clientes si la respuesta tiene estructura paginada
+      if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
+        return response.data as Client[];
+      }
+      
+      // Si es un array directo, retornarlo como está
+      if (Array.isArray(response)) {
+        return response as Client[];
+      }
+      
+      // Fallback
+      console.warn('Respuesta de cumpleaños con estructura inesperada:', response);
+      return [];
     } catch (error) {
       console.error('Error getting birthday clients:', error);
       throw new Error('Error al cargar clientes con cumpleaños');
@@ -138,7 +180,21 @@ export const clientsService = {
       }
       
       const queryParams = new URLSearchParams({ limit: limit.toString() });
-      return await httpClient.get<Client[]>(`${API_ENDPOINTS.CLIENTS.TOP}?${queryParams}`);
+      const response = await httpClient.get<any>(`${API_ENDPOINTS.CLIENTS.TOP}?${queryParams}`);
+      
+      // Extraer array de clientes si la respuesta tiene estructura paginada
+      if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
+        return response.data as Client[];
+      }
+      
+      // Si es un array directo, retornarlo como está
+      if (Array.isArray(response)) {
+        return response as Client[];
+      }
+      
+      // Fallback
+      console.warn('Respuesta de clientes top con estructura inesperada:', response);
+      return [];
     } catch (error) {
       console.error('Error getting top clients:', error);
       throw new Error('Error al cargar clientes top');
