@@ -302,7 +302,7 @@ export default function Promociones() {
           </div>
 
           <div className="grid gap-4">
-            {promociones
+            {(promociones || [])
               .slice((currentPromoPage - 1) * ITEMS_PER_PAGE, currentPromoPage * ITEMS_PER_PAGE)
               .map((promo) => (
               <Card key={promo.id} className="hover:shadow-lg transition-all">

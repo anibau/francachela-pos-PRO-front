@@ -9,15 +9,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Package, Plus, Pencil, Trash2, Search, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
-import { productsAPI, inventoryAPI } from "@/services/api";
+import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import type { Product, InventoryMovement } from "@/types";
 import { ProductCategory, ProductSupplier } from "@/types";
 
 export default function Productos() {
-  const [productos, setProductos] = useState<Product[]>([]);
-  const [movimientos, setMovimientos] = useState<InventoryMovement[]>([]);
+  // Usar hooks de TanStack Query
+  const { data: productos = [], isLoading, error } = useProducts();
+  const createProduct = useCreateProduct();
+  const updateProduct = useUpdateProduct();
+  const deleteProduct = useDeleteProduct();
+  
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isMovementDialogOpen, setIsMovementDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -44,40 +47,30 @@ export default function Productos() {
     notes: '',
   });
 
+  // Manejar errores
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const [productsData, movementsData] = await Promise.all([
-        productsAPI.getAll(),
-        inventoryAPI.getMovements(),
-      ]);
-      setProductos(productsData);
-      setMovimientos(movementsData);
-    } catch (error) {
-      toast.error('Error al cargar datos');
-    } finally {
-      setIsLoading(false);
+    if (error) {
+      toast.error('Error al cargar productos');
+      console.error('Error loading products:', error);
     }
-  };
+  }, [error]);
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
       if (editingProduct) {
-        await productsAPI.update(editingProduct.id, formData);
+        await updateProduct.mutateAsync({ id: editingProduct.id, data: formData });
         toast.success('Producto actualizado correctamente');
       } else {
-        await productsAPI.create(formData);
+        await createProduct.mutateAsync(formData);
         toast.success('Producto creado correctamente');
       }
       
       setIsDialogOpen(false);
       resetForm();
-      loadData();
     } catch (error) {
       toast.error('Error al guardar producto');
     }
@@ -122,9 +115,8 @@ export default function Productos() {
     if (!confirm('¿Estás seguro de eliminar este producto?')) return;
     
     try {
-      await productsAPI.delete(id);
+      await deleteProduct.mutateAsync(id);
       toast.success('Producto eliminado correctamente');
-      loadData();
     } catch (error) {
       toast.error('Error al eliminar producto');
     }
@@ -185,7 +177,8 @@ export default function Productos() {
     });
   };
 
-  const filteredProductos = productos.filter(producto => {
+  // Asegurar que productos sea un array antes de filtrar
+  const filteredProductos = (productos || []).filter(producto => {
     if (!producto?.name || !producto?.barcode || !producto?.category) return false;
     
     const searchTermLower = searchTerm.toLowerCase();
