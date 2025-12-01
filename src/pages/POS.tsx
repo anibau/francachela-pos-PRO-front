@@ -63,8 +63,13 @@ export default function POS() {
   }, [productsError]);
 
   // Usar productos buscados si hay término de búsqueda, sino usar todos los productos
-  const displayProducts = searchTerm.length >= 2 ? searchedProducts : products;
-  const displayClients = clientSearchTerm.length >= 2 ? searchedClients : clients;
+  // Asegurar que siempre sean arrays para evitar errores de .slice()
+  const displayProducts = searchTerm.length >= 2 
+    ? (searchedProducts || []) 
+    : (products || []);
+  const displayClients = clientSearchTerm.length >= 2 
+    ? (searchedClients || []) 
+    : (clients || []);
 
   const totalPages = Math.ceil(displayProducts.length / PRODUCTS_PER_PAGE);
   const paginatedProducts = displayProducts.slice(

@@ -44,7 +44,8 @@ export default function Ventas() {
   };
 
   const filterVentas = () => {
-    let filtered = [...ventas];
+    // Asegurar que ventas sea un array antes de usar spread operator
+    let filtered = [...(ventas || [])];
 
     if (dateFilter.startDate) {
       filtered = filtered.filter(v => new Date(v.date) >= new Date(dateFilter.startDate));

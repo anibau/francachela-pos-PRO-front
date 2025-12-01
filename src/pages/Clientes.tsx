@@ -132,7 +132,8 @@ export default function Clientes() {
     });
   };
 
-  const filteredClientes = clientes.filter(cliente => {
+  // Asegurar que clientes sea un array antes de filtrar
+  const filteredClientes = (clientes || []).filter(cliente => {
     if (!cliente?.nombres || !cliente?.dni || !cliente?.telefono) return false;
     
     const searchTermLower = searchTerm.toLowerCase();
