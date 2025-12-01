@@ -13,14 +13,13 @@ import type {
 export function mapClienteFromBackend(clienteBackend: ClienteBackend): Client {
   return {
     id: clienteBackend.id,
-    name: `${clienteBackend.nombres} ${clienteBackend.apellidos}`.trim(),
     nombres: clienteBackend.nombres,
     apellidos: clienteBackend.apellidos,
     dni: clienteBackend.dni,
-    birthday: clienteBackend.fechaNacimiento,
+    fechaNacimiento: clienteBackend.fechaNacimiento,
     telefono: clienteBackend.telefono,
     direccion: clienteBackend.direccion,
-    points: clienteBackend.puntosAcumulados,
+    puntosAcumulados: clienteBackend.puntosAcumulados,
     fechaRegistro: clienteBackend.fechaRegistro,
     codigoCorto: clienteBackend.codigoCorto,
     activo: clienteBackend.activo,
@@ -33,17 +32,14 @@ export function mapClienteFromBackend(clienteBackend: ClienteBackend): Client {
 
 // Mapeo de Cliente: Frontend → Backend
 export function mapClienteToBackend(client: Partial<Client>): Partial<ClienteBackend> {
-  const nombres = client.nombres || client.name?.split(' ')[0] || '';
-  const apellidos = client.apellidos || client.name?.split(' ').slice(1).join(' ') || '';
-  
   return {
-    nombres,
-    apellidos,
+    nombres: client.nombres,
+    apellidos: client.apellidos,
     dni: client.dni,
-    fechaNacimiento: client.birthday,
+    fechaNacimiento: client.fechaNacimiento,
     telefono: client.telefono,
     direccion: client.direccion,
-    puntosAcumulados: client.points,
+    puntosAcumulados: client.puntosAcumulados,
     activo: client.activo
   };
 }
@@ -52,20 +48,19 @@ export function mapClienteToBackend(client: Partial<Client>): Partial<ClienteBac
 export function mapProductoFromBackend(productoBackend: ProductoBackend): Product {
   return {
     id: productoBackend.id,
-    name: productoBackend.productoDescripcion,
-    barcode: productoBackend.codigoBarra,
-    category: productoBackend.categoria,
-    price: parseFloat(productoBackend.precio),
-    cost: parseFloat(productoBackend.costo),
-    wholesalePrice: parseFloat(productoBackend.precioMayoreo),
-    stock: productoBackend.cantidadActual,
-    minStock: productoBackend.cantidadMinima,
-    supplier: productoBackend.proveedor,
-    description: productoBackend.productoDescripcion,
-    image: productoBackend.imagen || '',
-    pointsValue: productoBackend.valorPuntos,
-    showInCatalog: productoBackend.mostrar,
-    useInventory: productoBackend.usaInventario,
+    productoDescripcion: productoBackend.productoDescripcion,
+    codigoBarra: productoBackend.codigoBarra,
+    categoria: productoBackend.categoria,
+    precio: parseFloat(productoBackend.precio),
+    costo: parseFloat(productoBackend.costo),
+    precioMayoreo: parseFloat(productoBackend.precioMayoreo),
+    cantidadActual: productoBackend.cantidadActual,
+    cantidadMinima: productoBackend.cantidadMinima,
+    proveedor: productoBackend.proveedor,
+    imagen: productoBackend.imagen || undefined,
+    valorPuntos: productoBackend.valorPuntos,
+    mostrar: productoBackend.mostrar,
+    usaInventario: productoBackend.usaInventario,
     fechaCreacion: productoBackend.fechaCreacion,
     fechaActualizacion: productoBackend.fechaActualizacion
   };
@@ -74,19 +69,19 @@ export function mapProductoFromBackend(productoBackend: ProductoBackend): Produc
 // Mapeo de Producto: Frontend → Backend
 export function mapProductoToBackend(product: Partial<Product>): Partial<ProductoBackend> {
   return {
-    productoDescripcion: product.name || product.description,
-    codigoBarra: product.barcode,
-    categoria: product.category,
-    precio: product.price?.toString(),
-    costo: product.cost?.toString(),
-    precioMayoreo: product.wholesalePrice?.toString(),
-    cantidadActual: product.stock,
-    cantidadMinima: product.minStock,
-    proveedor: product.supplier,
-    imagen: product.image,
-    valorPuntos: product.pointsValue,
-    mostrar: product.showInCatalog,
-    usaInventario: product.useInventory
+    productoDescripcion: product.productoDescripcion,
+    codigoBarra: product.codigoBarra,
+    categoria: product.categoria,
+    precio: product.precio?.toString(),
+    costo: product.costo?.toString(),
+    precioMayoreo: product.precioMayoreo?.toString(),
+    cantidadActual: product.cantidadActual,
+    cantidadMinima: product.cantidadMinima,
+    proveedor: product.proveedor,
+    imagen: product.imagen,
+    valorPuntos: product.valorPuntos,
+    mostrar: product.mostrar,
+    usaInventario: product.usaInventario
   };
 }
 
@@ -94,23 +89,23 @@ export function mapProductoToBackend(product: Partial<Product>): Partial<Product
 export function mapVentaFromBackend(ventaBackend: VentaBackend): Sale {
   return {
     id: ventaBackend.id,
-    date: ventaBackend.fecha,
-    client: mapClienteFromBackend(ventaBackend.cliente),
-    clientId: ventaBackend.clienteId,
-    items: ventaBackend.listaProductos.map(mapProductoVentaFromBackend),
-    subtotal: parseFloat(ventaBackend.subTotal),
-    discount: parseFloat(ventaBackend.descuento),
+    fecha: ventaBackend.fecha,
+    cliente: ventaBackend.cliente ? mapClienteFromBackend(ventaBackend.cliente) : undefined,
+    clienteId: ventaBackend.clienteId,
+    listaProductos: ventaBackend.listaProductos.map(mapProductoVentaFromBackend),
+    subTotal: parseFloat(ventaBackend.subTotal),
+    descuento: parseFloat(ventaBackend.descuento),
     total: parseFloat(ventaBackend.total),
-    paymentMethod: ventaBackend.metodoPago,
-    notes: ventaBackend.comentario || '',
-    cashier: ventaBackend.cajero,
-    status: ventaBackend.estado,
-    pointsEarned: ventaBackend.puntosOtorgados,
-    pointsUsed: ventaBackend.puntosUsados,
+    metodoPago: ventaBackend.metodoPago as any,
+    comentario: ventaBackend.comentario,
+    cajero: ventaBackend.cajero,
+    estado: ventaBackend.estado,
+    puntosOtorgados: ventaBackend.puntosOtorgados,
+    puntosUsados: ventaBackend.puntosUsados,
     ticketId: ventaBackend.ticketId,
-    saleType: ventaBackend.tipoCompra,
-    amountReceived: parseFloat(ventaBackend.montoRecibido),
-    change: parseFloat(ventaBackend.vuelto),
+    tipoCompra: ventaBackend.tipoCompra,
+    montoRecibido: parseFloat(ventaBackend.montoRecibido),
+    vuelto: parseFloat(ventaBackend.vuelto),
     fechaCreacion: ventaBackend.fechaCreacion,
     fechaActualizacion: ventaBackend.fechaActualizacion
   };
@@ -120,38 +115,28 @@ export function mapVentaFromBackend(ventaBackend: VentaBackend): Sale {
 export function mapProductoVentaFromBackend(productoVentaBackend: ProductoVentaBackend): SaleItem {
   return {
     id: productoVentaBackend.id,
-    productId: productoVentaBackend.id,
-    name: productoVentaBackend.descripcion,
-    price: productoVentaBackend.precio,
-    quantity: productoVentaBackend.cantidad,
-    subtotal: productoVentaBackend.subtotal
+    precio: productoVentaBackend.precio,
+    cantidad: productoVentaBackend.cantidad,
+    subtotal: productoVentaBackend.subtotal,
+    descripcion: productoVentaBackend.descripcion
   };
 }
 
-// Mapeo de Venta: Frontend → Backend
-export function mapVentaToBackend(sale: Partial<Sale>): Partial<VentaBackend> {
+// Mapeo de Venta: Frontend → Backend (para crear ventas)
+export function mapVentaToBackend(sale: Partial<Sale>): any {
   return {
-    fecha: sale.date,
-    clienteId: sale.clientId,
-    listaProductos: sale.items?.map(item => ({
-      id: item.productId || item.id,
-      precio: item.price,
-      cantidad: item.quantity,
-      subtotal: item.subtotal,
-      descripcion: item.name
+    clienteId: sale.clienteId,
+    listaProductos: sale.listaProductos?.map(item => ({
+      productoId: item.id,
+      cantidad: item.cantidad,
+      precioUnitario: item.precio
     })),
-    subTotal: sale.subtotal?.toString(),
-    descuento: sale.discount?.toString(),
-    total: sale.total?.toString(),
-    metodoPago: sale.paymentMethod,
-    comentario: sale.notes,
-    cajero: sale.cashier,
-    estado: sale.status,
-    puntosOtorgados: sale.pointsEarned,
-    puntosUsados: sale.pointsUsed,
-    tipoCompra: sale.saleType,
-    montoRecibido: sale.amountReceived?.toString(),
-    vuelto: sale.change?.toString()
+    descuento: sale.descuento || 0,
+    metodoPago: sale.metodoPago,
+    comentario: sale.comentario || '',
+    tipoCompra: sale.tipoCompra || 'LOCAL',
+    montoRecibido: sale.montoRecibido || 0,
+    puntosUsados: sale.puntosUsados || 0
   };
 }
 

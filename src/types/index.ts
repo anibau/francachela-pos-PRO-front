@@ -3,8 +3,11 @@ export type PaymentMethod = 'EFECTIVO' | 'YAPE' | 'PLIN' | 'TARJETA';
 
 // Enums para categorías y proveedores
 export enum ProductCategory {
+  CERVEZAS = 'Cervezas',
   BEBIDAS = 'Bebidas',
+  LICORES = 'Licores',
   SNACKS = 'Snacks',
+  COMIDA = 'Comida',
   LACTEOS = 'Lácteos',
   ABARROTES = 'Abarrotes',
   LIMPIEZA = 'Limpieza',
@@ -16,45 +19,46 @@ export enum ProductCategory {
 }
 
 export enum ProductSupplier {
+  BACKUS = 'Backus',
   ALICORP = 'Alicorp',
   GLORIA = 'Gloria',
   NESTLE = 'Nestlé',
   PEPSICO = 'PepsiCo',
-  BACKUS = 'Backus',
   COCA_COLA = 'Coca-Cola',
   SAN_FERNANDO = 'San Fernando',
   LAIVE = 'Laive',
   ARCOR = 'Arcor',
   MONDELEZ = 'Mondelez',
+  SAN_LUIS = 'San Luis',
+  VINAS_PERUANAS = 'Viñas Peruanas',
+  COCINA_LOCAL = 'Cocina Local',
   OTRO = 'Otro',
 }
 
+// Product type - nombres en español para coincidir con backend
 export interface Product {
   id: number;
-  name: string;
+  productoDescripcion: string;
   codigoBarra: string;
-  categoria: string;
-  precio: number;
+  imagen?: string | null;
   costo: number;
+  precio: number;
+  precioMayoreo: number;
   cantidadActual: number;
   cantidadMinima: number;
   proveedor: string;
-  productoDescripcion?: string;
-  imagen?: string;
-  precioMayoreo?: number;
-  valorPuntos?: number;
-  mostrar?: boolean;
-  usaInventario?: boolean;
-  
-  // Campos adicionales del backend
+  categoria: string;
+  valorPuntos: number;
+  mostrar: boolean;
+  usaInventario: boolean;
   fechaCreacion?: string;
   fechaActualizacion?: string;
   activo?: boolean;
 }
 
+// Client type - nombres en español para coincidir con backend
 export interface Client {
   id: number;
-  name: string;
   nombres: string;
   apellidos: string;
   dni: string;
@@ -63,8 +67,6 @@ export interface Client {
   fechaNacimiento?: string;
   puntosAcumulados: number;
   email?: string;
-  
-  // Campos adicionales del backend
   fechaRegistro?: string;
   codigoCorto?: string;
   activo?: boolean;
@@ -74,36 +76,35 @@ export interface Client {
   fechaActualizacion?: string;
 }
 
+// Sale Item type - nombres en español
 export interface SaleItem {
   id: number;
-  productId: number;
-  name: string;
-  quantity: number;
-  price: number;
+  precio: number;
+  cantidad: number;
   subtotal: number;
+  descripcion: string;
 }
 
+// Sale type - nombres en español para coincidir con backend
 export interface Sale {
   id: number;
-  date: string;
-  client?: Client;
-  clientId?: number;
-  items: SaleItem[];
-  subtotal: number;
-  discount: number;
+  fecha: string;
+  cliente?: Client;
+  clienteId?: number;
+  listaProductos: SaleItem[];
+  subTotal: number;
+  descuento: number;
   total: number;
-  paymentMethod: PaymentMethod;
-  notes?: string;
-  cashier: string;
-  status: string;
-  pointsEarned: number;
-  pointsUsed: number;
+  metodoPago: PaymentMethod;
+  comentario?: string | null;
+  cajero: string;
+  estado: string;
+  puntosOtorgados: number;
+  puntosUsados: number;
   ticketId?: string | null;
-  
-  // Campos adicionales del backend
-  saleType?: string;
-  amountReceived?: number;
-  change?: number;
+  tipoCompra?: string;
+  montoRecibido?: number;
+  vuelto?: number;
   fechaCreacion?: string;
   fechaActualizacion?: string;
 }
