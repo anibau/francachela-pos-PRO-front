@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Receipt } from 'lucide-react';
-import { expensesAPI } from '@/services/api';
+import { expensesAPI } from '@/services/api'; // TODO: Migrar a hooks
 import type { Expense } from '@/types';
 
 export default function Gastos() {

@@ -8,17 +8,22 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Users, Star, Plus, Pencil, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
-import { clientsAPI } from "@/services/api";
+import { useClients, useClientSearch, useCreateClient, useUpdateClient, useDeleteClient } from "@/hooks";
 import type { Client } from "@/types";
 
 export default function Clientes() {
-  const [clientes, setClientes] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
+
+  // Usar los nuevos hooks
+  const { data: clientes = [], isLoading, error, refetch } = useClients();
+  const { data: searchedClients = [], mutate: searchClients } = useClientSearch(searchTerm);
+  const createClientMutation = useCreateClient();
+  const updateClientMutation = useUpdateClient();
+  const deleteClientMutation = useDeleteClient();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',

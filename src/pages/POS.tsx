@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { productsAPI, clientsAPI } from '@/services/api';
+import { useProducts, useProductSearch, useClients, useClientSearch } from '@/hooks';
 import type { Product, Client, PaymentMethod } from '@/types';
 import { usePOS } from '@/contexts/POSContext';
 import { Search, Plus, Minus, Trash2, User, FileText, DollarSign, X, ShoppingCart, Send } from 'lucide-react';
@@ -17,8 +17,6 @@ import { toast } from '@/hooks/use-toast';
 import { calculateTotalPoints, calculateProductPoints } from '@/utils/pointsCalculator';
 
 export default function POS() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [clientSearchTerm, setClientSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -29,6 +27,12 @@ export default function POS() {
   const [discount, setDiscount] = useState(0);
   
   const PRODUCTS_PER_PAGE = 9;
+
+  // Usar los nuevos hooks
+  const { data: products = [], isLoading: productsLoading, error: productsError } = useProducts();
+  const { data: clients = [], isLoading: clientsLoading } = useClients();
+  const { data: searchedProducts = [], mutate: searchProducts } = useProductSearch(searchTerm);
+  const { data: searchedClients = [], mutate: searchClients } = useClientSearch(clientSearchTerm);
   
   const {
     tickets,
@@ -47,55 +51,23 @@ export default function POS() {
     completeSale,
   } = usePOS();
 
+  // Manejar errores de carga
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [productsData, clientsData] = await Promise.all([
-          productsAPI.getAll(),
-          clientsAPI.getAll(),
-        ]);
-        setProducts(productsData);
-        setClients(clientsData);
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'Error al cargar datos',
-          variant: 'destructive',
-        });
-      }
-    };
-    loadData();
-  }, []);
+    if (productsError) {
+      toast({
+        title: 'Error',
+        description: 'Error al cargar productos',
+        variant: 'destructive',
+      });
+    }
+  }, [productsError]);
 
-  const filteredProducts = products.filter((product) => {
-    if (!product?.name || !product?.barcode) return false;
-    
-    const searchTermLower = searchTerm.toLowerCase();
-    const productName = product.name || '';
-    const productBarcode = product.barcode || '';
-    
-    return (
-      productName.toLowerCase().includes(searchTermLower) 
-      // productBarcode.includes(searchTerm)
-    );
-  });
+  // Usar productos buscados si hay término de búsqueda, sino usar todos los productos
+  const displayProducts = searchTerm.length >= 2 ? searchedProducts : products;
+  const displayClients = clientSearchTerm.length >= 2 ? searchedClients : clients;
 
-  const filteredClients = clients.filter((client) => {
-    if (!client?.name) return false;
-    
-    const clientName = client.name || '';
-    const clientDni = client.dni || '';
-    const clientPhone = client.phone || '';
-    
-    return (
-      clientName.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
-      clientDni.includes(clientSearchTerm) ||
-      clientPhone.includes(clientSearchTerm)
-    );
-  });
-
-  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
-  const paginatedProducts = filteredProducts.slice(
+  const totalPages = Math.ceil(displayProducts.length / PRODUCTS_PER_PAGE);
+  const paginatedProducts = displayProducts.slice(
     (currentPage - 1) * PRODUCTS_PER_PAGE,
     currentPage * PRODUCTS_PER_PAGE
   );

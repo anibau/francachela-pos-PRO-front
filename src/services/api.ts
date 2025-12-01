@@ -1,4 +1,11 @@
-// Actualización del archivo api.ts con métodos update y delete
+/**
+ * API Services - Refactorizado para integración con backend
+ * 
+ * Este archivo actúa como un proxy que redirige a los servicios específicos
+ * manteniendo compatibilidad con el código existente mientras migra gradualmente
+ * a los nuevos servicios especializados.
+ */
+
 import { API_CONFIG } from '@/config/api';
 import type {
   Product,
@@ -12,29 +19,27 @@ import type {
   Settings,
   InventoryMovement
 } from '@/types';
+
+// Importar los nuevos servicios especializados
+import { productsService } from './productsService';
+import { clientsService } from './clientsService';
+import { salesService } from './salesService';
+import { promotionsService } from './promotionsService';
+import { cashRegisterService } from './cashRegisterService';
+import { expensesService } from './expensesService';
+import { inventoryService } from './inventoryService';
+
+// Importar mocks alineados con el backend
 import {
-  mockProducts,
-  mockClients,
-  mockSales,
-  mockPromotions,
-  mockCombos,
-  mockCashRegisters,
-  mockExpenses,
-  mockDeliveryOrders,
-  mockSettings
-} from './mockData';
-import {
-  googleSheetsProducts,
-  googleSheetsClients,
-  googleSheetsSales,
-  googleSheetsPromotions,
-  googleSheetsCombos,
-  googleSheetsCashRegister,
-  googleSheetsExpenses,
-  googleSheetsDelivery,
-  googleSheetsSettings,
-  googleSheetsInventory,
-} from './googleSheets';
+  mockProductsAligned,
+  mockClientsAligned,
+  mockSalesAligned,
+  mockPromotionsAligned,
+  mockCombosAligned,
+  mockCashRegistersAligned,
+  mockExpensesAligned,
+  mockSettingsAligned
+} from './mockDataAligned';
 
 // Helper function para manejar errores
 const handleApiError = (error: any): never => {
@@ -42,14 +47,13 @@ const handleApiError = (error: any): never => {
   throw new Error(error.message || 'Error de carga');
 };
 
-// Productos
+// ============================================================================
+// PRODUCTOS - Redirigir al nuevo servicio especializado
+// ============================================================================
 export const productsAPI = {
   getAll: async (): Promise<Product[]> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsProducts.getAll();
-      }
-      return mockProducts;
+      return await productsService.getAll();
     } catch (error) {
       return handleApiError(error);
     }
@@ -57,12 +61,7 @@ export const productsAPI = {
 
   getById: async (id: number): Promise<Product> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsProducts.getById(id);
-      }
-      const product = mockProducts.find(p => p.id === id);
-      if (!product) throw new Error('Producto no encontrado');
-      return product;
+      return await productsService.getById(id);
     } catch (error) {
       return handleApiError(error);
     }
@@ -70,15 +69,7 @@ export const productsAPI = {
 
   create: async (product: Omit<Product, 'id'>): Promise<Product> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsProducts.create(product);
-      }
-      const newProduct = {
-        ...product,
-        id: Math.max(...mockProducts.map(p => p.id)) + 1
-      };
-      mockProducts.push(newProduct);
-      return newProduct;
+      return await productsService.create(product);
     } catch (error) {
       return handleApiError(error);
     }
@@ -86,13 +77,7 @@ export const productsAPI = {
 
   update: async (id: number, product: Partial<Product>): Promise<Product> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsProducts.update(id, product);
-      }
-      const index = mockProducts.findIndex(p => p.id === id);
-      if (index === -1) throw new Error('Producto no encontrado');
-      mockProducts[index] = { ...mockProducts[index], ...product };
-      return mockProducts[index];
+      return await productsService.update(id, product);
     } catch (error) {
       return handleApiError(error);
     }
@@ -100,27 +85,53 @@ export const productsAPI = {
 
   delete: async (id: number): Promise<void> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        await googleSheetsProducts.delete(id);
-        return;
-      }
-      const index = mockProducts.findIndex(p => p.id === id);
-      if (index === -1) throw new Error('Producto no encontrado');
-      mockProducts.splice(index, 1);
+      await productsService.delete(id);
     } catch (error) {
       return handleApiError(error);
     }
-  }
+  },
+
+  // Métodos adicionales del nuevo servicio
+  search: async (query: string): Promise<Product[]> => {
+    try {
+      return await productsService.search(query);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getCategories: async (): Promise<string[]> => {
+    try {
+      return await productsService.getCategories();
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getLowStock: async (): Promise<Product[]> => {
+    try {
+      return await productsService.getLowStock();
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  updateStock: async (id: number, stockData: any): Promise<Product> => {
+    try {
+      return await productsService.updateStock(id, stockData);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
 };
 
-// Clientes
+// ============================================================================
+// CLIENTES - Redirigir al nuevo servicio especializado
+// ============================================================================
 export const clientsAPI = {
   getAll: async (): Promise<Client[]> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsClients.getAll();
-      }
-      return mockClients;
+      return await clientsService.getAll();
     } catch (error) {
       return handleApiError(error);
     }
@@ -128,12 +139,7 @@ export const clientsAPI = {
 
   getById: async (id: number): Promise<Client> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsClients.getById(id);
-      }
-      const client = mockClients.find(c => c.id === id);
-      if (!client) throw new Error('Cliente no encontrado');
-      return client;
+      return await clientsService.getById(id);
     } catch (error) {
       return handleApiError(error);
     }
@@ -141,16 +147,7 @@ export const clientsAPI = {
 
   create: async (client: Omit<Client, 'id'>): Promise<Client> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsClients.create(client);
-      }
-      const newClient = {
-        ...client,
-        id: Math.max(...mockClients.map(c => c.id)) + 1,
-        points: 0
-      };
-      mockClients.push(newClient);
-      return newClient;
+      return await clientsService.create(client);
     } catch (error) {
       return handleApiError(error);
     }
@@ -158,13 +155,7 @@ export const clientsAPI = {
 
   update: async (id: number, client: Partial<Client>): Promise<Client> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsClients.update(id, client);
-      }
-      const index = mockClients.findIndex(c => c.id === id);
-      if (index === -1) throw new Error('Cliente no encontrado');
-      mockClients[index] = { ...mockClients[index], ...client };
-      return mockClients[index];
+      return await clientsService.update(id, client);
     } catch (error) {
       return handleApiError(error);
     }
@@ -172,57 +163,54 @@ export const clientsAPI = {
 
   delete: async (id: number): Promise<void> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        await googleSheetsClients.delete(id);
-        return;
-      }
-      const index = mockClients.findIndex(c => c.id === id);
-      if (index === -1) throw new Error('Cliente no encontrado');
-      mockClients.splice(index, 1);
-    } catch (error) {
-      return handleApiError(error);
-    }
-  }
-};
-
-// ... (resto del código igual, agregando métodos update y delete donde sea necesario)
-
-// Inventario
-export const inventoryAPI = {
-  getMovements: async (): Promise<InventoryMovement[]> => {
-    try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsInventory.getMovements();
-      }
-      return [];
+      await clientsService.delete(id);
     } catch (error) {
       return handleApiError(error);
     }
   },
 
-  createMovement: async (movement: Omit<InventoryMovement, 'id'>): Promise<InventoryMovement> => {
+  // Métodos adicionales del nuevo servicio
+  search: async (query: string): Promise<Client[]> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsInventory.createMovement(movement);
-      }
-      return { ...movement, id: Date.now() };
+      return await clientsService.search(query);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getByDni: async (dni: string): Promise<Client | null> => {
+    try {
+      return await clientsService.getByDni(dni);
+    } catch (error) {
+      console.error('Error getting client by DNI:', error);
+      return null;
+    }
+  },
+
+  getBirthdays: async (): Promise<Client[]> => {
+    try {
+      return await clientsService.getBirthdays();
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getTopClients: async (limit?: number): Promise<Client[]> => {
+    try {
+      return await clientsService.getTopClients(limit);
     } catch (error) {
       return handleApiError(error);
     }
   },
 };
 
-// Ventas
+// ============================================================================
+// VENTAS - Redirigir al nuevo servicio especializado
+// ============================================================================
 export const salesAPI = {
   getAll: async (): Promise<Sale[]> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        console.log('Fetching sales from Google Sheets');
-        const sales = await googleSheetsSales.getAll();
-        console.log('Sales fetched:', sales);
-        return sales;
-      }
-      return mockSales;
+      return await salesService.getAll();
     } catch (error) {
       return handleApiError(error);
     }
@@ -230,23 +218,15 @@ export const salesAPI = {
 
   getById: async (id: number): Promise<Sale> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsSales.getById(id);
-      }
-      const sale = mockSales.find(s => s.id === id);
-      if (!sale) throw new Error('Venta no encontrada');
-      return sale;
+      return await salesService.getById(id);
     } catch (error) {
       return handleApiError(error);
     }
   },
 
-  create: async (sale: Omit<Sale, 'id'>): Promise<Sale> => {
+  create: async (sale: any): Promise<Sale> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsSales.create(sale);
-      }
-      return { ...sale, id: Math.max(...mockSales.map(s => s.id)) + 1 } as Sale;
+      return await salesService.create(sale);
     } catch (error) {
       return handleApiError(error);
     }
@@ -254,31 +234,61 @@ export const salesAPI = {
 
   cancel: async (id: number): Promise<Sale> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsSales.cancel(id);
-      }
-      const index = mockSales.findIndex(s => s.id === id);
-      if (index === -1) throw new Error('Venta no encontrada');
-      mockSales[index] = { ...mockSales[index], status: 'anulada' };
-      return mockSales[index];
+      return await salesService.cancel(id);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  // Métodos adicionales del nuevo servicio
+  search: async (query: string): Promise<Sale[]> => {
+    try {
+      return await salesService.search(query);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getToday: async (): Promise<Sale[]> => {
+    try {
+      return await salesService.getToday();
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getByClient: async (clientId: number): Promise<Sale[]> => {
+    try {
+      return await salesService.getByClient(clientId);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getStatistics: async (filters?: any): Promise<any> => {
+    try {
+      return await salesService.getStatistics(filters);
     } catch (error) {
       return handleApiError(error);
     }
   },
 };
 
-
-// Promociones
+// ============================================================================
+// PROMOCIONES - Redirigir al nuevo servicio especializado
+// ============================================================================
 export const promotionsAPI = {
   getAll: async (): Promise<Promotion[]> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        console.log('Fetching promotions from Google Sheets');
-        const promotions = await googleSheetsPromotions.getAll();
-        console.log('Promotions fetched:', promotions);
-        return promotions;
-      }
-      return mockPromotions;
+      return await promotionsService.getAll();
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getById: async (id: number): Promise<Promotion> => {
+    try {
+      return await promotionsService.getById(id);
     } catch (error) {
       return handleApiError(error);
     }
@@ -286,10 +296,7 @@ export const promotionsAPI = {
 
   create: async (promotion: Omit<Promotion, 'id'>): Promise<Promotion> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsPromotions.create(promotion);
-      }
-      return { ...promotion, id: Math.max(...mockPromotions.map(p => p.id)) + 1 } as Promotion;
+      return await promotionsService.create(promotion);
     } catch (error) {
       return handleApiError(error);
     }
@@ -297,13 +304,7 @@ export const promotionsAPI = {
 
   update: async (id: number, promotion: Partial<Promotion>): Promise<Promotion> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsPromotions.update(id, promotion);
-      }
-      const index = mockPromotions.findIndex(p => p.id === id);
-      if (index === -1) throw new Error('Promoción no encontrada');
-      mockPromotions[index] = { ...mockPromotions[index], ...promotion };
-      return mockPromotions[index];
+      return await promotionsService.update(id, promotion);
     } catch (error) {
       return handleApiError(error);
     }
@@ -311,30 +312,61 @@ export const promotionsAPI = {
 
   delete: async (id: number): Promise<void> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        await googleSheetsPromotions.delete(id);
-        return;
-      }
-      const index = mockPromotions.findIndex(p => p.id === id);
-      if (index === -1) throw new Error('Promoción no encontrada');
-      mockPromotions.splice(index, 1);
+      await promotionsService.delete(id);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  // Métodos adicionales del nuevo servicio
+  getActive: async (): Promise<Promotion[]> => {
+    try {
+      return await promotionsService.getActive();
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  activate: async (id: number): Promise<Promotion> => {
+    try {
+      return await promotionsService.activate(id);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  deactivate: async (id: number): Promise<Promotion> => {
+    try {
+      return await promotionsService.deactivate(id);
     } catch (error) {
       return handleApiError(error);
     }
   },
 };
 
+// ============================================================================
+// SERVICIOS PENDIENTES DE MIGRACIÓN (usando mocks temporalmente)
+// ============================================================================
+
 // Combos
 export const combosAPI = {
   getAll: async (): Promise<Combo[]> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        console.log('Fetching combos from Google Sheets');
-        const combos = await googleSheetsCombos.getAll();
-        console.log('Combos fetched:', combos);
-        return combos;
+      if (API_CONFIG.USE_MOCKS) {
+        return mockCombosAligned;
       }
-      return mockCombos;
+      // TODO: Implementar servicio de combos
+      return mockCombosAligned;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getById: async (id: number): Promise<Combo> => {
+    try {
+      const combo = mockCombosAligned.find(c => c.id === id);
+      if (!combo) throw new Error('Combo no encontrado');
+      return combo;
     } catch (error) {
       return handleApiError(error);
     }
@@ -342,10 +374,12 @@ export const combosAPI = {
 
   create: async (combo: Omit<Combo, 'id'>): Promise<Combo> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsCombos.create(combo);
-      }
-      return { ...combo, id: Math.max(...mockCombos.map(c => c.id)) + 1 } as Combo;
+      const newCombo = {
+        ...combo,
+        id: Math.max(...mockCombosAligned.map(c => c.id)) + 1
+      };
+      mockCombosAligned.push(newCombo);
+      return newCombo;
     } catch (error) {
       return handleApiError(error);
     }
@@ -353,13 +387,10 @@ export const combosAPI = {
 
   update: async (id: number, combo: Partial<Combo>): Promise<Combo> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsCombos.update(id, combo);
-      }
-      const index = mockCombos.findIndex(c => c.id === id);
+      const index = mockCombosAligned.findIndex(c => c.id === id);
       if (index === -1) throw new Error('Combo no encontrado');
-      mockCombos[index] = { ...mockCombos[index], ...combo };
-      return mockCombos[index];
+      mockCombosAligned[index] = { ...mockCombosAligned[index], ...combo };
+      return mockCombosAligned[index];
     } catch (error) {
       return handleApiError(error);
     }
@@ -367,93 +398,91 @@ export const combosAPI = {
 
   delete: async (id: number): Promise<void> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        await googleSheetsCombos.delete(id);
-        return;
-      }
-      const index = mockCombos.findIndex(c => c.id === id);
+      const index = mockCombosAligned.findIndex(c => c.id === id);
       if (index === -1) throw new Error('Combo no encontrado');
-      mockCombos.splice(index, 1);
+      mockCombosAligned.splice(index, 1);
     } catch (error) {
       return handleApiError(error);
     }
   },
 };
 
-// CashRegister
+// ============================================================================
+// CAJA REGISTRADORA - Redirigir al nuevo servicio especializado
+// ============================================================================
 export const cashRegisterAPI = {
   getCurrent: async (): Promise<CashRegister | null> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsCashRegister.getCurrent();
-      }
-      return mockCashRegisters.find(r => r.status === 'open') || null;
+      return await cashRegisterService.getCurrent();
     } catch (error) {
       return handleApiError(error);
     }
   },
 
-  getHistory: async (): Promise<CashRegister[]> => {
+  getHistory: async (filters?: any): Promise<CashRegister[]> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsCashRegister.getHistory();
-      }
-      return mockCashRegisters;
+      return await cashRegisterService.getHistory(filters);
     } catch (error) {
       return handleApiError(error);
     }
   },
 
-  open: async (initialCash: number, cashier: string): Promise<CashRegister> => {
+  getById: async (id: number): Promise<CashRegister> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsCashRegister.open(initialCash, cashier);
-      }
-      const newRegister: CashRegister = {
-        id: Math.max(...mockCashRegisters.map(r => r.id)) + 1,
-        cashier,
-        openedAt: new Date().toISOString(),
-        initialCash,
-        totalSales: 0,
-        totalExpenses: 0,
-        status: 'open',
-        paymentBreakdown: { efectivo: 0, yape: 0, plin: 0, tarjeta: 0 },
-      };
-      mockCashRegisters.push(newRegister);
-      return newRegister;
+      return await cashRegisterService.getById(id);
     } catch (error) {
       return handleApiError(error);
     }
   },
 
-  close: async (id: number, finalCash: number): Promise<CashRegister> => {
+  open: async (openData: any): Promise<CashRegister> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsCashRegister.close(id, finalCash);
-      }
-      const index = mockCashRegisters.findIndex(r => r.id === id);
-      if (index === -1) throw new Error('Caja no encontrada');
-      mockCashRegisters[index] = {
-        ...mockCashRegisters[index],
-        closedAt: new Date().toISOString(),
-        finalCash,
-        status: 'closed',
-      };
-      return mockCashRegisters[index];
+      return await cashRegisterService.open(openData);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  close: async (id: number, closeData: any): Promise<CashRegister> => {
+    try {
+      return await cashRegisterService.close(id, closeData);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getSummary: async (id: number): Promise<any> => {
+    try {
+      return await cashRegisterService.getSummary(id);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getStatistics: async (filters?: any): Promise<any> => {
+    try {
+      return await cashRegisterService.getStatistics(filters);
     } catch (error) {
       return handleApiError(error);
     }
   },
 };
 
-// Expenses
+// ============================================================================
+// GASTOS - Redirigir al nuevo servicio especializado
+// ============================================================================
 export const expensesAPI = {
-  getAll: async (): Promise<Expense[]> => {
+  getAll: async (params?: any): Promise<Expense[]> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsExpenses.getAll();
-      }
-      return mockExpenses;
+      return await expensesService.getAll(params);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getById: async (id: number): Promise<Expense> => {
+    try {
+      return await expensesService.getById(id);
     } catch (error) {
       return handleApiError(error);
     }
@@ -461,12 +490,15 @@ export const expensesAPI = {
 
   create: async (expense: Omit<Expense, 'id'>): Promise<Expense> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsExpenses.create(expense);
-      }
-      const newExpense = { ...expense, id: Math.max(...mockExpenses.map(e => e.id)) + 1 };
-      mockExpenses.push(newExpense);
-      return newExpense;
+      return await expensesService.create(expense);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  update: async (id: number, expense: Partial<Expense>): Promise<Expense> => {
+    try {
+      return await expensesService.update(id, expense);
     } catch (error) {
       return handleApiError(error);
     }
@@ -474,27 +506,181 @@ export const expensesAPI = {
 
   delete: async (id: number): Promise<void> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        await googleSheetsExpenses.delete(id);
-        return;
-      }
-      const index = mockExpenses.findIndex(e => e.id === id);
-      if (index === -1) throw new Error('Gasto no encontrado');
-      mockExpenses.splice(index, 1);
+      await expensesService.delete(id);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  // Métodos adicionales del nuevo servicio
+  getToday: async (): Promise<Expense[]> => {
+    try {
+      return await expensesService.getToday();
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getByDateRange: async (filters: any): Promise<Expense[]> => {
+    try {
+      return await expensesService.getByDateRange(filters);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getByCategory: async (categoria: string): Promise<Expense[]> => {
+    try {
+      return await expensesService.getByCategory(categoria);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  search: async (query: string): Promise<Expense[]> => {
+    try {
+      return await expensesService.search(query);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getCategories: async (): Promise<string[]> => {
+    try {
+      return await expensesService.getCategories();
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getStatistics: async (filters?: any): Promise<any> => {
+    try {
+      return await expensesService.getStatistics(filters);
     } catch (error) {
       return handleApiError(error);
     }
   },
 };
 
-// Delivery
+// ============================================================================
+// INVENTARIO - Redirigir al nuevo servicio especializado
+// ============================================================================
+export const inventoryAPI = {
+  getMovements: async (params?: any): Promise<InventoryMovement[]> => {
+    try {
+      return await inventoryService.getMovements(params);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getById: async (id: number): Promise<InventoryMovement> => {
+    try {
+      return await inventoryService.getById(id);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  createMovement: async (movement: Omit<InventoryMovement, 'id'>): Promise<InventoryMovement> => {
+    try {
+      return await inventoryService.createMovement(movement);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  // Métodos adicionales del nuevo servicio
+  getToday: async (): Promise<InventoryMovement[]> => {
+    try {
+      return await inventoryService.getToday();
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getByDateRange: async (filters: any): Promise<InventoryMovement[]> => {
+    try {
+      return await inventoryService.getByDateRange(filters);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getByType: async (tipo: string): Promise<InventoryMovement[]> => {
+    try {
+      return await inventoryService.getByType(tipo);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getByCashier: async (cajero: string): Promise<InventoryMovement[]> => {
+    try {
+      return await inventoryService.getByCashier(cajero);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  createEntry: async (entryData: any): Promise<InventoryMovement> => {
+    try {
+      return await inventoryService.createEntry(entryData);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  createAdjustment: async (adjustmentData: any): Promise<InventoryMovement> => {
+    try {
+      return await inventoryService.createAdjustment(adjustmentData);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  createSaleMovement: async (saleData: any): Promise<InventoryMovement> => {
+    try {
+      return await inventoryService.createSaleMovement(saleData);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  getStatistics: async (filters?: any): Promise<any> => {
+    try {
+      return await inventoryService.getStatistics(filters);
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+};
+
+// Configuraciones
+export const settingsAPI = {
+  get: async (): Promise<Settings> => {
+    try {
+      return mockSettingsAligned;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  update: async (settings: Partial<Settings>): Promise<Settings> => {
+    try {
+      Object.assign(mockSettingsAligned, settings);
+      return mockSettingsAligned;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+};
+
+// Delivery (placeholder)
 export const deliveryAPI = {
   getAll: async (): Promise<DeliveryOrder[]> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsDelivery.getAll();
-      }
-      return mockDeliveryOrders;
+      return []; // Mock vacío por ahora
     } catch (error) {
       return handleApiError(error);
     }
@@ -502,11 +688,10 @@ export const deliveryAPI = {
 
   create: async (order: Omit<DeliveryOrder, 'id'>): Promise<DeliveryOrder> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsDelivery.create(order);
-      }
-      const newOrder = { ...order, id: Math.max(...mockDeliveryOrders.map(o => o.id)) + 1 };
-      mockDeliveryOrders.push(newOrder);
+      const newOrder = {
+        ...order,
+        id: Date.now(),
+      };
       return newOrder;
     } catch (error) {
       return handleApiError(error);
@@ -515,39 +700,8 @@ export const deliveryAPI = {
 
   update: async (id: number, order: Partial<DeliveryOrder>): Promise<DeliveryOrder> => {
     try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsDelivery.update(id, order);
-      }
-      const index = mockDeliveryOrders.findIndex(o => o.id === id);
-      if (index === -1) throw new Error('Pedido no encontrado');
-      mockDeliveryOrders[index] = { ...mockDeliveryOrders[index], ...order };
-      return mockDeliveryOrders[index];
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
-};
-
-// Settings
-export const settingsAPI = {
-  get: async (): Promise<Settings> => {
-    try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsSettings.get();
-      }
-      return mockSettings;
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
-  update: async (settings: Partial<Settings>): Promise<Settings> => {
-    try {
-      if (API_CONFIG.USE_GOOGLE_SHEETS) {
-        return await googleSheetsSettings.update(settings);
-      }
-      Object.assign(mockSettings, settings);
-      return mockSettings;
+      // Mock implementation
+      return { id, ...order } as DeliveryOrder;
     } catch (error) {
       return handleApiError(error);
     }
