@@ -58,8 +58,11 @@ class FrancachelaHttpClient implements HttpClient {
   private async handleResponse<T>(response: Response): Promise<T> {
     const contentType = response.headers.get('content-type');
     
+    this.log(`Response content-type: ${contentType}`);
+    
     // Handle non-JSON responses (like file downloads)
     if (!contentType || !contentType.includes('application/json')) {
+      this.log('Non-JSON response detected');
       if (response.ok) {
         return response.blob() as unknown as T;
       }
@@ -67,19 +70,23 @@ class FrancachelaHttpClient implements HttpClient {
     }
 
     const data = await response.json();
+    this.log('Response data (parsed JSON):', data);
 
     // Handle successful responses
     if (response.ok) {
       // If it's a standard API response with status/message/data structure
       if (typeof data === 'object' && 'status' in data && 'data' in data) {
         const apiResponse = data as ApiResponse<T>;
+        this.log('Standard API response format detected');
         if (apiResponse.status) {
+          this.log('Returning apiResponse.data:', apiResponse.data);
           return apiResponse.data;
         } else {
           throw new Error(apiResponse.message || 'API returned error status');
         }
       }
       // Return raw data if it's not in standard format
+      this.log('Non-standard response format - returning raw data:', data);
       return data;
     }
 

@@ -165,25 +165,104 @@ export const authService = {
         username: usernameOrEmail.trim(),
         password 
       };
-      const response = await httpClient.post<LoginResponse>(
+      const response = await httpClient.post<any>(
         API_ENDPOINTS.AUTH.LOGIN,
         loginRequest,
         { requiresAuth: false }
       );
       
+      // DEBUG: Mostrar estructura completa de la respuesta
+      console.log('[AuthService] Respuesta completa del backend:', response);
+      
+      // Normalizar la respuesta del backend a un formato estándar
+      let normalizedResponse: { user: any; token: string };
+      
+      // Formato 1: { user: {...}, token: "..." }
+      if (response.user && response.token) {
+        console.log('[AuthService] Formato detectado: { user, token }');
+        normalizedResponse = {
+          user: response.user,
+          token: response.token
+        };
+      }
+      // Formato 2: { user: {...}, access_token: "..." }
+      else if (response.user && response.access_token) {
+        console.log('[AuthService] Formato detectado: { user, access_token }');
+        normalizedResponse = {
+          user: response.user,
+          token: response.access_token
+        };
+      }
+      // Formato 3: Datos directos { id, username, ..., token }
+      else if (response.id && response.username && response.token) {
+        console.log('[AuthService] Formato detectado: datos directos');
+        normalizedResponse = {
+          user: {
+            id: response.id,
+            email: response.email,
+            username: response.username,
+            role: response.role,
+            nombre: response.nombre
+          },
+          token: response.token
+        };
+      }
+      // Formato 4: Respuesta envuelta en data
+      else if (response.data) {
+        console.log('[AuthService] Formato detectado: envuelto en data');
+        return authService.login(usernameOrEmail, password); // Recursivo con response.data
+      }
+      else {
+        console.error('[AuthService] Formato de respuesta no reconocido:', response);
+        throw new Error('Error de autenticación: formato de respuesta inválido');
+      }
+      
+      console.log('[AuthService] Token recibido:', normalizedResponse.token);
+      console.log('[AuthService] Usuario recibido:', normalizedResponse.user);
+      
+      // Validar que la respuesta normalizada tenga la estructura esperada
+      if (!normalizedResponse.token) {
+        console.error('[AuthService] No se recibió token en la respuesta');
+        throw new Error('Error de autenticación: token no recibido');
+      }
+      
+      if (!normalizedResponse.user) {
+        console.error('[AuthService] No se recibió información de usuario');
+        throw new Error('Error de autenticación: datos de usuario no recibidos');
+      }
+      
       // Mapear respuesta del backend al formato del frontend
       const user: User = {
-        id: response.user.id,
-        username: response.user.username,
-        role: mapBackendRole(response.user.role),
-        nombre: response.user.nombre,
+        id: normalizedResponse.user.id,
+        username: normalizedResponse.user.username,
+        role: mapBackendRole(normalizedResponse.user.role),
+        nombre: normalizedResponse.user.nombre,
       };
       
+      // Validar token antes de guardarlo (solo si parece ser JWT)
+      const token = normalizedResponse.token;
+      const tokenParts = token.split('.');
+      
+      // Si tiene 3 partes, es probablemente un JWT
+      if (tokenParts.length === 3) {
+        console.log('[AuthService] Token JWT válido detectado');
+        try {
+          // Intentar decodificar para validar
+          const payload = JSON.parse(atob(tokenParts[1]));
+          console.log('[AuthService] Payload del JWT:', payload);
+        } catch (decodeError) {
+          console.warn('[AuthService] Error decodificando JWT, pero continuando:', decodeError);
+        }
+      } else {
+        console.log('[AuthService] Token no es JWT (partes:', tokenParts.length, ') - usando como token simple');
+      }
+      
       // Guardar token y usuario SEPARADOS para evitar doble serialización
-      storageService.set('AUTH_TOKEN', response.token);
+      storageService.set('AUTH_TOKEN', token);
       storageService.set('USER_DATA', user);
       
       console.log('[AuthService] Login exitoso:', user.username);
+      console.log('[AuthService] Token guardado correctamente');
       return user;
     } catch (error) {
       console.error('[AuthService] Login error:', error);
@@ -282,31 +361,52 @@ export const authService = {
   isTokenExpired: (): boolean => {
     try {
       const token = storageService.get<string>('AUTH_TOKEN');
-      if (!token) return true;
-      
-      // Validar que el token tenga 3 partes (header.payload.signature)
-      const parts = token.split('.');
-      if (parts.length !== 3) {
-        console.warn('[AuthService] Token inválido - estructura incorrecta');
+      if (!token) {
+        console.log('[AuthService] No hay token - considerando expirado');
         return true;
       }
       
-      // Decodificar el payload del JWT
-      const payload = JSON.parse(atob(parts[1]));
-      
-      // Si no tiene exp, asumir que es válido (token mock)
-      if (!payload.exp) {
+      // Si estamos usando mocks, el token es siempre válido
+      if (API_CONFIG.USE_MOCKS) {
+        console.log('[AuthService] Usando mocks - token siempre válido');
         return false;
       }
       
-      const currentTime = Math.floor(Date.now() / 1000);
-      const isExpired = payload.exp < currentTime;
+      // Validar estructura del token
+      const parts = token.split('.');
       
-      if (isExpired) {
-        console.warn('[AuthService] Token expirado');
+      // Si no es un JWT (no tiene 3 partes), tratarlo como token simple válido
+      if (parts.length !== 3) {
+        console.log('[AuthService] Token no es JWT (partes:', parts.length, ') - tratando como token simple válido');
+        return false; // Token simple siempre válido
       }
       
-      return isExpired;
+      try {
+        // Decodificar el payload del JWT
+        const payload = JSON.parse(atob(parts[1]));
+        console.log('[AuthService] Payload del token:', payload);
+        
+        // Si no tiene exp, asumir que es válido (algunos backends no usan exp)
+        if (!payload.exp) {
+          console.log('[AuthService] Token sin expiración - considerando válido');
+          return false;
+        }
+        
+        const currentTime = Math.floor(Date.now() / 1000);
+        const isExpired = payload.exp < currentTime;
+        
+        if (isExpired) {
+          console.warn('[AuthService] Token expirado. Exp:', payload.exp, 'Current:', currentTime);
+        } else {
+          console.log('[AuthService] Token válido. Exp:', payload.exp, 'Current:', currentTime);
+        }
+        
+        return isExpired;
+      } catch (decodeError) {
+        console.error('[AuthService] Error decodificando payload del token:', decodeError);
+        console.error('[AuthService] Token problemático:', token);
+        return true;
+      }
     } catch (error) {
       // Si hay error al decodificar, asumir que está expirado
       console.error('[AuthService] Error verificando expiración del token:', error);

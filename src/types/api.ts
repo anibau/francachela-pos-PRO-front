@@ -23,6 +23,7 @@ export interface LoginRequest {
 
 /**
  * Respuesta del backend después de autenticarse
+ * Puede venir en diferentes formatos dependiendo del backend
  */
 export interface LoginResponse {
   user: {
@@ -33,6 +34,32 @@ export interface LoginResponse {
     nombre: string;
   };
   token: string;
+}
+
+/**
+ * Respuesta alternativa del backend (formato directo)
+ */
+export interface LoginResponseDirect {
+  id: number;
+  email: string;
+  username: string;
+  role: 'ADMIN' | 'CAJERO' | 'INVENTARIOS';
+  nombre: string;
+  token: string;
+}
+
+/**
+ * Respuesta alternativa del backend (formato con access_token)
+ */
+export interface LoginResponseAccessToken {
+  user: {
+    id: number;
+    email: string;
+    username: string;
+    role: 'ADMIN' | 'CAJERO' | 'INVENTARIOS';
+    nombre: string;
+  };
+  access_token: string;
 }
 
 // Tipos para paginación
