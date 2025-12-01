@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { googleSheetsAuth } from '@/services/googleSheets';
+import { authService } from '@/services/authService';
 
 export type UserRole = 'administrador' | 'supervisor' | 'cajero';
 
@@ -26,22 +26,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Verificar si hay sesión guardada
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
+    const initializeAuth = async () => {
       try {
-        setUser(JSON.parse(savedUser));
+        if (authService.isAuthenticated() && !authService.isTokenExpired()) {
+          const currentUser = authService.getCurrentUser();
+          if (currentUser) {
+            setUser(currentUser);
+          } else {
+            // Si no se puede obtener el usuario, limpiar la sesión
+            authService.logout();
+          }
+        } else {
+          // Token expirado o no existe, limpiar la sesión
+          authService.logout();
+        }
       } catch (error) {
-        localStorage.removeItem('user');
+        console.error('Error initializing auth:', error);
+        authService.logout();
+      } finally {
+        setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (username: string, password: string) => {
     try {
-      const authenticatedUser = await googleSheetsAuth.login(username, password);
+      const authenticatedUser = await authService.login(username, password);
       setUser(authenticatedUser);
-      localStorage.setItem('user', JSON.stringify(authenticatedUser));
     } catch (error) {
       throw new Error('Usuario o contraseña incorrectos');
     }
@@ -49,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('user');
+    authService.logout();
   };
 
   const hasPermission = (requiredRoles: UserRole[]): boolean => {
