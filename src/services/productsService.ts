@@ -9,12 +9,23 @@ import type {
   PaginationParams,
   DateRangeFilter 
 } from '@/types/api';
+import type { 
+  ProductoBackend, 
+  BackendPaginatedResponse, 
+  ProductoQueryParams 
+} from '@/types/backend';
+import { 
+  mapProductoFromBackend, 
+  mapProductoToBackend, 
+  mapProductosFromBackend,
+  extractDataFromPaginatedResponse 
+} from '@/utils/dataMappers';
 
 export const productsService = {
   /**
-   * Obtener todos los productos
+   * Obtener todos los productos con filtros opcionales
    */
-  getAll: async (params?: PaginationParams): Promise<Product[]> => {
+  getAll: async (params?: ProductoQueryParams): Promise<Product[]> => {
     try {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
@@ -25,11 +36,21 @@ export const productsService = {
         if (params?.search) {
           const searchTerm = params.search.toLowerCase();
           products = products.filter(product => 
-            product.productoDescripcion.toLowerCase().includes(searchTerm) ||
-            product.codigoBarra.includes(searchTerm) ||
-            product.categoria.toLowerCase().includes(searchTerm) ||
-            product.proveedor.toLowerCase().includes(searchTerm)
+            product.name.toLowerCase().includes(searchTerm) ||
+            product.barcode.includes(searchTerm) ||
+            product.category.toLowerCase().includes(searchTerm) ||
+            product.supplier.toLowerCase().includes(searchTerm)
           );
+        }
+        
+        // Aplicar filtro de categoría si existe
+        if (params?.categoria) {
+          products = products.filter(product => product.category === params.categoria);
+        }
+        
+        // Aplicar filtro de mostrar si existe
+        if (params?.mostrar !== undefined) {
+          products = products.filter(product => product.showInCatalog === params.mostrar);
         }
         
         return products;
@@ -40,24 +61,15 @@ export const productsService = {
       if (params?.search) queryParams.append('search', params.search);
       if (params?.page) queryParams.append('page', params.page.toString());
       if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.categoria) queryParams.append('categoria', params.categoria);
+      if (params?.mostrar !== undefined) queryParams.append('mostrar', params.mostrar.toString());
       
       const url = `${API_ENDPOINTS.PRODUCTS.BASE}${queryParams.toString() ? `?${queryParams}` : ''}`;
-      const response = await httpClient.get<any>(url);
+      const response = await httpClient.get<BackendPaginatedResponse<ProductoBackend>>(url);
       
-      // La API retorna { data: [...], total, page, ... }
-      // Extraer solo el array de productos
-      if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
-        return response.data as Product[];
-      }
-      
-      // Si es un array directo, retornarlo como está
-      if (Array.isArray(response)) {
-        return response as Product[];
-      }
-      
-      // Fallback: retornar array vacío si la estructura no es reconocida
-      console.warn('Respuesta de productos con estructura inesperada:', response);
-      return [];
+      // Extraer y mapear datos de la respuesta paginada
+      const productosBackend = extractDataFromPaginatedResponse(response);
+      return mapProductosFromBackend(productosBackend);
     } catch (error) {
       console.error('Error getting products:', error);
       throw new Error('Error al cargar los productos');

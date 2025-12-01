@@ -2,24 +2,24 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientsService } from '@/services/clientsService';
 import type { Client } from '@/types';
 import type { PaginationParams, ClientStatistics } from '@/types/api';
+import type { ClienteQueryParams } from '@/types/backend';
 
 // Query Keys
 export const clientKeys = {
   all: ['clients'] as const,
   lists: () => [...clientKeys.all, 'list'] as const,
-  list: (params?: PaginationParams) => [...clientKeys.lists(), params] as const,
+  list: (params?: ClienteQueryParams) => [...clientKeys.lists(), params] as const,
   details: () => [...clientKeys.all, 'detail'] as const,
   detail: (id: number) => [...clientKeys.details(), id] as const,
   birthdays: () => [...clientKeys.all, 'birthdays'] as const,
   topClients: (limit?: number) => [...clientKeys.all, 'topClients', limit] as const,
   byDni: (dni: string) => [...clientKeys.all, 'byDni', dni] as const,
   byCode: (code: string) => [...clientKeys.all, 'byCode', code] as const,
-  search: (query: string) => [...clientKeys.all, 'search', query] as const,
   statistics: (id: number) => [...clientKeys.all, 'statistics', id] as const,
 };
 
 // Hooks para consultas
-export const useClients = (params?: PaginationParams) => {
+export const useClients = (params?: ClienteQueryParams) => {
   return useQuery({
     queryKey: clientKeys.list(params),
     queryFn: () => clientsService.getAll(params),
@@ -72,12 +72,12 @@ export const useClientByCode = (code: string) => {
   });
 };
 
+// Hook de búsqueda usando el hook principal con filtros
 export const useClientSearch = (query: string) => {
-  return useQuery({
-    queryKey: clientKeys.search(query),
-    queryFn: () => clientsService.search(query),
-    enabled: query.length >= 2, // Solo buscar si hay al menos 2 caracteres
-    staleTime: 2 * 60 * 1000,
+  return useClients({ 
+    search: query,
+    // Usar límite pequeño para búsquedas rápidas
+    limit: 20 
   });
 };
 

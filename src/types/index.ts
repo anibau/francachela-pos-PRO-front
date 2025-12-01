@@ -31,113 +31,79 @@ export enum ProductSupplier {
 
 export interface Product {
   id: number;
-  productoDescripcion: string; // name en el frontend
-  codigoBarra: string; // barcode en el frontend
-  categoria: string; // category en el frontend
-  precio: number; // price en el frontend
-  costo: number; // cost en el frontend
-  cantidadActual: number; // stock en el frontend
-  cantidadMinima: number; // minStock en el frontend
-  proveedor: string; // supplier en el frontend
-  descripcion?: string; // description en el frontend
-  imagen?: string; // image en el frontend
-  precioMayoreo?: number; // wholesalePrice en el frontend
-  valorPuntos?: number; // pointsValue en el frontend
-  mostrar?: boolean; // showInCatalog en el frontend
-  usaInventario?: boolean; // useInventory en el frontend
+  name: string;
+  barcode: string;
+  category: string;
+  price: number;
+  cost: number;
+  stock: number;
+  minStock: number;
+  supplier: string;
+  description?: string;
+  image?: string;
+  wholesalePrice?: number;
+  pointsValue?: number;
+  showInCatalog?: boolean;
+  useInventory?: boolean;
   
   // Campos adicionales del backend
   fechaCreacion?: string;
   fechaActualizacion?: string;
-  activo?: boolean;
-  
-  // Propiedades computadas para compatibilidad con el frontend
-  get name(): string;
-  get barcode(): string;
-  get category(): string;
-  get price(): number;
-  get cost(): number;
-  get stock(): number;
-  get minStock(): number;
-  get supplier(): string;
-  get description(): string | undefined;
-  get image(): string | undefined;
-  get wholesalePrice(): number | undefined;
-  get pointsValue(): number | undefined;
-  get showInCatalog(): boolean | undefined;
-  get useInventory(): boolean | undefined;
 }
 
 export interface Client {
   id: number;
+  name: string;
   nombres: string;
   apellidos: string;
   dni: string;
   telefono: string;
-  email?: string;
   direccion?: string;
-  fechaNacimiento?: string;
-  puntosAcumulados: number;
+  birthday?: string;
+  points: number;
   
   // Campos adicionales del backend
+  fechaRegistro?: string;
   codigoCorto?: string;
+  activo?: boolean;
+  historialCompras?: any[];
+  historialCanjes?: any[];
   fechaCreacion?: string;
   fechaActualizacion?: string;
-  activo?: boolean;
-  
-  // Propiedades computadas para compatibilidad con el frontend
-  get name(): string;
-  get phone(): string;
-  get address(): string | undefined;
-  get birthday(): string | undefined;
-  get points(): number;
 }
 
 export interface SaleItem {
+  id: number;
   productId: number;
-  productName: string;
+  name: string;
   quantity: number;
   price: number;
   subtotal: number;
-  pointsValue?: number;
 }
 
 export interface Sale {
   id: number;
-  fecha: string; // date en el frontend
-  clienteId?: number; // clientId en el frontend
-  clienteNombre?: string; // clientName en el frontend
-  listaProductos: SaleItem[]; // items en el frontend
-  subTotal: number; // subtotal en el frontend
-  descuento: number; // discount en el frontend
+  date: string;
+  client?: Client;
+  clientId?: number;
+  items: SaleItem[];
+  subtotal: number;
+  discount: number;
   total: number;
-  metodoPago: PaymentMethod; // paymentMethod en el frontend
-  comentario?: string; // notes en el frontend
-  cajero: string; // cashier en el frontend
-  estado: 'COMPLETADA' | 'ANULADA'; // status en el frontend
-  puntosOtorgados: number; // pointsEarned en el frontend
-  puntosUsados: number; // pointsUsed en el frontend
-  ticketId: string; // ticketNumber en el frontend
+  paymentMethod: PaymentMethod;
+  notes?: string;
+  cashier: string;
+  status: string;
+  pointsEarned: number;
+  pointsUsed: number;
+  ticketId?: string | null;
   
   // Campos adicionales del backend
-  tipoCompra?: 'LOCAL' | 'DELIVERY';
-  montoRecibido?: number;
-  vuelto?: number;
-  
-  // Propiedades computadas para compatibilidad con el frontend
-  get date(): string;
-  get clientId(): number | undefined;
-  get clientName(): string | undefined;
-  get items(): SaleItem[];
-  get subtotal(): number;
-  get discount(): number;
-  get paymentMethod(): PaymentMethod;
-  get notes(): string | undefined;
-  get cashier(): string;
-  get status(): 'completada' | 'anulada';
-  get pointsEarned(): number;
-  get pointsUsed(): number;
-  get ticketNumber(): string;
+  saleType?: string;
+  amountReceived?: number;
+  change?: number;
+  fechaCreacion?: string;
+  fechaActualizacion?: string;
 }
 
 export interface Promotion {

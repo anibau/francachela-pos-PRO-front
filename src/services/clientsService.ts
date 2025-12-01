@@ -8,12 +8,23 @@ import type {
   PaginationParams,
   ClientStatistics 
 } from '@/types/api';
+import type { 
+  ClienteBackend, 
+  BackendPaginatedResponse, 
+  ClienteQueryParams 
+} from '@/types/backend';
+import { 
+  mapClienteFromBackend, 
+  mapClienteToBackend, 
+  mapClientesFromBackend,
+  extractDataFromPaginatedResponse 
+} from '@/utils/dataMappers';
 
 export const clientsService = {
   /**
-   * Obtener todos los clientes
+   * Obtener todos los clientes con filtros opcionales
    */
-  getAll: async (params?: PaginationParams): Promise<Client[]> => {
+  getAll: async (params?: ClienteQueryParams): Promise<Client[]> => {
     try {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
@@ -24,12 +35,16 @@ export const clientsService = {
         if (params?.search) {
           const searchTerm = params.search.toLowerCase();
           clients = clients.filter(client => 
-            client.nombres.toLowerCase().includes(searchTerm) ||
-            client.apellidos.toLowerCase().includes(searchTerm) ||
+            client.name.toLowerCase().includes(searchTerm) ||
             client.dni.includes(searchTerm) ||
             client.telefono.includes(searchTerm) ||
             (client.codigoCorto && client.codigoCorto.toLowerCase().includes(searchTerm))
           );
+        }
+        
+        // Aplicar filtro de activo si existe
+        if (params?.activo !== undefined) {
+          clients = clients.filter(client => client.activo === params.activo);
         }
         
         return clients;
@@ -40,23 +55,14 @@ export const clientsService = {
       if (params?.search) queryParams.append('search', params.search);
       if (params?.page) queryParams.append('page', params.page.toString());
       if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.activo !== undefined) queryParams.append('activo', params.activo.toString());
       
       const url = `${API_ENDPOINTS.CLIENTS.BASE}${queryParams.toString() ? `?${queryParams}` : ''}`;
-      const response = await httpClient.get<any>(url);
+      const response = await httpClient.get<BackendPaginatedResponse<ClienteBackend>>(url);
       
-      // Extraer array de clientes si la respuesta tiene estructura paginada
-      if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
-        return response.data as Client[];
-      }
-      
-      // Si es un array directo, retornarlo como está
-      if (Array.isArray(response)) {
-        return response as Client[];
-      }
-      
-      // Fallback
-      console.warn('Respuesta de clientes con estructura inesperada:', response);
-      return [];
+      // Extraer y mapear datos de la respuesta paginada
+      const clientesBackend = extractDataFromPaginatedResponse(response);
+      return mapClientesFromBackend(clientesBackend);
     } catch (error) {
       console.error('Error getting clients:', error);
       throw new Error('Error al cargar los clientes');
@@ -78,52 +84,15 @@ export const clientsService = {
         return client;
       }
       
-      return await httpClient.get<Client>(API_ENDPOINTS.CLIENTS.BY_ID(id));
+      const clienteBackend = await httpClient.get<ClienteBackend>(API_ENDPOINTS.CLIENTS.BY_ID(id));
+      return mapClienteFromBackend(clienteBackend);
     } catch (error) {
       console.error('Error getting client by ID:', error);
       throw new Error('Error al cargar el cliente');
     }
   },
 
-  /**
-   * Buscar clientes
-   */
-  search: async (query: string): Promise<Client[]> => {
-    try {
-      if (API_CONFIG.USE_MOCKS) {
-        await simulateDelay();
-        
-        const searchTerm = query.toLowerCase();
-        return mockClientsAligned.filter(client => 
-          client.nombres.toLowerCase().includes(searchTerm) ||
-          client.apellidos.toLowerCase().includes(searchTerm) ||
-          client.dni.includes(searchTerm) ||
-          client.telefono.includes(searchTerm) ||
-          (client.codigoCorto && client.codigoCorto.toLowerCase().includes(searchTerm))
-        );
-      }
-      
-      const queryParams = new URLSearchParams({ q: query });
-      const response = await httpClient.get<any>(`${API_ENDPOINTS.CLIENTS.SEARCH}?${queryParams}`);
-      
-      // Extraer array de clientes si la respuesta tiene estructura paginada
-      if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
-        return response.data as Client[];
-      }
-      
-      // Si es un array directo, retornarlo como está
-      if (Array.isArray(response)) {
-        return response as Client[];
-      }
-      
-      // Fallback
-      console.warn('Respuesta de búsqueda de clientes con estructura inesperada:', response);
-      return [];
-    } catch (error) {
-      console.error('Error searching clients:', error);
-      throw new Error('Error al buscar clientes');
-    }
-  },
+
 
   /**
    * Obtener clientes que cumplen años hoy

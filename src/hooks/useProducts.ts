@@ -2,24 +2,24 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productsService } from '@/services/productsService';
 import type { Product } from '@/types';
 import type { PaginationParams, ProductStockUpdateRequest } from '@/types/api';
+import type { ProductoQueryParams } from '@/types/backend';
 
 // Query Keys
 export const productKeys = {
   all: ['products'] as const,
   lists: () => [...productKeys.all, 'list'] as const,
-  list: (params?: PaginationParams) => [...productKeys.lists(), params] as const,
+  list: (params?: ProductoQueryParams) => [...productKeys.lists(), params] as const,
   details: () => [...productKeys.all, 'detail'] as const,
   detail: (id: number) => [...productKeys.details(), id] as const,
   categories: () => [...productKeys.all, 'categories'] as const,
   lowStock: () => [...productKeys.all, 'lowStock'] as const,
   byCategory: (category: string) => [...productKeys.all, 'byCategory', category] as const,
-  search: (query: string) => [...productKeys.all, 'search', query] as const,
   movements: (filters?: any) => [...productKeys.all, 'movements', filters] as const,
   suppliers: () => [...productKeys.all, 'suppliers'] as const,
 };
 
 // Hooks para consultas
-export const useProducts = (params?: PaginationParams) => {
+export const useProducts = (params?: ProductoQueryParams) => {
   return useQuery({
     queryKey: productKeys.list(params),
     queryFn: () => productsService.getAll(params),
@@ -71,12 +71,12 @@ export const useProductsByCategory = (category: string) => {
   });
 };
 
+// Hook de búsqueda usando el hook principal con filtros
 export const useProductSearch = (query: string) => {
-  return useQuery({
-    queryKey: productKeys.search(query),
-    queryFn: () => productsService.search(query),
-    enabled: query.length >= 2, // Solo buscar si hay al menos 2 caracteres
-    staleTime: 2 * 60 * 1000,
+  return useProducts({ 
+    search: query,
+    // Usar límite pequeño para búsquedas rápidas
+    limit: 20 
   });
 };
 
