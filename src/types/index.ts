@@ -146,6 +146,7 @@ export interface CashRegister {
   totalSales: number;
   totalExpenses: number;
   status: 'open' | 'closed';
+  notes?: string;
   paymentBreakdown: {
     efectivo: number;
     yape: number;
@@ -161,6 +162,8 @@ export interface Expense {
   amount: number;
   category: string;
   paymentMethod: PaymentMethod;
+  cashier?: string;
+  notes?: string;
 }
 
 export interface DeliveryOrder {

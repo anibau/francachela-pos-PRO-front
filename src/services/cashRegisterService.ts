@@ -40,8 +40,8 @@ export const cashRegisterService = {
         let registers = [...mockCashRegistersAligned];
         
         if (filters) {
-          const fromDate = new Date(filters.from);
-          const toDate = new Date(filters.to);
+          const fromDate = new Date(filters.startDate);
+          const toDate = new Date(filters.endDate);
           
           registers = registers.filter(register => {
             const openDate = new Date(register.openedAt);
@@ -55,8 +55,8 @@ export const cashRegisterService = {
       }
       
       const queryParams = new URLSearchParams();
-      if (filters?.from) queryParams.append('from', filters.from);
-      if (filters?.to) queryParams.append('to', filters.to);
+      if (filters?.startDate) queryParams.append('from', filters.startDate);
+      if (filters?.endDate) queryParams.append('to', filters.endDate);
       
       const url = `${API_ENDPOINTS.CASH_REGISTER.BY_RANGE}${queryParams.toString() ? `?${queryParams}` : ''}`;
       return await httpClient.get<CashRegister[]>(url);
@@ -216,8 +216,8 @@ export const cashRegisterService = {
         let registers = [...mockCashRegistersAligned];
         
         if (filters) {
-          const fromDate = new Date(filters.from);
-          const toDate = new Date(filters.to);
+          const fromDate = new Date(filters.startDate);
+          const toDate = new Date(filters.endDate);
           
           registers = registers.filter(register => {
             const openDate = new Date(register.openedAt);
@@ -240,8 +240,8 @@ export const cashRegisterService = {
       }
       
       const queryParams = new URLSearchParams();
-      if (filters?.from) queryParams.append('from', filters.from);
-      if (filters?.to) queryParams.append('to', filters.to);
+      if (filters?.startDate) queryParams.append('from', filters.startDate);
+      if (filters?.endDate) queryParams.append('to', filters.endDate);
       
       const url = `${API_ENDPOINTS.CASH_REGISTER.STATISTICS}${queryParams.toString() ? `?${queryParams}` : ''}`;
       return await httpClient.get<CashRegisterStatistics>(url);

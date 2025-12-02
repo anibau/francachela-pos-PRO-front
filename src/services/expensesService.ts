@@ -5,7 +5,8 @@ import type { Expense } from '@/types';
 import type { 
   ExpenseCreateRequest,
   PaginationParams,
-  DateRangeFilter 
+  DateRangeFilter, 
+  ExpenseCategory
 } from '@/types/api';
 
 export const expensesService = {
@@ -100,8 +101,8 @@ export const expensesService = {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
         
-        const fromDate = new Date(filters.from);
-        const toDate = new Date(filters.to);
+        const fromDate = new Date(filters.startDate);
+        const toDate = new Date(filters.endDate);
         
         return mockExpensesAligned.filter(expense => {
           const expenseDate = new Date(expense.date);
@@ -110,8 +111,8 @@ export const expensesService = {
       }
       
       const queryParams = new URLSearchParams({
-        from: filters.from,
-        to: filters.to,
+        from: filters.startDate,
+        to: filters.endDate,
       });
       
       return await httpClient.get<Expense[]>(`${API_ENDPOINTS.EXPENSES.BY_RANGE}?${queryParams}`);
@@ -183,7 +184,7 @@ export const expensesService = {
       const createRequest: ExpenseCreateRequest = {
         descripcion: expenseData.description,
         monto: expenseData.amount,
-        categoria: expenseData.category,
+        categoria: expenseData.category as ExpenseCategory,
         metodoPago: expenseData.paymentMethod,
         cajero: expenseData.cashier,
         observaciones: expenseData.notes,
@@ -221,7 +222,7 @@ export const expensesService = {
       const updateRequest: Partial<ExpenseCreateRequest> = {};
       if (expenseData.description) updateRequest.descripcion = expenseData.description;
       if (expenseData.amount !== undefined) updateRequest.monto = expenseData.amount;
-      if (expenseData.category) updateRequest.categoria = expenseData.category;
+      if (expenseData.category) updateRequest.categoria = expenseData.category as ExpenseCategory;
       if (expenseData.paymentMethod) updateRequest.metodoPago = expenseData.paymentMethod;
       if (expenseData.cashier) updateRequest.cajero = expenseData.cashier;
       if (expenseData.notes !== undefined) updateRequest.observaciones = expenseData.notes;
@@ -309,8 +310,8 @@ export const expensesService = {
         let expenses = [...mockExpensesAligned];
         
         if (filters) {
-          const fromDate = new Date(filters.from);
-          const toDate = new Date(filters.to);
+          const fromDate = new Date(filters.startDate);
+          const toDate = new Date(filters.endDate);
           
           expenses = expenses.filter(expense => {
             const expenseDate = new Date(expense.date);
@@ -342,8 +343,8 @@ export const expensesService = {
       }
       
       const queryParams = new URLSearchParams();
-      if (filters?.from) queryParams.append('from', filters.from);
-      if (filters?.to) queryParams.append('to', filters.to);
+      if (filters?.startDate) queryParams.append('from', filters.startDate);
+      if (filters?.endDate) queryParams.append('to', filters.endDate);
       
       const url = `${API_ENDPOINTS.EXPENSES.STATISTICS}${queryParams.toString() ? `?${queryParams}` : ''}`;
       return await httpClient.get<any>(url);

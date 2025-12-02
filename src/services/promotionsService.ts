@@ -316,7 +316,7 @@ export const promotionsService = {
       }
       
       // Para el backend real, usar el endpoint de getAll con parámetro search
-      return await this.getAll({ search: query });
+      return await promotionsService.getAll({ search: query });
     } catch (error) {
       console.error('Error searching promotions:', error);
       throw new Error('Error al buscar promociones');
@@ -331,7 +331,7 @@ export const promotionsService = {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
         
-        const activePromotions = await this.getActive();
+        const activePromotions = await promotionsService.getActive();
         
         return activePromotions.filter(promotion => {
           // Si la promoción no tiene productos específicos, aplica a todos
@@ -345,7 +345,7 @@ export const promotionsService = {
       }
       
       // Para el backend real, esto podría ser un endpoint específico
-      const activePromotions = await this.getActive();
+      const activePromotions = await promotionsService.getActive();
       return activePromotions.filter(promotion => {
         if (!promotion.productIds || promotion.productIds.length === 0) {
           return true;

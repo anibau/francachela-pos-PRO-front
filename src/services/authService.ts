@@ -66,13 +66,13 @@ const generateMockJWT = (user: typeof mockUsers[0]): string => {
 const mapBackendRole = (backendRole: string): User['role'] => {
   switch (backendRole) {
     case 'ADMIN':
-      return 'administrador';
+      return 'ADMIN';
     case 'CAJERO':
-      return 'cajero';
+      return 'CAJERO';
     case 'INVENTARIOS':
-      return 'supervisor'; // Mapear inventarios a supervisor en el frontend
+      return 'SUPERVISOR'; // Mapear inventarios a supervisor en el frontend
     default:
-      return 'cajero';
+      return 'CAJERO';
   }
 };
 

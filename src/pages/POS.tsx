@@ -543,7 +543,7 @@ export default function POS() {
                           Stock: {product.cantidadActual || 0}
                         </Badge>
                         <Badge variant="secondary" className="text-xs">
-                          +{calculateProductPoints(product)} pts
+                          {product.valorPuntos } pts
                         </Badge>
                       </div>
                     </div>
