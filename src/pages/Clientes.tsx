@@ -41,7 +41,6 @@ export default function Clientes() {
     lastName: '',
     dni: '',
     phone: '',
-    email: '',
     address: '',
     birthday: '',
     points: 0,
@@ -160,10 +159,9 @@ export default function Clientes() {
         apellidos: formData.lastName,
         dni: formData.dni,
         telefono: `+51${formData.phone}`,
-        email: formData.email,
         direccion: formData.address,
         fechaNacimiento: formData.birthday,
-        puntosAcumulados: formData.points,
+        //puntosAcumulados: formData.points,
       };
       
       if (editingClient) {
@@ -209,7 +207,6 @@ export default function Clientes() {
       lastName: client.apellidos,
       dni: client.dni,
       phone: (client.telefono || '').replace(/^\+?51/, ''),
-      email: client.email || '',
       address: client.direccion || '',
       birthday: client.fechaNacimiento || '',
       points: client.puntosAcumulados || 0,
@@ -226,7 +223,6 @@ export default function Clientes() {
       lastName: '',
       dni: '',
       phone: '',
-      email: '',
       address: '',
       birthday: '',
       points: 0,
@@ -449,12 +445,7 @@ export default function Clientes() {
                   <p className="text-sm text-muted-foreground">Teléfono</p>
                   <p className="font-semibold">{cliente.telefono}</p>
                 </div>
-                {cliente.email && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-semibold text-sm">{cliente.email}</p>
-                  </div>
-                )}
+               
                 {cliente.direccion && (
                   <div className="sm:col-span-2">
                     <p className="text-sm text-muted-foreground">Dirección</p>

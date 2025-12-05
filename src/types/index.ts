@@ -1,4 +1,12 @@
 // Tipos base
+/**
+ * Métodos de pago soportados
+ * IMPORTANTE: Estos valores DEBEN concordar exactamente con los valores del backend
+ * No cambiar sin actualizar el backend correspondiente
+ * 
+ * @example
+ * const paymentMethod: PaymentMethod = 'EFECTIVO';
+ */
 export type PaymentMethod = 'EFECTIVO' | 'YAPE' | 'PLIN' | 'TARJETA';
 
 // Enums para categorías y proveedores

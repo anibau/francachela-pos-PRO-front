@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useProducts, useProductSearch, useClients, useClientSearch } from '@/hooks';
 import type { Product, Client, PaymentMethod } from '@/types';
+import { PAYMENT_METHODS, PAYMENT_METHOD_OPTIONS } from '@/constants/paymentMethods';
 import { usePOS } from '@/contexts/POSContext';
 import { Search, Plus, Minus, Trash2, User, FileText, DollarSign, X, ShoppingCart, Send } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,7 +23,7 @@ export default function POS() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('EFECTIVO');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(PAYMENT_METHODS.EFECTIVO);
   const [notes, setNotes] = useState('');
   const [discount, setDiscount] = useState(0);
   
@@ -131,7 +132,7 @@ export default function POS() {
     applyDiscount(discount);
   };
 
-  const sendWhatsAppMessage = (clientPhone: string, points: number, total: number) => {
+  /*const sendWhatsAppMessage = (clientPhone: string, points: number, total: number) => {
     const message = `¡Gracias por tu compra! 🎉\n\nTotal: S/ ${total.toFixed(2)}\nPuntos ganados: ${points}\n\n¡Vuelve pronto!`;
     const encodedMessage = encodeURIComponent(message);
     // Limpiar el teléfono: eliminar +, espacios y asegurar formato correcto
@@ -141,7 +142,7 @@ export default function POS() {
     const whatsappUrl = `https://wa.me/${phoneWithCountryCode}?text=${encodedMessage}`;
     console.log('WhatsApp URL generada:', whatsappUrl);
     window.open(whatsappUrl, '_blank');
-  };
+  }; */
 
   const handleCheckout = async () => {
     if (!activeTicket || activeTicket.items.length === 0) {
@@ -162,9 +163,9 @@ export default function POS() {
     const client = clients.find(c => c.id === currentClientId);
     
     // Enviar WhatsApp si hay cliente (siempre enviar)
-    if (client && client.telefono) {
-      sendWhatsAppMessage(client.telefono, pointsEarned, total);
-    }
+    // if (client && client.telefono) {
+    //   sendWhatsAppMessage(client.telefono, pointsEarned, total);
+    // }
     
     toast({
       title: 'Venta completada',
@@ -174,7 +175,7 @@ export default function POS() {
     setIsPaymentOpen(false);
     setNotes('');
     setDiscount(0);
-    setSelectedPaymentMethod('EFECTIVO');
+    setSelectedPaymentMethod(PAYMENT_METHODS.EFECTIVO);
   };
 
   return (
@@ -461,10 +462,11 @@ export default function POS() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Efectivo">💵 Efectivo</SelectItem>
-                          <SelectItem value="Yape">📱 Yape</SelectItem>
-                          <SelectItem value="Plin">📱 Plin</SelectItem>
-                          <SelectItem value="Tarjeta">💳 Tarjeta</SelectItem>
+                          {PAYMENT_METHOD_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
