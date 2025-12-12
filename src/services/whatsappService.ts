@@ -1,4 +1,4 @@
-import { httpClient } from '@/lib/httpClient';
+import { httpClient } from './httpClient';
 import { API_ENDPOINTS } from '@/config/api';
 
 export const whatsappService = {
