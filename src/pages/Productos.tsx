@@ -7,11 +7,33 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Plus, Pencil, Trash2, Search, ArrowUpDown } from "lucide-react";
+import { Package, Plus, Pencil, Trash2, Search, ArrowUpDown, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import type { Product, InventoryMovement } from "@/types";
 import { ProductCategory, ProductSupplier } from "@/types";
+import { 
+  validateProductName, 
+  validateBarcode, 
+  validateCost, 
+  validatePrice, 
+  validateWholesalePrice, 
+  validateStock, 
+  validateMinStock,
+  type ValidationResult 
+} from "@/utils/validators";
+
+// Componente para mostrar errores de validación
+const ValidationError = ({ message }: { message?: string }) => {
+  if (!message) return null;
+  
+  return (
+    <div className="flex items-center gap-1 text-sm text-red-600 mt-1">
+      <AlertCircle className="h-3 w-3" />
+      <span>{message}</span>
+    </div>
+  );
+};
 
 export default function Productos() {
   // Usar hooks de TanStack Query
@@ -47,6 +69,17 @@ export default function Productos() {
     notes: '',
   });
 
+  // Estado para validaciones
+  const [validationErrors, setValidationErrors] = useState<{
+    name?: string;
+    barcode?: string;
+    cost?: string;
+    price?: string;
+    wholesalePrice?: string;
+    stock?: string;
+    minStock?: string;
+  }>({});
+
   // Manejar errores
   useEffect(() => {
     if (error) {
@@ -55,17 +88,94 @@ export default function Productos() {
     }
   }, [error]);
 
+  // Revalidar campos de stock cuando cambie useInventory
+  useEffect(() => {
+    validateField('stock', formData.stock);
+    validateField('minStock', formData.minStock);
+  }, [formData.useInventory]);
+
+  // Funciones de validación en tiempo real
+  const validateField = (field: string, value: any) => {
+    let validation: ValidationResult = { isValid: true };
+
+    switch (field) {
+      case 'name':
+        validation = validateProductName(value);
+        break;
+      case 'barcode':
+        validation = validateBarcode(value);
+        break;
+      case 'cost':
+        validation = validateCost(value);
+        break;
+      case 'price':
+        validation = validatePrice(value);
+        break;
+      case 'wholesalePrice':
+        validation = validateWholesalePrice(value);
+        break;
+      case 'stock':
+        validation = validateStock(value, formData.useInventory, formData.minStock);
+        break;
+      case 'minStock':
+        validation = validateMinStock(value, formData.useInventory);
+        break;
+    }
+
+    setValidationErrors(prev => ({
+      ...prev,
+      [field]: validation.isValid ? undefined : validation.message
+    }));
+
+    return validation.isValid;
+  };
+
+  // Validar todo el formulario antes de enviar
+  const validateForm = (): boolean => {
+    const fields = [
+      { name: 'name', value: formData.name },
+      { name: 'barcode', value: formData.barcode },
+      { name: 'cost', value: formData.cost },
+      { name: 'price', value: formData.price },
+      { name: 'wholesalePrice', value: formData.wholesalePrice },
+      { name: 'stock', value: formData.stock },
+      { name: 'minStock', value: formData.minStock },
+    ];
+
+    let isValid = true;
+    fields.forEach(field => {
+      if (!validateField(field.name, field.value)) {
+        isValid = false;
+      }
+    });
+
+    return isValid;
+  };
+
 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validar formulario antes de enviar
+    if (!validateForm()) {
+      toast.error('Por favor corrige los errores en el formulario');
+      return;
+    }
+    
     try {
+      // Preparar datos para envío (ajustar stock si no usa inventario)
+      const dataToSend = {
+        ...formData,
+        stock: formData.useInventory ? formData.stock : 0,
+        minStock: formData.useInventory ? formData.minStock : 0,
+      };
+
       if (editingProduct) {
-        await updateProduct.mutateAsync({ id: editingProduct.id, data: formData });
+        await updateProduct.mutateAsync({ id: editingProduct.id, data: dataToSend });
         toast.success('Producto actualizado correctamente');
       } else {
-        await createProduct.mutateAsync(formData);
+        await createProduct.mutateAsync(dataToSend);
         toast.success('Producto creado correctamente');
       }
       
@@ -166,6 +276,8 @@ export default function Productos() {
       showInCatalog: true,
       useInventory: true,
     });
+    // Limpiar errores de validación
+    setValidationErrors({});
   };
 
   const resetMovementForm = () => {
@@ -231,18 +343,30 @@ export default function Productos() {
                     <Input
                       id="name"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ ...formData, name: value });
+                        validateField('name', value);
+                      }}
+                      className={validationErrors.name ? 'border-red-500' : ''}
                       required
                     />
+                    <ValidationError message={validationErrors.name} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="barcode">Código de Barras *</Label>
                     <Input
                       id="barcode"
                       value={formData.barcode}
-                      onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ ...formData, barcode: value });
+                        validateField('barcode', value);
+                      }}
+                      className={validationErrors.barcode ? 'border-red-500' : ''}
                       required
                     />
+                    <ValidationError message={validationErrors.barcode} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="category">Categoría *</Label>
@@ -265,48 +389,92 @@ export default function Productos() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="cost">Costo S/ *</Label>
+                      <Label htmlFor="cost">Costo S/ * (puede ser 0)</Label>
                       <Input
                         id="cost"
                         type="number"
                         step="0.01"
+                        min="0"
                         value={formData.cost}
-                        onChange={(e) => setFormData({ ...formData, cost: parseFloat(e.target.value) })}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          setFormData({ ...formData, cost: value });
+                          validateField('cost', value);
+                        }}
+                        className={validationErrors.cost ? 'border-red-500' : ''}
                         required
                       />
+                      <ValidationError message={validationErrors.cost} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="price">Precio S/ *</Label>
+                      <Label htmlFor="price">Precio S/ * (debe ser > 0)</Label>
                       <Input
                         id="price"
                         type="number"
                         step="0.01"
+                        min="0.01"
                         value={formData.price}
-                        onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          setFormData({ ...formData, price: value });
+                          validateField('price', value);
+                        }}
+                        className={validationErrors.price ? 'border-red-500' : ''}
                         required
                       />
+                      <ValidationError message={validationErrors.price} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="stock">Stock *</Label>
+                      <Label htmlFor="stock" className={!formData.useInventory ? 'text-muted-foreground' : ''}>
+                        Stock * {!formData.useInventory && '(deshabilitado)'}
+                      </Label>
                       <Input
                         id="stock"
                         type="number"
-                        value={formData.stock}
-                        onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) })}
+                        min="0"
+                        value={formData.useInventory ? formData.stock : 0}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          setFormData({ ...formData, stock: value });
+                          validateField('stock', value);
+                        }}
+                        disabled={!formData.useInventory}
+                        className={`${validationErrors.stock ? 'border-red-500' : ''} ${!formData.useInventory ? 'bg-muted text-muted-foreground' : ''}`}
                         required
                       />
+                      <ValidationError message={validationErrors.stock} />
+                      {!formData.useInventory && (
+                        <p className="text-xs text-muted-foreground">
+                          Se enviará automáticamente como 0 al backend
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="minStock">Stock Mínimo *</Label>
+                      <Label htmlFor="minStock" className={!formData.useInventory ? 'text-muted-foreground' : ''}>
+                        Stock Mínimo * {!formData.useInventory && '(deshabilitado)'}
+                      </Label>
                       <Input
                         id="minStock"
                         type="number"
-                        value={formData.minStock}
-                        onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value) })}
+                        min="0"
+                        value={formData.useInventory ? formData.minStock : 0}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          setFormData({ ...formData, minStock: value });
+                          validateField('minStock', value);
+                        }}
+                        disabled={!formData.useInventory}
+                        className={`${validationErrors.minStock ? 'border-red-500' : ''} ${!formData.useInventory ? 'bg-muted text-muted-foreground' : ''}`}
                         required
                       />
+                      <ValidationError message={validationErrors.minStock} />
+                      {!formData.useInventory && (
+                        <p className="text-xs text-muted-foreground">
+                          Se enviará automáticamente como 0 al backend
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -347,16 +515,22 @@ export default function Productos() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="wholesalePrice">Precio Mayoreo S/</Label>
+                    <Label htmlFor="wholesalePrice">Precio Mayoreo S/ (debe ser > 0)</Label>
                     <Input
                       id="wholesalePrice"
                       type="number"
                       step="0.01"
-                      min="0"
+                      min="0.01"
                       value={formData.wholesalePrice || ''}
-                      onChange={(e) => setFormData({ ...formData, wholesalePrice: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                        setFormData({ ...formData, wholesalePrice: value });
+                        if (value > 0) validateField('wholesalePrice', value);
+                      }}
+                      className={validationErrors.wholesalePrice ? 'border-red-500' : ''}
                       placeholder="0.00"
                     />
+                    <ValidationError message={validationErrors.wholesalePrice} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="pointsValue">Valor en Puntos</Label>

@@ -37,10 +37,11 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
   const [activeTicketId, setActiveTicketId] = useState('1');
 
   const createTicket = useCallback(() => {
-    const newId = String(tickets.length + 1);
+    // Generar ID único basado en timestamp + número aleatorio
+    const newId = `ticket-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     setTickets(prev => [...prev, { id: newId, items: [], discount: 0 }]);
     setActiveTicketId(newId);
-  }, [tickets.length]);
+  }, []);
 
   const switchTicket = useCallback((id: string) => {
     setActiveTicketId(id);

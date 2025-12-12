@@ -62,6 +62,7 @@ export const API_ENDPOINTS = {
     BY_CODE: (codigo: string) => `/clientes/codigo/${codigo}`,
     STATISTICS: (id: number) => `/clientes/${id}/estadisticas`,
     ACTIVATE: (id: number) => `/clientes/${id}/activate`,
+    SEND_WHATSAPP_INFO: (dni: string) => `/clientes/send-info/${dni}`,
   },
   
   // Promociones

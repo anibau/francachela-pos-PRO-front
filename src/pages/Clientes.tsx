@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { Users, Star, Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Users, Star, Plus, Pencil, Trash2, Search, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useClients, useClientSearch, useCreateClient, useUpdateClient, useDeleteClient } from "@/hooks";
+import { whatsappService } from "@/services/whatsappService";
 import type { Client } from "@/types";
 
 export default function Clientes() {
@@ -16,6 +17,7 @@ export default function Clientes() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [whatsappLoading, setWhatsappLoading] = useState<number | null>(null);
   const ITEMS_PER_PAGE = 10;
 
   // Usar los nuevos hooks
@@ -130,6 +132,36 @@ export default function Clientes() {
       birthday: '',
       points: 0,
     });
+  };
+
+  const handleSendWhatsApp = async (cliente: Client) => {
+    if (!cliente.dni) {
+      toast.error('Cliente sin DNI válido');
+      return;
+    }
+
+    setWhatsappLoading(cliente.id);
+    
+    try {
+      const response = await whatsappService.sendClientInfo(cliente.dni);
+      
+      if (response.success) {
+        toast.success('Mensaje de WhatsApp enviado correctamente', {
+          description: `Información enviada a ${cliente.nombres} ${cliente.apellidos}`,
+        });
+      } else {
+        toast.error('Error al enviar mensaje', {
+          description: response.message || 'No se pudo enviar el mensaje de WhatsApp',
+        });
+      }
+    } catch (error) {
+      console.error('Error sending WhatsApp:', error);
+      toast.error('Error al enviar mensaje de WhatsApp', {
+        description: 'Verifique la conexión y el estado del servicio',
+      });
+    } finally {
+      setWhatsappLoading(null);
+    }
   };
 
   // Asegurar que clientes sea un array antes de filtrar
@@ -294,6 +326,19 @@ export default function Clientes() {
                   <Star className="h-3 w-3" />
                   {cliente.puntosAcumulados} pts
                 </Badge>
+                <Button 
+                  size="icon" 
+                  variant="ghost" 
+                  onClick={() => handleSendWhatsApp(cliente)}
+                  disabled={whatsappLoading === cliente.id}
+                  title="Enviar información por WhatsApp"
+                >
+                  {whatsappLoading === cliente.id ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  ) : (
+                    <MessageCircle className="h-4 w-4 text-green-600" />
+                  )}
+                </Button>
                 <Button size="icon" variant="ghost" onClick={() => openEditDialog(cliente)}>
                   <Pencil className="h-4 w-4" />
                 </Button>

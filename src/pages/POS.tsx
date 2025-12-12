@@ -197,25 +197,38 @@ export default function POS() {
 
         <Tabs value={activeTicketId} onValueChange={switchTicket} className="flex-1 flex flex-col overflow-hidden">
           <TabsList className="w-full justify-start rounded-none border-b bg-muted/50 overflow-x-auto flex-shrink-0">
-            {tickets.map((ticket) => (
-              <TabsTrigger 
-                key={ticket.id} 
-                value={ticket.id} 
-                className="relative data-[state=active]:bg-background whitespace-nowrap"
-              >
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Ticket {ticket.id}
-                {tickets.length > 1 && (
-                  <X
-                    className="ml-2 h-3 w-3 hover:text-destructive cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      closeTicket(ticket.id);
-                    }}
-                  />
-                )}
-              </TabsTrigger>
-            ))}
+            {tickets.map((ticket, index) => {
+              const ticketTotal = getTicketTotal(ticket.id);
+              const itemCount = ticket.items.reduce((sum, item) => sum + item.quantity, 0);
+              const displayName = ticket.clientName || `Ticket ${index + 1}`;
+              
+              return (
+                <TabsTrigger 
+                  key={ticket.id} 
+                  value={ticket.id} 
+                  className="relative data-[state=active]:bg-background whitespace-nowrap flex flex-col items-start p-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart className="h-4 w-4" />
+                    <span className="font-medium">{displayName}</span>
+                    {tickets.length > 1 && (
+                      <X
+                        className="h-3 w-3 hover:text-destructive cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          closeTicket(ticket.id);
+                        }}
+                      />
+                    )}
+                  </div>
+                  {(itemCount > 0 || ticketTotal > 0) && (
+                    <div className="text-xs text-muted-foreground">
+                      {itemCount} items • S/ {ticketTotal.toFixed(2)}
+                    </div>
+                  )}
+                </TabsTrigger>
+              );
+            })}
           </TabsList>
 
           <TabsContent value={activeTicketId} className="flex-1 flex flex-col m-0">
