@@ -17,6 +17,9 @@ import Productos from "./pages/Productos";
 import Clientes from "./pages/Clientes";
 import Ventas from "./pages/Ventas";
 import Promociones from "./pages/Promociones";
+import Inventario from "./pages/Inventario";
+import Gastos from "./pages/Gastos";
+import Caja from "./pages/Caja";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -131,6 +134,36 @@ const App = () => (
                     <ProtectedRoute>
                       <AppLayout>
                         <Promociones />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/inventario"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Inventario />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/gastos"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Gastos />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/caja"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Caja />
                       </AppLayout>
                     </ProtectedRoute>
                   }

@@ -156,6 +156,10 @@ export interface Expense {
   amount: number;
   category: string;
   paymentMethod: PaymentMethod;
+  supplier?: string;
+  receiptNumber?: string;
+  receiptUrl?: string;
+  cashier?: string;
 }
 
 export interface DeliveryOrder {
