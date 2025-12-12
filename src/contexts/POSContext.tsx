@@ -44,12 +44,14 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
     { id: '1', items: [], discount: 0 },
   ]);
   const [activeTicketId, setActiveTicketId] = useState('1');
+  const [ticketCounter, setTicketCounter] = useState(1); // Contador único para evitar duplicaciones
 
   const createTicket = useCallback(() => {
-    const newId = String(tickets.length + 1);
+    const newId = String(ticketCounter + 1);
+    setTicketCounter(prev => prev + 1);
     setTickets(prev => [...prev, { id: newId, items: [], discount: 0 }]);
     setActiveTicketId(newId);
-  }, [tickets.length]);
+  }, [ticketCounter]);
 
   const switchTicket = useCallback((id: string) => {
     setActiveTicketId(id);
