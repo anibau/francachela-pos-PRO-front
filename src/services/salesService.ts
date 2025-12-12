@@ -25,8 +25,8 @@ export const salesService = {
           const searchTerm = params.search.toLowerCase();
           sales = sales.filter(sale => 
             sale.ticketId.toLowerCase().includes(searchTerm) ||
-            (sale.clienteNombre && sale.clienteNombre.toLowerCase().includes(searchTerm)) ||
-            sale.cajero.toLowerCase().includes(searchTerm)
+            (sale.client?.name && sale.client.name.toLowerCase().includes(searchTerm)) ||
+            sale.cashier.toLowerCase().includes(searchTerm)
           );
         }
         
@@ -77,7 +77,7 @@ export const salesService = {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
         
-        return mockSalesAligned.filter(sale => sale.clienteId === clientId);
+        return mockSalesAligned.filter(sale => sale.clientId === clientId);
       }
       
       return await httpClient.get<Sale[]>(API_ENDPOINTS.SALES.BY_CLIENT(clientId));
@@ -130,7 +130,7 @@ export const salesService = {
         const toDate = new Date(filters.to);
         
         return mockSalesAligned.filter(sale => {
-          const saleDate = new Date(sale.fecha);
+          const saleDate = new Date(sale.date);
           return saleDate >= fromDate && saleDate <= toDate;
         });
       }
@@ -178,7 +178,7 @@ export const salesService = {
         const todayStr = today.toISOString().split('T')[0];
         
         return mockSalesAligned.filter(sale => 
-          sale.fecha.startsWith(todayStr)
+          sale.date.startsWith(todayStr)
         );
       }
       
@@ -210,26 +210,25 @@ export const salesService = {
         const newSale: Sale = {
           id: Math.max(...mockSalesAligned.map(s => s.id)) + 1,
           ticketId,
-          fecha: new Date().toISOString(),
-          clienteId: saleData.clienteId,
-          clienteNombre: saleData.clienteId ? 'Cliente Mock' : undefined,
-          listaProductos: saleData.listaProductos.map(item => ({
+          date: new Date().toISOString(),
+          clientId: saleData.clienteId,
+          client: saleData.clienteId ? { id: saleData.clienteId, name: 'Cliente Mock', email: '', phone: '', address: '', dni: '', points: 0, isActive: true } : undefined,
+          items: saleData.listaProductos.map(item => ({
             productId: item.productoId,
             productName: `Producto ${item.productoId}`,
             quantity: item.cantidad,
             price: item.precioUnitario,
             subtotal: item.cantidad * item.precioUnitario,
-            pointsValue: 1,
           })),
-          subTotal: subtotal,
-          descuento,
+          subtotal: subtotal,
+          discount: descuento,
           total,
-          metodoPago: saleData.metodoPago,
-          comentario: saleData.comentario,
-          cajero: 'Cajero Mock',
-          estado: 'COMPLETADA',
-          puntosOtorgados: Math.floor(total),
-          puntosUsados: saleData.puntosUsados || 0,
+          paymentMethod: saleData.metodoPago,
+          notes: saleData.comentario,
+          cashier: 'Cajero Mock',
+          status: 'COMPLETADA',
+          pointsEarned: Math.floor(total),
+          pointsUsed: saleData.puntosUsados || 0,
           tipoCompra: saleData.tipoCompra || 'LOCAL',
           montoRecibido: saleData.montoRecibido,
           vuelto: saleData.montoRecibido ? saleData.montoRecibido - total : 0,
@@ -273,7 +272,7 @@ export const salesService = {
           throw new Error('Venta no encontrada');
         }
         
-        mockSalesAligned[index].estado = 'ANULADA';
+        mockSalesAligned[index].status = 'ANULADA';
         return mockSalesAligned[index];
       }
       
@@ -287,7 +286,7 @@ export const salesService = {
   /**
    * Procesar devolución
    */
-  processReturn: async (id: number, returnData: any): Promise<Sale> => {
+  processReturn: async (id: number, returnData: { items: Array<{ productId: number; quantity: number; reason: string }> }): Promise<Sale> => {
     try {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
@@ -303,10 +302,10 @@ export const salesService = {
           ...originalSale,
           id: Math.max(...mockSalesAligned.map(s => s.id)) + 1,
           ticketId: `DEV-${originalSale.ticketId}`,
-          fecha: new Date().toISOString(),
+          date: new Date().toISOString(),
           total: -originalSale.total,
-          subTotal: -originalSale.subTotal,
-          comentario: `Devolución de ${originalSale.ticketId}`,
+          subtotal: -originalSale.subtotal,
+          notes: `Devolución de ${originalSale.ticketId}`,
         };
         
         mockSalesAligned.push(returnSale);
@@ -331,8 +330,8 @@ export const salesService = {
         const searchTerm = query.toLowerCase();
         return mockSalesAligned.filter(sale => 
           sale.ticketId.toLowerCase().includes(searchTerm) ||
-          (sale.clienteNombre && sale.clienteNombre.toLowerCase().includes(searchTerm)) ||
-          sale.cajero.toLowerCase().includes(searchTerm)
+          (sale.client?.name && sale.client.name.toLowerCase().includes(searchTerm)) ||
+          sale.cashier.toLowerCase().includes(searchTerm)
         );
       }
       
@@ -359,14 +358,14 @@ export const salesService = {
           const toDate = new Date(filters.to);
           
           sales = sales.filter(sale => {
-            const saleDate = new Date(sale.fecha);
+            const saleDate = new Date(sale.date);
             return saleDate >= fromDate && saleDate <= toDate;
           });
         }
         
         const summary: Record<string, number> = {};
         sales.forEach(sale => {
-          summary[sale.metodoPago] = (summary[sale.metodoPago] || 0) + sale.total;
+          summary[sale.paymentMethod] = (summary[sale.paymentMethod] || 0) + sale.total;
         });
         
         return summary;

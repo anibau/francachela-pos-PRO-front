@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Package, Plus, Pencil, Trash2, Search, ArrowUpDown, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
+import { useInventoryMovements, useCreateInventoryMovement } from '@/hooks/useInventoryMovements';
 import type { Product, InventoryMovement } from "@/types";
 import { ProductCategory, ProductSupplier } from "@/types";
 import { 
@@ -41,6 +42,10 @@ export default function Productos() {
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
+  
+  // Hooks de inventario
+  const { data: movimientos = [] } = useInventoryMovements();
+  const createMovement = useCreateInventoryMovement();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -92,10 +97,10 @@ export default function Productos() {
   useEffect(() => {
     validateField('stock', formData.stock);
     validateField('minStock', formData.minStock);
-  }, [formData.useInventory]);
+  }, [formData.useInventory, formData.stock, formData.minStock, validateField]);
 
   // Funciones de validación en tiempo real
-  const validateField = (field: string, value: any) => {
+  const validateField = useCallback((field: string, value: string | number) => {
     let validation: ValidationResult = { isValid: true };
 
     switch (field) {
@@ -128,7 +133,7 @@ export default function Productos() {
     }));
 
     return validation.isValid;
-  };
+  }, [formData.useInventory]);
 
   // Validar todo el formulario antes de enviar
   const validateForm = (): boolean => {
@@ -192,30 +197,27 @@ export default function Productos() {
     if (!selectedProduct) return;
     
     try {
-      await inventoryAPI.createMovement({
-        CODIGO_BARRA: selectedProduct.barcode,
-        DESCRIPCION: selectedProduct.name,
-        COSTO: selectedProduct.cost,
-        PRECIO_VENTA: selectedProduct.price,
-        EXISTENCIA: selectedProduct.stock,
-        INV_MINIMO: selectedProduct.minStock,
-        TIPO: movementData.type,
-        CANTIDAD: movementData.quantity,
-        CAJERO: 'Usuario', // TODO: obtener del contexto de auth
-        PROVEEDOR: selectedProduct.supplier,
-      } as any);
+      await createMovement.mutateAsync({
+        productId: selectedProduct.id,
+        type: movementData.type as 'entrada' | 'salida' | 'ajuste',
+        quantity: movementData.quantity,
+        reason: movementData.reason || 'Movimiento manual',
+        cashier: 'Usuario', // TODO: obtener del contexto de auth
+      });
       
       // Actualizar stock del producto
       const newStock = movementData.type === 'entrada' 
         ? selectedProduct.stock + movementData.quantity
         : selectedProduct.stock - movementData.quantity;
       
-      await productsAPI.update(selectedProduct.id, { stock: newStock });
+      await updateProduct.mutateAsync({ 
+        id: selectedProduct.id, 
+        data: { stock: newStock } 
+      });
       
       toast.success('Movimiento registrado correctamente');
       setIsMovementDialogOpen(false);
       resetMovementForm();
-      loadData();
     } catch (error) {
       toast.error('Error al registrar movimiento');
     }
@@ -690,7 +692,7 @@ export default function Productos() {
           <form onSubmit={handleMovementSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>Tipo de Movimiento</Label>
-              <Select value={movementData.type} onValueChange={(value: any) => setMovementData({ ...movementData, type: value })}>
+              <Select value={movementData.type} onValueChange={(value: 'entrada' | 'salida' | 'ajuste') => setMovementData({ ...movementData, type: value })}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
