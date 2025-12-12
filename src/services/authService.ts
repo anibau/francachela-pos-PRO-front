@@ -62,16 +62,24 @@ const generateMockJWT = (user: typeof mockUsers[0]): string => {
 
 /**
  * Mapear roles del backend a roles del frontend
+ * Soporta múltiples formatos de entrada
  */
 const mapBackendRole = (backendRole: string): User['role'] => {
-  switch (backendRole) {
+  if (!backendRole) return 'CAJERO';
+  
+  const normalized = backendRole.toUpperCase().trim();
+  
+  switch (normalized) {
     case 'ADMIN':
+    case 'ADMINISTRADOR':
       return 'ADMIN';
     case 'CAJERO':
       return 'CAJERO';
+    case 'SUPERVISOR':
     case 'INVENTARIOS':
-      return 'SUPERVISOR'; // Mapear inventarios a supervisor en el frontend
+      return 'SUPERVISOR';
     default:
+      console.warn('[AuthService] Rol desconocido:', backendRole, '- usando CAJERO por defecto');
       return 'CAJERO';
   }
 };
@@ -232,10 +240,12 @@ export const authService = {
       }
       
       // Mapear respuesta del backend al formato del frontend
+      // El backend puede enviar 'rol' o 'role' - intentar ambos
+      const backendRole = normalizedResponse.user.role || normalizedResponse.user.rol || 'CAJERO';
       const user: User = {
         id: normalizedResponse.user.id,
         username: normalizedResponse.user.username,
-        role: mapBackendRole(normalizedResponse.user.role),
+        role: mapBackendRole(backendRole),
         nombre: normalizedResponse.user.nombre,
       };
       

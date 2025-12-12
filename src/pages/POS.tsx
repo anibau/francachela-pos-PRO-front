@@ -30,11 +30,9 @@ export default function POS() {
   
   const PRODUCTS_PER_PAGE = 9;
 
-  // Usar los nuevos hooks
+  // Usar los nuevos hooks - cargar TODO sin parámetros de búsqueda
   const { data: products = [], isLoading: productsLoading, error: productsError } = useProducts();
   const { data: clients = [], isLoading: clientsLoading } = useClients();
-  const { data: searchedProducts = [] } = useProductSearch(searchTerm);
-  const { data: searchedClients = [] } = useClientSearch(clientSearchTerm);
   
   const {
     tickets,
@@ -71,17 +69,33 @@ export default function POS() {
     }
   }, [isPaymentOpen]);
 
-  // Usar productos buscados si hay término de búsqueda, sino usar todos los productos
-  // El hook useProductSearch solo busca si hay al menos 2 caracteres
-  const displayProducts = searchTerm.length >= 2 
-    ? (searchedProducts || []) 
-    : (products || []);
-  const displayClients = clientSearchTerm.length >= 2 
-    ? (searchedClients || []) 
-    : (clients || []);
+  // Filtrar productos localmente (patrón como en Clientes.tsx)
+  const filteredProducts = (products || []).filter(producto => {
+    if (!producto?.productoDescripcion || !producto?.codigoBarra) return false;
+    
+    const searchTermLower = searchTerm.toLowerCase();
+    return (
+      producto.productoDescripcion.toLowerCase().includes(searchTermLower) ||
+      producto.codigoBarra.includes(searchTerm) ||
+      (producto.categoria || '').toLowerCase().includes(searchTermLower)
+    );
+  });
 
-  const totalPages = Math.ceil(displayProducts.length / PRODUCTS_PER_PAGE);
-  const paginatedProducts = displayProducts.slice(
+  // Filtrar clientes localmente (patrón como en Clientes.tsx)
+  const filteredClients = (clients || []).filter(cliente => {
+    if (!cliente?.nombres || !cliente?.dni) return false;
+    
+    const searchTermLower = clientSearchTerm.toLowerCase();
+    return (
+      cliente.nombres.toLowerCase().includes(searchTermLower) ||
+      cliente.apellidos.toLowerCase().includes(searchTermLower) ||
+      cliente.dni.includes(clientSearchTerm) ||
+      (cliente.telefono || '').includes(clientSearchTerm)
+    );
+  });
+
+  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+  const displayProducts = filteredProducts.slice(
     (currentPage - 1) * PRODUCTS_PER_PAGE,
     currentPage * PRODUCTS_PER_PAGE
   );
@@ -252,12 +266,12 @@ export default function POS() {
                         />
                       </div>
                       <div className="space-y-2 max-h-80 overflow-y-auto">
-                        {displayClients.length === 0 ? (
+                        {filteredClients.length === 0 ? (
                           <p className="text-center text-muted-foreground py-4">
                             No se encontraron clientes
                           </p>
                         ) : (
-                          displayClients.map((client) => (
+                          filteredClients.map((client) => (
                         <Button
                           key={client.id}
                           variant="outline"
@@ -319,9 +333,11 @@ export default function POS() {
                               <p className="font-medium truncate">{item.descripcion}</p>
                               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <span>S/ {item.precio.toFixed(2)}</span>
-                                <Badge variant="secondary" className="text-xs">
-                                  {item.puntosValor} pts
-                                </Badge>
+                                {item.puntosValor > 0 && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {item.puntosValor} pts
+                                  </Badge>
+                                )}
                                 {hasWholesalePrice && (
                                   <Badge 
                                     variant={isWholesale ? "default" : "outline"} 
@@ -565,13 +581,13 @@ export default function POS() {
         </div>
 
         <div className="flex-1 space-y-3 mb-4">
-          {paginatedProducts.length === 0 ? (
+          {displayProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <Search className="h-12 w-12 mb-2" />
               <p>No se encontraron productos</p>
             </div>
           ) : (
-            paginatedProducts.map((product) => (
+            displayProducts.map((product) => (
               <Card
                 key={product.id}
                 className="cursor-pointer hover:shadow-md transition-shadow group"
@@ -594,9 +610,11 @@ export default function POS() {
                         <Badge variant={product.cantidadActual > 10 ? 'default' : 'destructive'} className="text-xs">
                           Stock: {product.cantidadActual || 0}
                         </Badge>
-                        <Badge variant="secondary" className="text-xs">
-                          {product.valorPuntos } pts
-                        </Badge>
+                        {product.valorPuntos > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {product.valorPuntos} pts
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>

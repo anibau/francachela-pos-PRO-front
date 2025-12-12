@@ -6,10 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { Users, Star, Plus, Pencil, Trash2, Search, AlertCircle, Check } from "lucide-react";
+import { Users, Star, Plus, Pencil, Trash2, Search, AlertCircle, Check, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from "@/hooks";
 import { clientsService } from '@/services/clientsService';
+import { validateName, validateDNI, validatePhone, validateBirthday, calculateAge, formatDate } from '@/utils/validators';
 import type { Client } from "@/types";
 
 // Validaciones en tiempo real
@@ -18,6 +19,7 @@ interface ValidationErrors {
   lastName?: string;
   dni?: string;
   phone?: string;
+  birthday?: string;
 }
 
 export default function Clientes() {
@@ -28,6 +30,7 @@ export default function Clientes() {
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [dniValidating, setDniValidating] = useState(false);
   const [dniAvailable, setDniAvailable] = useState<boolean | null>(null);
+  const [hasChanges, setHasChanges] = useState(false); // Nuevo: rastrear cambios
   const ITEMS_PER_PAGE = 10;
 
   // Usar los nuevos hooks
@@ -45,6 +48,8 @@ export default function Clientes() {
     birthday: '',
     points: 0,
   });
+
+  const [originalFormData, setOriginalFormData] = useState(formData); // Guardar datos originales
 
   // Validación en tiempo real del DNI
   const validateDni = useCallback(async (dni: string, excludeId?: number) => {
@@ -72,58 +77,73 @@ export default function Clientes() {
     }
   }, []);
 
-  // Debounce para validación de DNI
+  // Debounce para validación de DNI - solo validar si el DNI ha cambiado
   useEffect(() => {
     const timer = setTimeout(() => {
       if (formData.dni.length === 8) {
+        // Si estamos editando y el DNI no ha cambiado, no validar
+        if (editingClient && formData.dni === editingClient.dni) {
+          setDniAvailable(true);
+          return;
+        }
+        // Si estamos creando o el DNI ha cambiado, validar
         validateDni(formData.dni, editingClient?.id);
       }
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [formData.dni, editingClient?.id, validateDni]);
+  }, [formData.dni, validateDni, editingClient]);
 
   // Validaciones en tiempo real
   const validateField = (field: string, value: string) => {
     const errors: ValidationErrors = { ...validationErrors };
     
     switch (field) {
-      case 'firstName':
-        if (!value.trim()) {
-          errors.firstName = 'El nombre es requerido';
-        } else if (value.length < 2) {
-          errors.firstName = 'El nombre debe tener al menos 2 caracteres';
+      case 'firstName': {
+        const firstNameValidation = validateName(value);
+        if (!firstNameValidation.isValid) {
+          errors.firstName = firstNameValidation.message;
         } else {
           delete errors.firstName;
         }
         break;
-      case 'lastName':
-        if (!value.trim()) {
-          errors.lastName = 'El apellido es requerido';
-        } else if (value.length < 2) {
-          errors.lastName = 'El apellido debe tener al menos 2 caracteres';
+      }
+      case 'lastName': {
+        const lastNameValidation = validateName(value);
+        if (!lastNameValidation.isValid) {
+          errors.lastName = lastNameValidation.message;
         } else {
           delete errors.lastName;
         }
         break;
-      case 'dni':
-        if (!value) {
-          errors.dni = 'El DNI es requerido';
-        } else if (!/^\d{8}$/.test(value)) {
-          errors.dni = 'El DNI debe tener 8 dígitos';
+      }
+      case 'dni': {
+        const dniValidation = validateDNI(value);
+        if (!dniValidation.isValid) {
+          errors.dni = dniValidation.message;
         } else {
           delete errors.dni;
         }
         break;
-      case 'phone':
-        if (!value) {
-          errors.phone = 'El teléfono es requerido';
-        } else if (!/^\d{9}$/.test(value)) {
-          errors.phone = 'El teléfono debe tener 9 dígitos';
+      }
+      case 'phone': {
+        const phoneValidation = validatePhone(value);
+        if (!phoneValidation.isValid) {
+          errors.phone = phoneValidation.message;
         } else {
           delete errors.phone;
         }
         break;
+      }
+      case 'birthday': {
+        const birthdayValidation = validateBirthday(value);
+        if (!birthdayValidation.isValid) {
+          errors.birthday = birthdayValidation.message;
+        } else {
+          delete errors.birthday;
+        }
+        break;
+      }
     }
     
     setValidationErrors(errors);
@@ -131,18 +151,33 @@ export default function Clientes() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Detectar si hay cambios cuando estamos editando
+    if (editingClient) {
+      setHasChanges(true);
+    }
+    
     validateField(field, value);
   };
 
   const isFormValid = () => {
-    return (
+    const baseValid = (
       formData.firstName.trim().length >= 2 &&
       formData.lastName.trim().length >= 2 &&
       /^\d{8}$/.test(formData.dni) &&
       /^\d{9}$/.test(formData.phone) &&
+      formData.birthday && validateBirthday(formData.birthday).isValid &&
       Object.keys(validationErrors).length === 0 &&
       (dniAvailable === true || editingClient !== null)
     );
+
+    // Si estamos editando, permitir submit si hay cambios válidos
+    if (editingClient) {
+      return baseValid && hasChanges;
+    }
+
+    // Si estamos creando, validar todo normalmente
+    return baseValid;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -161,7 +196,7 @@ export default function Clientes() {
         telefono: `51${formData.phone}`,
         direccion: formData.address,
         fechaNacimiento: formData.birthday,
-        //puntosAcumulados: formData.points,
+        puntosAcumulados: formData.points,
       };
       
       if (editingClient) {
@@ -201,8 +236,9 @@ export default function Clientes() {
     setEditingClient(client);
     setDniAvailable(true); // El DNI actual es válido
     setValidationErrors({});
+    setHasChanges(false); // Inicializar sin cambios
     
-    setFormData({
+    const clientFormData = {
       firstName: client.nombres,
       lastName: client.apellidos,
       dni: client.dni,
@@ -210,7 +246,10 @@ export default function Clientes() {
       address: client.direccion || '',
       birthday: client.fechaNacimiento || '',
       points: client.puntosAcumulados || 0,
-    });
+    };
+    
+    setFormData(clientFormData);
+    setOriginalFormData(clientFormData); // Guardar los originales
     setIsDialogOpen(true);
   };
 
@@ -218,7 +257,17 @@ export default function Clientes() {
     setEditingClient(null);
     setValidationErrors({});
     setDniAvailable(null);
+    setHasChanges(false);
     setFormData({
+      firstName: '',
+      lastName: '',
+      dni: '',
+      phone: '',
+      address: '',
+      birthday: '',
+      points: 0,
+    });
+    setOriginalFormData({
       firstName: '',
       lastName: '',
       dni: '',
@@ -361,7 +410,7 @@ export default function Clientes() {
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="address">Dirección Delivery</Label>
+                <Label htmlFor="address">Dirección Delivery (Opcional)</Label>
                 <Input
                   id="address"
                   value={formData.address}
@@ -369,13 +418,34 @@ export default function Clientes() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="birthday">Fecha de Nacimiento</Label>
-                <Input
-                  id="birthday"
-                  type="date"
-                  value={formData.birthday}
-                  onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
-                />
+                <Label htmlFor="birthday">Fecha de Nacimiento *</Label>
+                <div className="relative">
+                  <Input
+                    id="birthday"
+                    type="date"
+                    value={formData.birthday}
+                    onChange={(e) => {
+                      setFormData({ ...formData, birthday: e.target.value });
+                      validateField('birthday', e.target.value);
+                    }}
+                    className={validationErrors.birthday ? 'border-destructive pr-10' : 'pr-10'}
+                    required
+                  />
+                  {formData.birthday && !validationErrors.birthday && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                      <Check className="h-4 w-4 text-green-500" />
+                      <span className="text-xs text-muted-foreground">
+                        {calculateAge(formData.birthday)} años
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {validationErrors.birthday && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {validationErrors.birthday}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="points">Puntos Acumulados (Opcional)</Label>
@@ -436,7 +506,7 @@ export default function Clientes() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">DNI</p>
                   <p className="font-semibold">{cliente.dni}</p>
@@ -445,9 +515,18 @@ export default function Clientes() {
                   <p className="text-sm text-muted-foreground">Teléfono</p>
                   <p className="font-semibold">{cliente.telefono}</p>
                 </div>
+                {cliente.fechaNacimiento && (
+                  <div>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      Edad
+                    </p>
+                    <p className="font-semibold">{calculateAge(cliente.fechaNacimiento)} años</p>
+                  </div>
+                )}
                
                 {cliente.direccion && (
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-2 lg:col-span-1">
                     <p className="text-sm text-muted-foreground">Dirección</p>
                     <p className="font-semibold text-sm">{cliente.direccion}</p>
                   </div>

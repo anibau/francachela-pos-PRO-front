@@ -7,13 +7,26 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Plus, Pencil, Trash2, Search, ArrowUpDown } from "lucide-react";
+import { Package, Plus, Pencil, Trash2, Search, ArrowUpDown, AlertCircle, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import { inventoryService } from '@/services/inventoryService';
 import { productsService } from '@/services/productsService';
+import { validateProductName, validateBarcode, validatePrice, validateQuantity } from '@/utils/validators';
 import type { Product, InventoryMovement } from "@/types";
 import { ProductCategory, ProductSupplier } from "@/types";
+
+interface ProductValidationErrors {
+  productoDescripcion?: string;
+  codigoBarra?: string;
+  categoria?: string;
+  precio?: string;
+  costo?: string;
+  precioMayoreo?: string;
+  cantidadActual?: string;
+  cantidadMinima?: string;
+  proveedor?: string;
+}
 
 export default function Productos() {
   // Usar hooks de TanStack Query
@@ -29,6 +42,8 @@ export default function Productos() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [movimientos, setMovimientos] = useState<InventoryMovement[]>([]);
   const [isLoadingMovements, setIsLoadingMovements] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<ProductValidationErrors>({});
+  const [hasChanges, setHasChanges] = useState(false);
   
   const [formData, setFormData] = useState({
     productoDescripcion: '',
@@ -76,8 +91,119 @@ export default function Productos() {
     }
   }, [error]);
 
+  // Validar campos individuales
+  const validateField = (field: string, value: string | number) => {
+    const errors: ProductValidationErrors = { ...validationErrors };
+
+    switch (field) {
+      case 'productoDescripcion': {
+        const validation = validateProductName(String(value));
+        if (!validation.isValid) {
+          errors.productoDescripcion = validation.message;
+        } else {
+          delete errors.productoDescripcion;
+        }
+        break;
+      }
+      case 'codigoBarra': {
+        const validation = validateBarcode(String(value), false); // Opcional
+        if (!validation.isValid) {
+          errors.codigoBarra = validation.message;
+        } else {
+          delete errors.codigoBarra;
+        }
+        break;
+      }
+      case 'categoria':
+        if (!value) {
+          errors.categoria = 'La categoría es requerida';
+        } else {
+          delete errors.categoria;
+        }
+        break;
+      case 'costo': {
+        const validation = validatePrice(Number(value), 'El costo', true); // Permite 0
+        if (!validation.isValid) {
+          errors.costo = validation.message;
+        } else {
+          delete errors.costo;
+        }
+        break;
+      }
+      case 'precio': {
+        const validation = validatePrice(Number(value), 'El precio', false); // No permite 0
+        if (!validation.isValid) {
+          errors.precio = validation.message;
+        } else {
+          delete errors.precio;
+        }
+        break;
+      }
+      case 'precioMayoreo': {
+        const validation = validatePrice(Number(value), 'El precio mayoreo', true); // Permite 0
+        if (!validation.isValid) {
+          errors.precioMayoreo = validation.message;
+        } else {
+          delete errors.precioMayoreo;
+        }
+        break;
+      }
+      case 'cantidadActual': {
+        const validation = validateQuantity(Number(value), 'El stock actual', true); // Permite 0
+        if (!validation.isValid) {
+          errors.cantidadActual = validation.message;
+        } else {
+          delete errors.cantidadActual;
+        }
+        break;
+      }
+      case 'cantidadMinima': {
+        const validation = validateQuantity(Number(value), 'El stock mínimo', true); // Permite 0
+        if (!validation.isValid) {
+          errors.cantidadMinima = validation.message;
+        } else {
+          delete errors.cantidadMinima;
+        }
+        break;
+      }
+      case 'proveedor':
+        if (!value) {
+          errors.proveedor = 'El proveedor es requerido';
+        } else {
+          delete errors.proveedor;
+        }
+        break;
+    }
+
+    setValidationErrors(errors);
+  };
+
+  // Función para validar el formulario completo
+  const isFormValid = () => {
+    const baseValid =
+      formData.productoDescripcion.trim().length >= 3 &&
+      formData.categoria &&
+      formData.precio > 0 &&
+      formData.costo >= 0 &&
+      formData.cantidadActual >= 0 &&
+      formData.cantidadMinima >= 0 &&
+      formData.proveedor &&
+      Object.keys(validationErrors).length === 0;
+
+    if (editingProduct) {
+      return baseValid && hasChanges;
+    }
+
+    return baseValid;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isFormValid()) {
+      toast.error('Por favor corrige los errores en el formulario');
+      return;
+    }
     
     try {
       if (editingProduct) {
@@ -90,8 +216,10 @@ export default function Productos() {
       
       setIsDialogOpen(false);
       resetForm();
+      refetch();
     } catch (error) {
-      toast.error('Error al guardar producto');
+      const errorMessage = error instanceof Error ? error.message : 'Error al guardar producto';
+      toast.error(errorMessage);
     }
   };
 
@@ -144,6 +272,8 @@ export default function Productos() {
 
   const openEditDialog = (product: Product) => {
     setEditingProduct(product);
+    setHasChanges(false);
+    setValidationErrors({});
     setFormData({
       productoDescripcion: product.productoDescripcion,
       codigoBarra: product.codigoBarra,
@@ -169,6 +299,8 @@ export default function Productos() {
 
   const resetForm = () => {
     setEditingProduct(null);
+    setHasChanges(false);
+    setValidationErrors({});
     setFormData({
       productoDescripcion: '',
       codigoBarra: '',
@@ -246,30 +378,67 @@ export default function Productos() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Nombre *</Label>
-                    <Input
-                      id="name"
-                      value={formData.productoDescripcion}
-                      onChange={(e) => setFormData({ ...formData, productoDescripcion: e.target.value })}
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="name"
+                        value={formData.productoDescripcion}
+                        onChange={(e) => {
+                          setFormData({ ...formData, productoDescripcion: e.target.value });
+                          if (editingProduct) setHasChanges(true);
+                          validateField('productoDescripcion', e.target.value);
+                        }}
+                        placeholder="Ej: Cerveza Cristal 355ml"
+                        className={validationErrors.productoDescripcion ? 'border-destructive pr-10' : 'pr-10'}
+                        required
+                      />
+                      {formData.productoDescripcion && !validationErrors.productoDescripcion && (
+                        <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                      )}
+                    </div>
+                    {validationErrors.productoDescripcion && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {validationErrors.productoDescripcion}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="barcode">Código de Barras *</Label>
-                    <Input
-                      id="barcode"
-                      value={formData.codigoBarra}
-                      onChange={(e) => setFormData({ ...formData, codigoBarra: e.target.value })}
-                      required
-                    />
+                    <Label htmlFor="barcode">Código de Barras (Opcional)</Label>
+                    <div className="relative">
+                      <Input
+                        id="barcode"
+                        value={formData.codigoBarra}
+                        onChange={(e) => {
+                          setFormData({ ...formData, codigoBarra: e.target.value });
+                          if (editingProduct) setHasChanges(true);
+                          validateField('codigoBarra', e.target.value);
+                        }}
+                        placeholder="Ej: 7791234567890"
+                        className={validationErrors.codigoBarra ? 'border-destructive pr-10' : 'pr-10'}
+                      />
+                      {formData.codigoBarra && !validationErrors.codigoBarra && (
+                        <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                      )}
+                    </div>
+                    {validationErrors.codigoBarra && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {validationErrors.codigoBarra}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="category">Categoría *</Label>
                     <Select
                       value={formData.categoria}
-                      onValueChange={(value) => setFormData({ ...formData, categoria: value })}
+                      onValueChange={(value) => {
+                        setFormData({ ...formData, categoria: value });
+                        if (editingProduct) setHasChanges(true);
+                        validateField('categoria', value);
+                      }}
                       required
                     >
-                      <SelectTrigger id="category">
+                      <SelectTrigger id="category" className={validationErrors.categoria ? 'border-destructive' : ''}>
                         <SelectValue placeholder="Seleccionar categoría" />
                       </SelectTrigger>
                       <SelectContent>
@@ -280,6 +449,12 @@ export default function Productos() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {validationErrors.categoria && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {validationErrors.categoria}
+                      </p>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -289,9 +464,22 @@ export default function Productos() {
                         type="number"
                         step="0.01"
                         value={formData.costo || ''}
-                        onChange={(e) => setFormData({ ...formData, costo: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
-                        required
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                          setFormData({ ...formData, costo: value });
+                          if (editingProduct) setHasChanges(true);
+                          validateField('costo', value);
+                        }}
+                        placeholder="0.00"
+                        className={validationErrors.costo ? 'border-destructive' : ''}
+                        
                       />
+                      {validationErrors.costo && (
+                        <p className="text-xs text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {validationErrors.costo}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="price">Precio S/ *</Label>
@@ -300,9 +488,22 @@ export default function Productos() {
                         type="number"
                         step="0.01"
                         value={formData.precio || ''}
-                        onChange={(e) => setFormData({ ...formData, precio: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                          setFormData({ ...formData, precio: value });
+                          if (editingProduct) setHasChanges(true);
+                          validateField('precio', value);
+                        }}
+                        placeholder="0.00"
+                        className={validationErrors.precio ? 'border-destructive' : ''}
                         required
                       />
+                      {validationErrors.precio && (
+                        <p className="text-xs text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {validationErrors.precio}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -312,9 +513,21 @@ export default function Productos() {
                         id="stock"
                         type="number"
                         value={formData.cantidadActual || ''}
-                        onChange={(e) => setFormData({ ...formData, cantidadActual: e.target.value === '' ? 0 : parseInt(e.target.value) })}
-                        required
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                          setFormData({ ...formData, cantidadActual: value });
+                          if (editingProduct) setHasChanges(true);
+                          validateField('cantidadActual', value);
+                        }}
+                        placeholder="0"
+                        className={validationErrors.cantidadActual ? 'border-destructive' : ''}
                       />
+                      {validationErrors.cantidadActual && (
+                        <p className="text-xs text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {validationErrors.cantidadActual}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="minStock">Stock Mínimo *</Label>
@@ -322,19 +535,35 @@ export default function Productos() {
                         id="minStock"
                         type="number"
                         value={formData.cantidadMinima || ''}
-                        onChange={(e) => setFormData({ ...formData, cantidadMinima: e.target.value === '' ? 0 : parseInt(e.target.value) })}
-                        required
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                          setFormData({ ...formData, cantidadMinima: value });
+                          if (editingProduct) setHasChanges(true);
+                          validateField('cantidadMinima', value);
+                        }}
+                        placeholder="0"
+                        className={validationErrors.cantidadMinima ? 'border-destructive' : ''}
                       />
+                      {validationErrors.cantidadMinima && (
+                        <p className="text-xs text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {validationErrors.cantidadMinima}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="supplier">Proveedor *</Label>
                     <Select
                       value={formData.proveedor}
-                      onValueChange={(value) => setFormData({ ...formData, proveedor: value })}
+                      onValueChange={(value) => {
+                        setFormData({ ...formData, proveedor: value });
+                        if (editingProduct) setHasChanges(true);
+                        validateField('proveedor', value);
+                      }}
                       required
                     >
-                      <SelectTrigger id="supplier">
+                      <SelectTrigger id="supplier" className={validationErrors.proveedor ? 'border-destructive' : ''}>
                         <SelectValue placeholder="Seleccionar proveedor" />
                       </SelectTrigger>
                       <SelectContent>
@@ -345,36 +574,61 @@ export default function Productos() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {validationErrors.proveedor && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {validationErrors.proveedor}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="image">URL de Imagen</Label>
+                    <Label htmlFor="image">URL de Imagen (Opcional)</Label>
                     <Input
                       id="image"
                       value={formData.imagen}
-                      onChange={(e) => setFormData({ ...formData, imagen: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, imagen: e.target.value });
+                        if (editingProduct) setHasChanges(true);
+                      }}
                       placeholder="https://ejemplo.com/imagen.jpg"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="wholesalePrice">Precio Mayoreo S/</Label>
+                    <Label htmlFor="wholesalePrice">Precio Mayoreo S/ (Opcional)</Label>
                     <Input
                       id="wholesalePrice"
                       type="number"
                       step="0.01"
                       min="0"
                       value={formData.precioMayoreo || ''}
-                      onChange={(e) => setFormData({ ...formData, precioMayoreo: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                        setFormData({ ...formData, precioMayoreo: value });
+                        if (editingProduct) setHasChanges(true);
+                        validateField('precioMayoreo', value);
+                      }}
                       placeholder="0.00"
+                      className={validationErrors.precioMayoreo ? 'border-destructive' : ''}
                     />
+                    {validationErrors.precioMayoreo && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {validationErrors.precioMayoreo}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="pointsValue">Valor en Puntos</Label>
+                    <Label htmlFor="pointsValue">Valor en Puntos (Opcional)</Label>
                     <Input
                       id="pointsValue"
                       type="number"
                       min="0"
                       value={formData.valorPuntos || ''}
-                      onChange={(e) => setFormData({ ...formData, valorPuntos: e.target.value === '' ? 0 : parseInt(e.target.value) })}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                        setFormData({ ...formData, valorPuntos: value });
+                        if (editingProduct) setHasChanges(true);
+                      }}
                       placeholder="0"
                     />
                   </div>
@@ -384,7 +638,10 @@ export default function Productos() {
                       id="showInCatalog"
                       type="checkbox"
                       checked={formData.mostrar}
-                      onChange={(e) => setFormData({ ...formData, mostrar: e.target.checked })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, mostrar: e.target.checked });
+                        if (editingProduct) setHasChanges(true);
+                      }}
                       className="w-4 h-4"
                     />
                   </div>
@@ -394,12 +651,19 @@ export default function Productos() {
                       id="useInventory"
                       type="checkbox"
                       checked={formData.usaInventario}
-                      onChange={(e) => setFormData({ ...formData, usaInventario: e.target.checked })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, usaInventario: e.target.checked });
+                        if (editingProduct) setHasChanges(true);
+                      }}
                       className="w-4 h-4"
                     />
                   </div>
                   <DialogFooter>
-                    <Button type="submit" className="w-full">
+                    <Button 
+                      type="submit" 
+                      className="w-full"
+                      disabled={!isFormValid()}
+                    >
                       {editingProduct ? 'Actualizar' : 'Crear Producto'}
                     </Button>
                   </DialogFooter>

@@ -233,23 +233,35 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         // Calcular puntos (1 punto por cada sol gastado)
         const puntosOtorgados = Math.floor(total);
         
+        // Log para debugging
+        console.log('[POSContext] Ticket actual:', {
+          id: ticket.id,
+          clientId: ticket.clientId,
+          clientName: ticket.clientName,
+          itemsCount: ticket.items.length,
+        });
+        
         // Crear venta en el backend
         const saleData = {
-          clienteId: ticket.clientId,
+          // Siempre incluir clienteId si existe
+          clienteId: ticket.clientId || null,
           listaProductos: ticket.items.map(item => ({
             productoId: item.productId,
             cantidad: item.cantidad,
-            precioUnitario: item.precio,
           })),
-          descuento: ticket.discount,
+          descuento: ticket.discount || 0,
           metodoPago: paymentMethod,
           comentario: ticket.notes || '',
           tipoCompra: 'LOCAL',
-          montoRecibido: montoRecibido,
+          montoRecibido: montoRecibido || 0,
           puntosUsados: 0,
         };
         
+        console.log('[POSContext] Payload de venta:', saleData);
+        
         const sale = await salesService.create(saleData);
+        
+        console.log('[POSContext] Venta creada:', sale);
         
         // Si hay cliente, actualizar sus puntos
         if (ticket.clientId && puntosOtorgados > 0) {

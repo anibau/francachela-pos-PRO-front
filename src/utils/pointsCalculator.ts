@@ -20,7 +20,7 @@ export function calculateTotalPoints(items: any[]): number {
  * Por defecto: precio de producto * 10
  */
 export function calculateProductPoints(product: Product): number {
-  return Math.floor(product.price * 10);
+  return Math.floor(product.precio * 10);
 }
 
 /**
@@ -47,16 +47,15 @@ export function discountToPoints(discount: number, solsPerPoint: number = 0.10):
 
 /**
  * Genera un objeto SaleItem con puntos calculados
+ * NOTA: Esta función mantiene compatibilidad pero no se usa actualmente.
+ * El POS maneja directamente los items con el POSContext
  */
 export function createSaleItemWithPoints(product: Product, quantity: number = 1): SaleItem {
-  const pointsValue = calculateProductPoints(product);
-  
   return {
-    productId: product.id,
-    productName: product.name,
-    quantity,
-    price: product.price,
-    subtotal: product.price * quantity,
-    pointsValue,
+    id: product.id,
+    precio: product.precio,
+    cantidad: quantity,
+    subtotal: product.precio * quantity,
+    descripcion: product.productoDescripcion,
   };
 }
