@@ -140,7 +140,7 @@ export default function Productos() {
         break;
       }
       case 'precioMayoreo': {
-        const validation = validatePrice(Number(value), 'El precio mayoreo', true); // Permite 0
+        const validation = validatePrice(Number(value), 'El precio mayoreo', false); // No permite 0 - debe ser mayor que 0
         if (!validation.isValid) {
           errors.precioMayoreo = validation.message;
         } else {
@@ -149,20 +149,32 @@ export default function Productos() {
         break;
       }
       case 'cantidadActual': {
-        const validation = validateQuantity(Number(value), 'El stock actual', true); // Permite 0
-        if (!validation.isValid) {
-          errors.cantidadActual = validation.message;
-        } else {
+        // Si no usa inventario, no validar (se enviará 0)
+        if (!formData.usaInventario) {
           delete errors.cantidadActual;
+        } else {
+          // Si usa inventario, debe ser mayor que 0
+          const validation = validateQuantity(Number(value), 'El stock actual', false); // No permite 0
+          if (!validation.isValid) {
+            errors.cantidadActual = validation.message;
+          } else {
+            delete errors.cantidadActual;
+          }
         }
         break;
       }
       case 'cantidadMinima': {
-        const validation = validateQuantity(Number(value), 'El stock mínimo', true); // Permite 0
-        if (!validation.isValid) {
-          errors.cantidadMinima = validation.message;
-        } else {
+        // Si no usa inventario, no validar (se enviará 0)
+        if (!formData.usaInventario) {
           delete errors.cantidadMinima;
+        } else {
+          // Si usa inventario, puede ser 0 o mayor
+          const validation = validateQuantity(Number(value), 'El stock mínimo', true); // Permite 0
+          if (!validation.isValid) {
+            errors.cantidadMinima = validation.message;
+          } else {
+            delete errors.cantidadMinima;
+          }
         }
         break;
       }
@@ -206,11 +218,18 @@ export default function Productos() {
     }
     
     try {
+      // Preparar datos para envío - si no usa inventario, enviar stock en 0
+      const dataToSend = {
+        ...formData,
+        cantidadActual: formData.usaInventario ? formData.cantidadActual : 0,
+        cantidadMinima: formData.usaInventario ? formData.cantidadMinima : 0,
+      };
+
       if (editingProduct) {
-        await updateProduct.mutateAsync({ id: editingProduct.id, data: formData });
+        await updateProduct.mutateAsync({ id: editingProduct.id, data: dataToSend });
         toast.success('Producto actualizado correctamente');
       } else {
-        await createProduct.mutateAsync(formData as Omit<Product, 'id'>);
+        await createProduct.mutateAsync(dataToSend as Omit<Product, 'id'>);
         toast.success('Producto creado correctamente');
       }
       
@@ -512,7 +531,7 @@ export default function Productos() {
                       <Input
                         id="stock"
                         type="number"
-                        value={formData.cantidadActual || ''}
+                        value={formData.usaInventario ? (formData.cantidadActual || '') : 0}
                         onChange={(e) => {
                           const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
                           setFormData({ ...formData, cantidadActual: value });
@@ -521,6 +540,7 @@ export default function Productos() {
                         }}
                         placeholder="0"
                         className={validationErrors.cantidadActual ? 'border-destructive' : ''}
+                        disabled={!formData.usaInventario}
                       />
                       {validationErrors.cantidadActual && (
                         <p className="text-xs text-destructive flex items-center gap-1">
@@ -534,7 +554,7 @@ export default function Productos() {
                       <Input
                         id="minStock"
                         type="number"
-                        value={formData.cantidadMinima || ''}
+                        value={formData.usaInventario ? (formData.cantidadMinima || '') : 0}
                         onChange={(e) => {
                           const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
                           setFormData({ ...formData, cantidadMinima: value });
@@ -543,6 +563,7 @@ export default function Productos() {
                         }}
                         placeholder="0"
                         className={validationErrors.cantidadMinima ? 'border-destructive' : ''}
+                        disabled={!formData.usaInventario}
                       />
                       {validationErrors.cantidadMinima && (
                         <p className="text-xs text-destructive flex items-center gap-1">
@@ -652,8 +673,18 @@ export default function Productos() {
                       type="checkbox"
                       checked={formData.usaInventario}
                       onChange={(e) => {
-                        setFormData({ ...formData, usaInventario: e.target.checked });
+                        const usaInventario = e.target.checked;
+                        setFormData({ 
+                          ...formData, 
+                          usaInventario,
+                          // Si no usa inventario, resetear stock a 0
+                          cantidadActual: usaInventario ? formData.cantidadActual : 0,
+                          cantidadMinima: usaInventario ? formData.cantidadMinima : 0,
+                        });
                         if (editingProduct) setHasChanges(true);
+                        // Revalidar campos de stock
+                        validateField('cantidadActual', usaInventario ? formData.cantidadActual : 0);
+                        validateField('cantidadMinima', usaInventario ? formData.cantidadMinima : 0);
                       }}
                       className="w-4 h-4"
                     />
