@@ -2,7 +2,7 @@ import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
 import { httpClient, simulateDelay } from './httpClient';
 import { mockCashRegistersAligned } from './mockDataAligned';
 import { ensureArray } from '@/utils/apiValidators';
-import type { CashRegister } from '@/types';
+import type { CashRegister, CashRegisterStatus } from '@/types';
 import type { 
   CashRegisterOpenRequest,
   CashRegisterCloseRequest,
@@ -19,7 +19,7 @@ export const cashRegisterService = {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
         
-        const openRegister = mockCashRegistersAligned.find(cr => cr.status === 'open');
+        const openRegister = mockCashRegistersAligned.find(cr => cr.status === 'ABIERTA');
         return openRegister || null;
       }
       
@@ -100,7 +100,7 @@ export const cashRegisterService = {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
         
-        const existingOpen = mockCashRegistersAligned.find(cr => cr.status === 'open');
+        const existingOpen = mockCashRegistersAligned.find(cr => cr.status === 'ABIERTA');
         if (existingOpen) {
           throw new Error('Ya hay una caja registradora abierta');
         }
@@ -112,7 +112,7 @@ export const cashRegisterService = {
           initialCash: openData.montoInicial,
           totalSales: 0,
           totalExpenses: 0,
-          status: 'open',
+          status: 'ABIERTA',
           paymentBreakdown: {
             efectivo: openData.montoInicial,
             yape: 0,
@@ -145,7 +145,7 @@ export const cashRegisterService = {
           throw new Error('Caja registradora no encontrada');
         }
         
-        if (mockCashRegistersAligned[index].status !== 'open') {
+        if (mockCashRegistersAligned[index].status !== 'ABIERTA') {
           throw new Error('La caja registradora no está abierta');
         }
         
@@ -153,7 +153,7 @@ export const cashRegisterService = {
           ...mockCashRegistersAligned[index],
           closedAt: new Date().toISOString(),
           finalCash: closeData.montoFinal,
-          status: 'closed',
+          status: 'CERRADA',
           notes: closeData.observaciones,
         };
         
@@ -192,8 +192,8 @@ export const cashRegisterService = {
           totalGastos: register.totalExpenses,
           diferencia: register.totalSales - register.totalExpenses,
           totalCajas: 1,
-          cajasAbiertas: register.status === 'open' ? 1 : 0,
-          cajasCerradas: register.status === 'closed' ? 1 : 0,
+          cajasAbiertas: register.status === 'ABIERTA' ? 1 : 0,
+          cajasCerradas: register.status === 'CERRADA' ? 1 : 0,
         };
       }
       
@@ -224,7 +224,7 @@ export const cashRegisterService = {
           });
         }
         
-        const closedRegisters = registers.filter(r => r.status === 'closed');
+        const closedRegisters = registers.filter(r => r.status === 'CERRADA');
         const totalVentas = closedRegisters.reduce((sum, r) => sum + r.totalSales, 0);
         const totalGastos = closedRegisters.reduce((sum, r) => sum + r.totalExpenses, 0);
         
@@ -237,7 +237,7 @@ export const cashRegisterService = {
           totalGastos,
           diferencia: totalVentas - totalGastos,
           totalCajas: registers.length,
-          cajasAbiertas: registers.filter(r => r.status === 'open').length,
+          cajasAbiertas: registers.filter(r => r.status === 'ABIERTA').length,
           cajasCerradas: closedRegisters.length,
           promedioVentasPorCaja: closedRegisters.length > 0 ? totalVentas / closedRegisters.length : 0,
           cajeroMasActivo: 'Juan Cajero',

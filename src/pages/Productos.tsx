@@ -775,7 +775,17 @@ export default function Productos() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => loadMovements()}
+                onClick={async () => {
+                  setIsLoadingMovements(true);
+                  try {
+                    const data = await inventoryService.getMovements();
+                    setMovimientos(data);
+                  } catch (error) {
+                    console.error('Error loading movements:', error);
+                  } finally {
+                    setIsLoadingMovements(false);
+                  }
+                }}
                 disabled={isLoadingMovements}
               >
                 Actualizar

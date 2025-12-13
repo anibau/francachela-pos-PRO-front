@@ -298,7 +298,7 @@ export const mockCashRegistersAligned: CashRegister[] = [
     finalCash: 450.00,
     totalSales: 500.00,
     totalExpenses: 175.50,
-    status: 'closed',
+    status: 'CERRADA',
     paymentBreakdown: {
       efectivo: 300.00,
       yape: 150.00,

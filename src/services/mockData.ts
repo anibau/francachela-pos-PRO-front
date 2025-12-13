@@ -13,7 +13,7 @@ import type { User } from '@/contexts/AuthContext';
 
 export const mockUsers: User[] = [
   { id: 1, username: 'admin', role: 'ADMIN', nombre: 'Administrador Sistema' },
-  { id: 2, username: 'supervisor1', role: 'SUPERVISOR', nombre: 'María Supervisor' },
+  { id: 2, username: 'supervisor1', role: 'CAJERO', nombre: 'María Supervisor' },
   { id: 3, username: 'cajero1', role: 'CAJERO', nombre: 'Juan Cajero' },
 ];
 
@@ -115,7 +115,7 @@ export const mockCashRegisters: CashRegister[] = [
     initialCash: 100.00,
     totalSales: 450.00,
     totalExpenses: 50.00,
-    status: 'open',
+    status: 'ABIERTA',
     paymentBreakdown: {
       efectivo: 200.00,
       yape: 150.00,
@@ -132,7 +132,7 @@ export const mockCashRegisters: CashRegister[] = [
     finalCash: 580.00,
     totalSales: 520.00,
     totalExpenses: 40.00,
-    status: 'closed',
+    status: 'CERRADA',
     paymentBreakdown: {
       efectivo: 250.00,
       yape: 150.00,

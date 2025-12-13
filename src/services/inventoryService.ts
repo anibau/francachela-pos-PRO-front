@@ -7,6 +7,17 @@ import type {
   DateRangeFilterParams 
 } from '@/types/api';
 
+// Interface para la respuesta paginada del backend
+interface PaginatedMovementsResponse {
+  data: InventoryMovement[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
 export const inventoryService = {
   /**
    * Obtener todos los movimientos de inventario
@@ -17,62 +28,42 @@ export const inventoryService = {
         await simulateDelay();
         
         // Mock de movimientos de inventario
-        let movements: InventoryMovement[] = [
+        const movements: InventoryMovement[] = [
           {
             id: 1,
-            TIPO: 'entrada',
-            PRODUCTO_ID: 1,
-            PRODUCTO_NOMBRE: 'Cerveza Pilsen 650ml',
-            CANTIDAD: 50,
-            HORA: '2024-12-01T09:00:00Z',
-            DESCRIPCION: 'Compra de mercancía',
-            CAJERO: 'Juan Cajero',
+            hora: '2024-12-01T09:00:00Z',
+            codigoBarra: '7751271001234',
+            descripcion: 'Cerveza Pilsen 650ml',
+            costo: '2.80',
+            precioVenta: '4.50',
+            existenciaAnterior: 100,
+            existenciaNueva: 150,
+            existencia: 150,
+            invMinimo: 20,
+            tipo: 'ENTRADA',
+            cantidad: 50,
+            cajero: 'Juan Cajero',
+            proveedor: 'Backus',
+            observaciones: 'Compra de mercancía',
           },
           {
             id: 2,
-            TIPO: 'salida',
-            PRODUCTO_ID: 4,
-            PRODUCTO_NOMBRE: 'Leche Gloria 1L',
-            CANTIDAD: 10,
-            HORA: '2024-12-01T14:30:00Z',
-            DESCRIPCION: 'Venta',
-            CAJERO: 'Juan Cajero',
-          },
-          {
-            id: 3,
-            TIPO: 'ajuste',
-            PRODUCTO_ID: 2,
-            PRODUCTO_NOMBRE: 'Inca Kola 500ml',
-            CANTIDAD: 5,
-            HORA: '2024-12-01T16:15:00Z',
-            DESCRIPCION: 'Ajuste por inventario físico',
-            CAJERO: 'Supervisor',
-          },
-          {
-            id: 4,
-            TIPO: 'entrada',
-            PRODUCTO_ID: 3,
-            PRODUCTO_NOMBRE: 'Chips Lays 180g',
-            CANTIDAD: 30,
-            HORA: '2024-12-01T11:20:00Z',
-            DESCRIPCION: 'Reposición de stock',
-            CAJERO: 'Juan Cajero',
+            hora: '2024-12-01T14:30:00Z',
+            codigoBarra: '7750670003057',
+            descripcion: 'Leche Gloria 1L',
+            costo: '3.20',
+            precioVenta: '4.80',
+            existenciaAnterior: 15,
+            existenciaNueva: 5,
+            existencia: 5,
+            invMinimo: 15,
+            tipo: 'VENTA',
+            cantidad: 10,
+            cajero: 'Juan Cajero',
           },
         ];
         
-        // Aplicar filtro de búsqueda si existe
-        if (params?.search) {
-          const searchTerm = params.search.toLowerCase();
-          movements = movements.filter(movement => 
-            (movement.PRODUCTO_NOMBRE || '').toLowerCase().includes(searchTerm) ||
-            (movement.DESCRIPCION || '').toLowerCase().includes(searchTerm) ||
-            movement.CAJERO.toLowerCase().includes(searchTerm)
-          );
-        }
-        
-        return movements.sort((a, b) => 
-          new Date(b.HORA).getTime() - new Date(a.HORA).getTime()
-        );
+        return movements;
       }
       
       // Usar backend real
@@ -81,11 +72,16 @@ export const inventoryService = {
       if (params?.limit) queryParams.append('limit', params.limit.toString());
       
       const url = `${API_ENDPOINTS.INVENTORY_MOVEMENTS.BASE}${queryParams.toString() ? `?${queryParams}` : ''}`;
-      const response = await httpClient.get<InventoryMovement[]>(url);
+      const response = await httpClient.get<PaginatedMovementsResponse | InventoryMovement[]>(url);
+      
+      // El backend devuelve { data: [], total, page, etc }
+      if (response && typeof response === 'object' && 'data' in response) {
+        return (response as PaginatedMovementsResponse).data;
+      }
       return Array.isArray(response) ? response : [];
     } catch (error) {
       console.error('Error getting inventory movements:', error);
-      throw new Error('Error al cargar los movimientos de inventario');
+      return [];
     }
   },
 
@@ -97,16 +93,20 @@ export const inventoryService = {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
         
-        // Mock simple para obtener por ID
         const movement: InventoryMovement = {
           id,
-          TIPO: 'entrada',
-          PRODUCTO_ID: 1,
-          PRODUCTO_NOMBRE: 'Producto Mock',
-          CANTIDAD: 10,
-          HORA: new Date().toISOString(),
-          DESCRIPCION: 'Movimiento mock',
-          CAJERO: 'Cajero Mock',
+          hora: new Date().toISOString(),
+          codigoBarra: '7751271001234',
+          descripcion: 'Producto Mock',
+          costo: '0.00',
+          precioVenta: '0.00',
+          existenciaAnterior: 0,
+          existenciaNueva: 0,
+          existencia: 0,
+          invMinimo: 0,
+          tipo: 'ENTRADA',
+          cantidad: 10,
+          cajero: 'Cajero Mock',
         };
         
         return movement;
@@ -126,20 +126,17 @@ export const inventoryService = {
     try {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
-        
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-        
-        const allMovements = await inventoryService.getMovements();
-        return allMovements.filter(movement => 
-          movement.HORA.startsWith(todayStr)
-        );
+        return [];
       }
       
-      return await httpClient.get<InventoryMovement[]>(API_ENDPOINTS.INVENTORY_MOVEMENTS.TODAY);
+      const response = await httpClient.get<PaginatedMovementsResponse | InventoryMovement[]>(API_ENDPOINTS.INVENTORY_MOVEMENTS.TODAY);
+      if (response && typeof response === 'object' && 'data' in response) {
+        return (response as PaginatedMovementsResponse).data;
+      }
+      return Array.isArray(response) ? response : [];
     } catch (error) {
       console.error('Error getting today inventory movements:', error);
-      throw new Error('Error al cargar los movimientos del día');
+      return [];
     }
   },
 
@@ -150,25 +147,23 @@ export const inventoryService = {
     try {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
-        
-        const fromDate = new Date(filters.startDate || '');
-        const toDate = new Date(filters.endDate || '');
-        
-        const allMovements = await inventoryService.getMovements();
-        return allMovements.filter(movement => {
-          const movementDate = new Date(movement.HORA);
-          return movementDate >= fromDate && movementDate <= toDate;
-        });
+        return [];
       }
       
       const queryParams = new URLSearchParams();
       if (filters.startDate) queryParams.append('startDate', filters.startDate);
       if (filters.endDate) queryParams.append('endDate', filters.endDate);
       
-      return await httpClient.get<InventoryMovement[]>(`${API_ENDPOINTS.INVENTORY_MOVEMENTS.BY_RANGE}?${queryParams}`);
+      const response = await httpClient.get<PaginatedMovementsResponse | InventoryMovement[]>(
+        `${API_ENDPOINTS.INVENTORY_MOVEMENTS.BY_RANGE}?${queryParams}`
+      );
+      if (response && typeof response === 'object' && 'data' in response) {
+        return (response as PaginatedMovementsResponse).data;
+      }
+      return Array.isArray(response) ? response : [];
     } catch (error) {
       console.error('Error getting inventory movements by date range:', error);
-      throw new Error('Error al cargar los movimientos por fecha');
+      return [];
     }
   },
 
@@ -179,17 +174,19 @@ export const inventoryService = {
     try {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
-        
-        const allMovements = await inventoryService.getMovements();
-        return allMovements.filter(movement => 
-          movement.TIPO.toLowerCase() === tipo.toLowerCase()
-        );
+        return [];
       }
       
-      return await httpClient.get<InventoryMovement[]>(API_ENDPOINTS.INVENTORY_MOVEMENTS.BY_TYPE(tipo));
+      const response = await httpClient.get<PaginatedMovementsResponse | InventoryMovement[]>(
+        API_ENDPOINTS.INVENTORY_MOVEMENTS.BY_TYPE(tipo)
+      );
+      if (response && typeof response === 'object' && 'data' in response) {
+        return (response as PaginatedMovementsResponse).data;
+      }
+      return Array.isArray(response) ? response : [];
     } catch (error) {
       console.error('Error getting inventory movements by type:', error);
-      throw new Error('Error al cargar los movimientos por tipo');
+      return [];
     }
   },
 
@@ -200,17 +197,19 @@ export const inventoryService = {
     try {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
-        
-        const allMovements = await inventoryService.getMovements();
-        return allMovements.filter(movement => 
-          movement.CAJERO.toLowerCase().includes(cajero.toLowerCase())
-        );
+        return [];
       }
       
-      return await httpClient.get<InventoryMovement[]>(API_ENDPOINTS.INVENTORY_MOVEMENTS.BY_CASHIER(cajero));
+      const response = await httpClient.get<PaginatedMovementsResponse | InventoryMovement[]>(
+        API_ENDPOINTS.INVENTORY_MOVEMENTS.BY_CASHIER(cajero)
+      );
+      if (response && typeof response === 'object' && 'data' in response) {
+        return (response as PaginatedMovementsResponse).data;
+      }
+      return Array.isArray(response) ? response : [];
     } catch (error) {
       console.error('Error getting inventory movements by cashier:', error);
-      throw new Error('Error al cargar los movimientos por cajero');
+      return [];
     }
   },
 
@@ -224,13 +223,19 @@ export const inventoryService = {
         
         const newMovement: InventoryMovement = {
           id: Date.now(),
-          TIPO: 'entrada',
-          PRODUCTO_ID: 0,
-          PRODUCTO_NOMBRE: 'Producto',
-          CANTIDAD: entryData.cantidad,
-          HORA: new Date().toISOString(),
-          DESCRIPCION: entryData.codigoBarra || 'Entrada de mercancía',
-          CAJERO: entryData.cajero || 'Sistema',
+          hora: new Date().toISOString(),
+          codigoBarra: entryData.codigoBarra,
+          descripcion: 'Producto',
+          costo: '0.00',
+          precioVenta: '0.00',
+          existenciaAnterior: 0,
+          existenciaNueva: entryData.cantidad,
+          existencia: entryData.cantidad,
+          invMinimo: 0,
+          tipo: 'ENTRADA',
+          cantidad: entryData.cantidad,
+          cajero: entryData.cajero || 'Sistema',
+          proveedor: entryData.proveedor,
         };
         
         return newMovement;
@@ -253,13 +258,18 @@ export const inventoryService = {
         
         const newMovement: InventoryMovement = {
           id: Date.now(),
-          TIPO: 'ajuste',
-          PRODUCTO_ID: 0,
-          PRODUCTO_NOMBRE: 'Producto',
-          CANTIDAD: adjustmentData.cantidad,
-          HORA: new Date().toISOString(),
-          DESCRIPCION: adjustmentData.codigoBarra || 'Ajuste de inventario',
-          CAJERO: adjustmentData.cajero || 'Sistema',
+          hora: new Date().toISOString(),
+          codigoBarra: adjustmentData.codigoBarra,
+          descripcion: 'Producto',
+          costo: '0.00',
+          precioVenta: '0.00',
+          existenciaAnterior: 0,
+          existenciaNueva: adjustmentData.cantidad,
+          existencia: adjustmentData.cantidad,
+          invMinimo: 0,
+          tipo: 'AJUSTE',
+          cantidad: adjustmentData.cantidad,
+          cajero: adjustmentData.cajero || 'Sistema',
         };
         
         return newMovement;
@@ -282,13 +292,18 @@ export const inventoryService = {
         
         const newMovement: InventoryMovement = {
           id: Date.now(),
-          TIPO: 'salida',
-          PRODUCTO_ID: 0,
-          PRODUCTO_NOMBRE: 'Producto',
-          CANTIDAD: saleData.cantidad,
-          HORA: new Date().toISOString(),
-          DESCRIPCION: saleData.codigoBarra || 'Venta',
-          CAJERO: saleData.cajero || 'Sistema',
+          hora: new Date().toISOString(),
+          codigoBarra: saleData.codigoBarra,
+          descripcion: 'Producto',
+          costo: '0.00',
+          precioVenta: '0.00',
+          existenciaAnterior: 0,
+          existenciaNueva: 0,
+          existencia: 0,
+          invMinimo: 0,
+          tipo: 'VENTA',
+          cantidad: saleData.cantidad,
+          cajero: saleData.cajero || 'Sistema',
         };
         
         return newMovement;
@@ -304,15 +319,26 @@ export const inventoryService = {
   /**
    * Crear movimiento general
    */
-  createMovement: async (movementData: Omit<InventoryMovement, 'id'>): Promise<InventoryMovement> => {
+  createMovement: async (movementData: Partial<InventoryMovement>): Promise<InventoryMovement> => {
     try {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
         
         const newMovement: InventoryMovement = {
-          ...movementData,
           id: Date.now(),
-          HORA: new Date().toISOString(),
+          hora: new Date().toISOString(),
+          codigoBarra: movementData.codigoBarra || '',
+          descripcion: movementData.descripcion || '',
+          costo: movementData.costo || '0.00',
+          precioVenta: movementData.precioVenta || '0.00',
+          existenciaAnterior: movementData.existenciaAnterior || 0,
+          existenciaNueva: movementData.existenciaNueva || 0,
+          existencia: movementData.existencia || 0,
+          invMinimo: movementData.invMinimo || 0,
+          tipo: movementData.tipo || 'ENTRADA',
+          cantidad: movementData.cantidad || 0,
+          cajero: movementData.cajero || 'Sistema',
+          proveedor: movementData.proveedor,
         };
         
         return newMovement;
@@ -320,11 +346,11 @@ export const inventoryService = {
       
       // Mapear datos del frontend al formato del backend
       const createRequest: InventoryMovementCreateRequest = {
-        codigoBarra: movementData.PRODUCTO_NOMBRE || 'producto',
-        tipo: movementData.TIPO.toUpperCase() as 'ENTRADA' | 'SALIDA' | 'AJUSTE',
-        cantidad: movementData.CANTIDAD,
-        cajero: movementData.CAJERO,
-        proveedor: movementData.DESCRIPCION,
+        codigoBarra: movementData.codigoBarra || '',
+        tipo: (movementData.tipo?.toUpperCase() || 'ENTRADA') as 'ENTRADA' | 'SALIDA' | 'AJUSTE',
+        cantidad: movementData.cantidad || 0,
+        cajero: movementData.cajero || 'Sistema',
+        proveedor: movementData.proveedor || undefined,
       };
       
       return await httpClient.post<InventoryMovement>(API_ENDPOINTS.INVENTORY_MOVEMENTS.BASE, createRequest);
@@ -342,46 +368,12 @@ export const inventoryService = {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
         
-        const allMovements = await inventoryService.getMovements();
-        let movements = Array.isArray(allMovements) ? allMovements : [];
-        
-        if (filters) {
-          const fromDate = new Date(filters.startDate || '');
-          const toDate = new Date(filters.endDate || '');
-          
-          movements = movements.filter(movement => {
-            const movementDate = new Date(movement.HORA);
-            return movementDate >= fromDate && movementDate <= toDate;
-          });
-        }
-        
-        const entradas = movements.filter(m => m.TIPO === 'entrada');
-        const salidas = movements.filter(m => m.TIPO === 'salida');
-        const ajustes = movements.filter(m => m.TIPO === 'ajuste');
-        
-        const totalEntradas = entradas.reduce((sum, m) => sum + m.CANTIDAD, 0);
-        const totalSalidas = salidas.reduce((sum, m) => sum + m.CANTIDAD, 0);
-        const totalAjustes = ajustes.reduce((sum, m) => sum + Math.abs(m.CANTIDAD), 0);
-        
         return {
-          totalMovimientos: movements.length,
-          entradas: {
-            cantidad: entradas.length,
-            total: totalEntradas,
-          },
-          salidas: {
-            cantidad: salidas.length,
-            total: totalSalidas,
-          },
-          ajustes: {
-            cantidad: ajustes.length,
-            total: totalAjustes,
-          },
-          movimientosHoy: movements.filter(m => 
-            m.HORA.startsWith(new Date().toISOString().split('T')[0])
-          ).length,
-          productoConMasMovimientos: 'Cerveza Pilsen 650ml', // Mock
-          cajeroMasActivo: 'Juan Cajero', // Mock
+          totalMovimientos: 0,
+          entradas: { cantidad: 0, total: 0 },
+          salidas: { cantidad: 0, total: 0 },
+          ajustes: { cantidad: 0, total: 0 },
+          movimientosHoy: 0,
         };
       }
       
