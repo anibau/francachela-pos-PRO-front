@@ -509,7 +509,7 @@ export default function Productos() {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="barcode">Código de Barras (Opcional)</Label>
+                    <Label htmlFor="barcode">Código de Barras *</Label>
                     <div className="relative">
                       <Input
                         id="barcode"
