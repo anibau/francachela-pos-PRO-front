@@ -29,6 +29,15 @@ export default function POS() {
   const [discount, setDiscount] = useState(0);
   const [montoRecibido, setMontoRecibido] = useState<number | undefined>();
   
+  // Estados para múltiples métodos de pago
+  const [metodosPageo, setMetodosPageo] = useState<Array<{
+    monto: number;
+    metodoPago: PaymentMethod;
+    referencia?: string;
+  }>>([]);
+  const [montoActual, setMontoActual] = useState<number>(0);
+  const [referenciaActual, setReferenciaActual] = useState<string>('');
+  
   const PRODUCTS_PER_PAGE = 9;
 
   // Query client para invalidar caché
@@ -158,6 +167,62 @@ export default function POS() {
     applyDiscount(discount);
   };
 
+  // Funciones para múltiples métodos de pago
+  const agregarMetodoPago = () => {
+    if (montoActual <= 0) {
+      toast({
+        title: 'Error',
+        description: 'El monto debe ser mayor a 0',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const totalPagado = metodosPageo.reduce((sum, metodo) => sum + metodo.monto, 0);
+    const montoRestante = total - totalPagado;
+
+    if (montoActual > montoRestante) {
+      toast({
+        title: 'Error',
+        description: `El monto no puede ser mayor al restante: S/ ${montoRestante.toFixed(2)}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const nuevoMetodo = {
+      monto: montoActual,
+      metodoPago: selectedPaymentMethod,
+      referencia: referenciaActual || undefined,
+    };
+
+    setMetodosPageo([...metodosPageo, nuevoMetodo]);
+    setMontoActual(0);
+    setReferenciaActual('');
+    
+    toast({
+      title: 'Método agregado',
+      description: `${selectedPaymentMethod}: S/ ${montoActual.toFixed(2)}`,
+    });
+  };
+
+  const removerMetodoPago = (index: number) => {
+    const nuevosMetodos = metodosPageo.filter((_, i) => i !== index);
+    setMetodosPageo(nuevosMetodos);
+  };
+
+  const getTotalPagado = () => {
+    return metodosPageo.reduce((sum, metodo) => sum + metodo.monto, 0);
+  };
+
+  const getMontoRestante = () => {
+    return total - getTotalPagado();
+  };
+
+  const isPagoCompleto = () => {
+    return Math.abs(getMontoRestante()) < 0.01; // Tolerancia para decimales
+  };
+
   /*const sendWhatsAppMessage = (clientPhone: string, points: number, total: number) => {
     const message = `¡Gracias por tu compra! 🎉\n\nTotal: S/ ${total.toFixed(2)}\nPuntos ganados: ${points}\n\n¡Vuelve pronto!`;
     const encodedMessage = encodeURIComponent(message);
@@ -180,16 +245,34 @@ export default function POS() {
       return;
     }
 
+    // Verificar si se están usando múltiples métodos de pago
+    if (metodosPageo.length > 0) {
+      // Validar que el pago esté completo
+      if (!isPagoCompleto()) {
+        toast({
+          title: 'Error',
+          description: `Falta pagar S/ ${getMontoRestante().toFixed(2)}`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Usar múltiples métodos de pago
+      const metodoPrincipal = metodosPageo[0]?.metodoPago || selectedPaymentMethod;
+      await completeSale(metodoPrincipal, 'Sistema', getTotalPagado(), metodosPageo);
+    } else {
+      // Usar método de pago único (comportamiento original)
+      await completeSale(selectedPaymentMethod, 'Sistema', montoRecibido);
+    }
+
+    // Limpiar estados de múltiples métodos de pago
+    setMetodosPageo([]);
+    setMontoActual(0);
+    setReferenciaActual('');
+    setIsPaymentOpen(false);
+    
     // Guardar referencia al cliente antes de completar la venta
     const currentClientId = activeTicket.clientId;
-    
-    await completeSale(selectedPaymentMethod, 'Sistema', montoRecibido);
-    
-    // Refrescar datos de productos y clientes después de la venta
-    queryClient.invalidateQueries({ queryKey: productKeys.lists() });
-    queryClient.invalidateQueries({ queryKey: clientKeys.lists() });
-    refetchProducts();
-    refetchClients();
     
     // Obtener el cliente actualizado para obtener los puntos actualizados
     const client = clients.find(c => c.id === currentClientId);
@@ -468,7 +551,7 @@ export default function POS() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                    <div className="grid grid-cols-3 gap-4 p-2 bg-muted/50 rounded-lg">
                       <div>
                         <div className="text-sm text-muted-foreground">Subtotal</div>
                         <div className="font-medium">S/ {(total + (activeTicket?.discount || 0)).toFixed(2)}</div>
@@ -505,8 +588,86 @@ export default function POS() {
                       </Select>
                     </div>
 
+                    {/* Sección de Múltiples Métodos de Pago */}
+                    <div className="space-y-2 p-2 bg-purple-50 rounded-lg border border-purple-200">
+                      <div className="font-medium text-sm text-purple-700">Múltiples Métodos de Pago</div>
+                      
+                      {/* Agregar método de pago */}
+                      <div className="grid grid-cols-2 gap-1">
+                        <div>
+                          <Label htmlFor="montoActual" className="text-xs">Monto</Label>
+                          <Input
+                            id="montoActual"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={montoActual || ''}
+                            onChange={(e) => setMontoActual(parseFloat(e.target.value) || 0)}
+                            placeholder="0.00"
+                            className="text-sm"
+                          />
+                        </div>
+                        
+                        <Button 
+                        onClick={agregarMetodoPago} 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full"
+                        disabled={montoActual <= 0}
+                      >
+                        Agregar {selectedPaymentMethod} - S/ {montoActual.toFixed(2)}
+                      </Button>
+                      </div>
+                      
+                      
+
+                      {/* Lista de métodos agregados */}
+                      {metodosPageo.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="text-xs font-medium text-blue-700">Métodos agregados:</div>
+                          {metodosPageo.map((metodo, index) => (
+                            <div key={index} className="flex items-center justify-between p-1 bg-white rounded border">
+                              <div className="flex-1">
+                                <div className="text-sm font-medium">{metodo.metodoPago}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  S/ {metodo.monto.toFixed(2)}
+                                  {metodo.referencia && ` - ${metodo.referencia}`}
+                                </div>
+                              </div>
+                              <Button
+                                onClick={() => removerMetodoPago(index)}
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                              >
+                                ×
+                              </Button>
+                            </div>
+                          ))}
+                          
+                          {/* Resumen de pagos */}
+                          <div className="pt-2 border-t space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span>Total a pagar:</span>
+                              <span className="font-medium">S/ {total.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span>Total pagado:</span>
+                              <span className="font-medium">S/ {getTotalPagado().toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm font-bold">
+                              <span>Restante:</span>
+                              <span className={getMontoRestante() > 0 ? 'text-destructive' : 'text-green-600'}>
+                                S/ {getMontoRestante().toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Sección de Cálculo de Vuelto */}
-                    <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+                    <div className="space-y-2 p-2 bg-muted/50 rounded-lg">
                       <div className="font-medium text-sm">Cálculo de Vuelto</div>
                       <div className="space-y-2">
                         <div>
@@ -535,7 +696,7 @@ export default function POS() {
                                   <span className="text-muted-foreground">Monto recibido:</span>
                                   <span className="font-medium">S/ {montoRecibido.toFixed(2)}</span>
                                 </div>
-                                <div className="flex justify-between text-sm border-t pt-2">
+                                <div className="flex justify-between text-sm border-t pt-1">
                                   <span className="font-medium">Vuelto:</span>
                                   <span className="text-lg font-bold text-primary">S/ {(montoRecibido - total).toFixed(2)}</span>
                                 </div>
@@ -559,9 +720,17 @@ export default function POS() {
                       </div>
                     )}
 
-                    <Button onClick={handleCheckout} className="w-full" size="lg">
+                    <Button 
+                      onClick={handleCheckout} 
+                      className="w-full" 
+                      size="lg"
+                      disabled={metodosPageo.length > 0 && !isPagoCompleto()}
+                    >
                       <DollarSign className="mr-2 h-5 w-5" />
-                      Confirmar Pago - S/ {total.toFixed(2)}
+                      {metodosPageo.length > 0 
+                        ? `Confirmar Pago - S/ ${getTotalPagado().toFixed(2)} de S/ ${total.toFixed(2)}`
+                        : `Confirmar Pago - S/ ${total.toFixed(2)}`
+                      }
                     </Button>
                   </div>
                 </DialogContent>

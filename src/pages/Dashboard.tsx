@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, ShoppingCart, Users, DollarSign, Package, Loader2 } from "lucide-react";
 import {
@@ -16,7 +16,6 @@ import {
 import { salesService } from "@/services/salesService";
 import { productsService } from "@/services/productsService";
 import { clientsService } from "@/services/clientsService";
-import { cashRegisterService } from "@/services/cashRegisterService";
 import { toast } from "sonner";
 
 interface DashboardStats {
@@ -27,6 +26,19 @@ interface DashboardStats {
   ventasSemana: { name: string; ventas: number }[];
   topProductos: { name: string; value: number; color: string }[];
   productosVendidos: { name: string; sales: number; revenue: number }[];
+}
+
+interface VentasEstadisticas {
+  totalVentas: number;
+  totalMonto: number;
+  promedioVenta: number;
+  ventasPorMetodo: Record<string, number>;
+  topProductos: Array<{
+    codigoBarra: string;
+    descripcion: string;
+    cantidad: number;
+    monto: number;
+  }>;
 }
 
 const COLORS = [
@@ -48,27 +60,40 @@ export default function Dashboard() {
     productosVendidos: [],
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [dateRange, setDateRange] = useState(() => {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    
+    return {
+      fechaInicio: firstDayOfMonth.toISOString().split('T')[0], // Primer día del mes
+      fechaFin: lastDayOfMonth.toISOString().split('T')[0] // Último día del mes
+    };
+  });
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setIsLoading(true);
       
+      // Usar el nuevo endpoint de estadísticas de ventas
+      const estadisticasUrl = `/ventas/estadisticas?fechaInicio=${dateRange.fechaInicio}&fechaFin=${dateRange.fechaFin}`;
+      
       // Cargar datos en paralelo
-      const [salesData, productsData, clientsData, cashStats] = await Promise.all([
-        salesService.getToday().catch(() => []),
+      const [ventasStats, productsData, clientsData] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_BASE_URL}${estadisticasUrl}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            'Content-Type': 'application/json'
+          }
+        }).then(res => res.json()).catch(() => null) as Promise<VentasEstadisticas | null>,
         productsService.getAll().catch(() => []),
         clientsService.getAll().catch(() => []),
-        cashRegisterService.getStatistics().catch(() => null),
       ]);
 
-      // Calcular ventas del día
-      const ventasHoy = (salesData || []).reduce((sum, sale) => sum + Number(sale.total), 0);
-      const transaccionesHoy = (salesData || []).length;
-      const ticketPromedio = transaccionesHoy > 0 ? ventasHoy / transaccionesHoy : 0;
+      // Usar datos del endpoint de estadísticas de ventas
+      const ventasHoy = ventasStats?.totalMonto || 0;
+      const transaccionesHoy = ventasStats?.totalVentas || 0;
+      const ticketPromedio = ventasStats?.promedioVenta || 0;
 
       // Clientes nuevos (últimos 7 días)
       const sevenDaysAgo = new Date();
@@ -78,25 +103,18 @@ export default function Dashboard() {
         return fecha >= sevenDaysAgo;
       }).length;
 
-      // Generar datos de ventas por día de la semana
+      // Generar datos de ventas por día de la semana usando estadísticas
       const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
       const ventasPorDia: Record<string, number> = {};
-      diasSemana.forEach(dia => { ventasPorDia[dia] = 0; });
       
-      // Si tenemos datos de caja, usar esos
-      if (cashStats) {
-        // Usar datos del servicio de estadísticas si están disponibles
-        const totalVentas = cashStats.totalVentas || 0;
+      if (ventasStats) {
+        // Distribuir las ventas a lo largo de la semana
+        const totalVentas = ventasStats.totalMonto;
         diasSemana.forEach((dia, idx) => {
           ventasPorDia[dia] = Math.floor((totalVentas / 7) * (0.8 + Math.random() * 0.4));
         });
       } else {
-        // Usar datos de ventas del día
-        (salesData || []).forEach(sale => {
-          const fecha = new Date(sale.fecha);
-          const diaSemana = diasSemana[fecha.getDay() === 0 ? 6 : fecha.getDay() - 1];
-          ventasPorDia[diaSemana] = (ventasPorDia[diaSemana] || 0) + Number(sale.total);
-        });
+        diasSemana.forEach(dia => { ventasPorDia[dia] = 0; });
       }
 
       const ventasSemana = diasSemana.map(dia => ({
@@ -104,35 +122,21 @@ export default function Dashboard() {
         ventas: ventasPorDia[dia] || 0,
       }));
 
-      // Top productos más vendidos
-      const productoVentas: Record<number, { name: string; cantidad: number; revenue: number }> = {};
-      (salesData || []).forEach(sale => {
-        (sale.listaProductos || []).forEach(item => {
-          if (!productoVentas[item.id]) {
-            productoVentas[item.id] = { name: item.descripcion, cantidad: 0, revenue: 0 };
-          }
-          productoVentas[item.id].cantidad += item.cantidad;
-          productoVentas[item.id].revenue += item.subtotal;
-        });
-      });
+      // Top productos más vendidos usando datos del endpoint de estadísticas
+      const topProductos = (ventasStats?.topProductos || [])
+        .slice(0, 4)
+        .map((prod, idx) => ({
+          name: prod.descripcion,
+          value: prod.cantidad,
+          color: COLORS[idx % COLORS.length],
+        }));
 
-      const topProductosArray = Object.values(productoVentas)
-        .sort((a, b) => b.cantidad - a.cantidad)
-        .slice(0, 4);
-
-      const topProductos = topProductosArray.map((prod, idx) => ({
-        name: prod.name,
-        value: prod.cantidad,
-        color: COLORS[idx % COLORS.length],
-      }));
-
-      const productosVendidos = Object.values(productoVentas)
-        .sort((a, b) => b.revenue - a.revenue)
+      const productosVendidos = (ventasStats?.topProductos || [])
         .slice(0, 5)
         .map(prod => ({
-          name: prod.name,
+          name: prod.descripcion,
           sales: prod.cantidad,
-          revenue: prod.revenue,
+          revenue: prod.monto,
         }));
 
       // Si no hay datos, usar datos de ejemplo
@@ -175,7 +179,15 @@ export default function Dashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [dateRange]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [dateRange, loadDashboardData]);
 
   if (isLoading) {
     return (

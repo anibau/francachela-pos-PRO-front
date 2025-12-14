@@ -6,15 +6,16 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { TrendingUp, Calendar, User, CreditCard, Download, Eye, XCircle, Ban, FileSpreadsheet } from "lucide-react";
+import { TrendingUp, Calendar, User, CreditCard, Download, Eye, XCircle, Ban, FileSpreadsheet, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { salesAPI } from "@/services/api";
+import { salesService } from "@/services/salesService";
 import type { Sale } from "@/types";
 
 export default function Ventas() {
   const [ventas, setVentas] = useState<Sale[]>([]);
   const [filteredVentas, setFilteredVentas] = useState<Sale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [cancelingIds, setCancelingIds] = useState<Set<number>>(new Set());
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -50,7 +51,7 @@ export default function Ventas() {
 
   const loadVentas = async () => {
     try {
-      const data = await salesAPI.getAll();
+      const data = await salesService.getAll();
       setVentas(data);
     } catch (error) {
       toast.error('Error al cargar ventas');
@@ -60,39 +61,33 @@ export default function Ventas() {
   };
 
   const handleCancelSale = async (id: number) => {
-    if (!confirm('¿Estás seguro de anular esta venta?')) return;
+    if (!confirm('¿Estás seguro de anular esta venta? Esta acción no se puede deshacer.')) {
+      return;
+    }
 
+    // Agregar ID al set de cargando
+    setCancelingIds(prev => new Set(prev).add(id));
+    
     try {
-      // Obtener token de autenticación
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        toast.error('No hay sesión activa');
-        return;
-      }
-
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/ventas/${id}/anular`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast.error('Sesión expirada. Por favor, inicia sesión nuevamente.');
-          return;
-        }
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Error al anular venta');
-      }
-
+      const updatedSale = await salesService.cancel(id);
+      
+      // Actualizar la venta en la lista
+      setVentas(prev => 
+        prev.map(v => v.id === id ? { ...v, estado: updatedSale.estado } : v)
+      );
+      
       toast.success('Venta anulada correctamente');
-      loadVentas();
     } catch (error) {
-      console.error('Error canceling sale:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error al anular venta';
       toast.error(errorMessage);
+      console.error('Error canceling sale:', error);
+    } finally {
+      // Remover ID del set de cargando
+      setCancelingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
     }
   };
 
@@ -224,12 +219,28 @@ export default function Ventas() {
                   <Badge variant={venta.estado === 'completada' ? 'default' : 'destructive'}>
                     {venta.estado.toUpperCase()}
                   </Badge>
-                  <Button size="icon" variant="ghost" onClick={() => openDetailDialog(venta)}>
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    onClick={() => openDetailDialog(venta)}
+                    title="Ver detalles de la venta"
+                  >
                     <Eye className="h-4 w-4" />
                   </Button>
-                  {venta.estado === 'completada' && (
-                    <Button size="icon" variant="ghost" onClick={() => handleCancelSale(venta.id)}>
-                      <XCircle className="h-4 w-4" />
+                  {venta.estado === 'COMPLETADO' && (
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      onClick={() => handleCancelSale(venta.id)}
+                      disabled={cancelingIds.has(venta.id)}
+                      title="Anular esta venta"
+                      className="hover:text-destructive"
+                    >
+                      {cancelingIds.has(venta.id) ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Ban className="h-4 w-4" />
+                      )}
                     </Button>
                   )}
                 </div>

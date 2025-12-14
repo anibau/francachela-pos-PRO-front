@@ -1,5 +1,6 @@
 import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
 import { httpClient, simulateDelay } from './httpClient';
+import { ensureArray } from '@/utils/apiValidators';
 import type { InventoryMovement } from '@/types';
 import type { 
   InventoryMovementCreateRequest,
@@ -17,6 +18,32 @@ interface PaginatedMovementsResponse {
   hasNextPage: boolean;
   hasPrevPage: boolean;
 }
+
+/**
+ * Normaliza un movimiento de inventario desde el backend
+ * Maneja tanto formatos con mayúsculas (HORA, TIPO, etc) como minúsculas
+ */
+const normalizeMovement = (mov: any): InventoryMovement => {
+  return {
+    id: mov.id || mov.ID || 0,
+    hora: mov.hora || mov.HORA || new Date().toISOString(),
+    codigoBarra: mov.codigoBarra || mov.CODIGO_BARRA || '',
+    descripcion: mov.descripcion || mov.DESCRIPCION || mov.PRODUCTO_NOMBRE || '',
+    costo: mov.costo || mov.COSTO || '0',
+    precioVenta: mov.precioVenta || mov.PRECIO_VENTA || '0',
+    existenciaAnterior: mov.existenciaAnterior || mov.EXISTENCIA_ANTERIOR || 0,
+    existenciaNueva: mov.existenciaNueva || mov.EXISTENCIA_NUEVA || 0,
+    existencia: mov.existencia || mov.EXISTENCIA || 0,
+    invMinimo: mov.invMinimo || mov.INV_MINIMO || 0,
+    tipo: (mov.tipo || mov.TIPO || 'desconocido').toLowerCase(),
+    cantidad: mov.cantidad || mov.CANTIDAD || 0,
+    cajero: mov.cajero || mov.CAJERO || '',
+    proveedor: mov.proveedor || mov.PROVEEDOR || null,
+    numeroFactura: mov.numeroFactura || mov.NUMERO_FACTURA || null,
+    observaciones: mov.observaciones || mov.OBSERVACIONES || null,
+    ventaId: mov.ventaId || mov.VENTA_ID || null,
+  };
+};
 
 export const inventoryService = {
   /**
@@ -40,7 +67,7 @@ export const inventoryService = {
             existenciaNueva: 150,
             existencia: 150,
             invMinimo: 20,
-            tipo: 'ENTRADA',
+            tipo: 'entrada',
             cantidad: 50,
             cajero: 'Juan Cajero',
             proveedor: 'Backus',
@@ -57,7 +84,7 @@ export const inventoryService = {
             existenciaNueva: 5,
             existencia: 5,
             invMinimo: 15,
-            tipo: 'VENTA',
+            tipo: 'salida',
             cantidad: 10,
             cajero: 'Juan Cajero',
           },
@@ -75,10 +102,15 @@ export const inventoryService = {
       const response = await httpClient.get<PaginatedMovementsResponse | InventoryMovement[]>(url);
       
       // El backend devuelve { data: [], total, page, etc }
+      let movements: any[] = [];
       if (response && typeof response === 'object' && 'data' in response) {
-        return (response as PaginatedMovementsResponse).data;
+        movements = (response as PaginatedMovementsResponse).data;
+      } else if (Array.isArray(response)) {
+        movements = response;
       }
-      return Array.isArray(response) ? response : [];
+      
+      // Normalizar todos los movimientos
+      return movements.map(normalizeMovement);
     } catch (error) {
       console.error('Error getting inventory movements:', error);
       return [];
