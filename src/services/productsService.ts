@@ -1,5 +1,6 @@
 import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
 import { httpClient, simulateDelay } from './httpClient';
+import { ensureArray } from '@/utils/apiValidators';
 import type { Product } from '@/types';
 import type { ProductoQueryParams, PaginatedResponse, ProductStockUpdateRequest } from '@/types/backend';
 import { normalizeProduct, normalizeProducts } from '@/utils/dataTransform';
@@ -27,13 +28,19 @@ export const productsService = {
       const response = await httpClient.get<PaginatedResponse<Product> | Product[]>(url);
       
       // El backend devuelve { data: [], total, page, etc }
+      let products: any[] = [];
       if (response && typeof response === 'object' && 'data' in response) {
-        return normalizeProducts((response as PaginatedResponse<Product>).data);
+        products = (response as PaginatedResponse<Product>).data;
+      } else if (Array.isArray(response)) {
+        products = response;
       }
-      return normalizeProducts(Array.isArray(response) ? response : []);
+      
+      // Normalizar y asegurar que es un array
+      return normalizeProducts(ensureArray(products, []));
     } catch (error) {
       console.error('Error getting products:', error);
-      throw new Error('Error al cargar los productos');
+      // Retornar array vacío en lugar de lanzar error
+      return [];
     }
   },
 

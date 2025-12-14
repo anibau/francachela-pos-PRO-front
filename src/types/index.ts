@@ -237,30 +237,23 @@ export interface Settings {
 // Inventory Movement type alineado con backend response
 export interface InventoryMovement {
   id: number;
-  hora: string;
-  codigoBarra: string;
-  descripcion: string;
-  costo: string;
-  precioVenta: string;
-  existenciaAnterior: number;
-  existenciaNueva: number;
-  existencia: number;
-  invMinimo: number;
-  tipo: string;
-  cantidad: number;
-  cajero: string;
+  hora?: string;
+  codigoBarra?: string;
+  descripcion?: string;
+  costo?: string;
+  precioVenta?: string;
+  existenciaAnterior?: number;
+  existenciaNueva?: number;
+  existencia?: number;
+  invMinimo?: number;
+  tipo?: string;
+  cantidad?: number;
+  cajero?: string;
   proveedor?: string | null;
   numeroFactura?: string | null;
   observaciones?: string | null;
   ventaId?: number | null;
   fechaCreacion?: string;
   fechaActualizacion?: string;
-  // Legacy fields for backward compatibility
-  TIPO?: 'entrada' | 'salida' | 'ajuste';
-  PRODUCTO_ID?: number;
-  PRODUCTO_NOMBRE?: string;
-  CANTIDAD?: number;
-  HORA?: string;
-  DESCRIPCION?: string;
-  CAJERO?: string;
+ 
 }

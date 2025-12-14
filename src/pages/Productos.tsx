@@ -249,13 +249,12 @@ export default function Productos() {
     
     try {
       await inventoryService.createMovement({
-        TIPO: movementData.type,
-        PRODUCTO_ID: selectedProduct.id,
-        PRODUCTO_NOMBRE: selectedProduct.productoDescripcion,
-        CANTIDAD: movementData.quantity,
-        HORA: new Date().toISOString(),
-        DESCRIPCION: movementData.notes || `Movimiento de ${movementData.type}`,
-        CAJERO: 'Usuario', // TODO: obtener del contexto de auth
+        tipo: movementData.type,
+        id: selectedProduct.id,
+        descripcion: movementData.notes || `Movimiento de ${movementData.type}`,
+        cantidad: movementData.quantity,
+        hora: new Date().toISOString(),
+        cajero: 'Usuario', // TODO: obtener del contexto de auth
       });
       
       // Actualizar stock del producto
@@ -945,7 +944,7 @@ export default function Productos() {
                     <p className="text-2xl font-bold text-primary">
                       {movimientos.filter(m => {
                         const today = new Date().toDateString();
-                        return new Date(m.HORA).toDateString() === today;
+                        return new Date(m.hora).toDateString() === today;
                       }).length}
                     </p>
                   </div>
@@ -961,7 +960,7 @@ export default function Productos() {
                   <div>
                     <p className="text-sm text-muted-foreground">Entradas</p>
                     <p className="text-2xl font-bold text-green-600">
-                      {movimientos.filter(m => m.TIPO === 'entrada').length}
+                      {movimientos.filter(m => m.tipo === 'entrada').length}
                     </p>
                   </div>
                   <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
@@ -976,7 +975,7 @@ export default function Productos() {
                   <div>
                     <p className="text-sm text-muted-foreground">Salidas</p>
                     <p className="text-2xl font-bold text-red-600">
-                      {movimientos.filter(m => m.TIPO === 'salida').length}
+                      {movimientos.filter(m => m.tipo === 'salida').length}
                     </p>
                   </div>
                   <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
@@ -1002,31 +1001,33 @@ export default function Productos() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground">Fecha/Hora</p>
-                        <p className="font-semibold text-sm">{new Date(mov.HORA).toLocaleString('es-PE')}</p>
+                        <p className="font-semibold text-sm">
+                          {mov.hora ? new Date(mov.hora).toLocaleString('es-PE') : 'N/A'}
+                        </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Producto</p>
-                        <p className="font-semibold text-sm">{mov.PRODUCTO_NOMBRE || mov.DESCRIPCION}</p>
+                        <p className="font-semibold text-sm">{mov.descripcion || 'Sin especificar'}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Tipo</p>
-                        <Badge variant={mov.TIPO === 'entrada' ? 'default' : mov.TIPO === 'salida' ? 'destructive' : 'secondary'}>
-                          {mov.TIPO.toUpperCase()}
+                        <Badge variant={mov.tipo === 'entrada' ? 'default' : mov.tipo === 'salida' ? 'destructive' : 'secondary'}>
+                          {(mov.tipo || 'desconocido').toUpperCase()}
                         </Badge>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Cantidad</p>
-                        <p className={`font-semibold ${mov.TIPO === 'entrada' ? 'text-green-600' : mov.TIPO === 'salida' ? 'text-red-600' : 'text-blue-600'}`}>
-                          {mov.TIPO === 'entrada' ? '+' : mov.TIPO === 'salida' ? '-' : '±'}{mov.CANTIDAD}
+                        <p className={`font-semibold ${mov.tipo === 'entrada' ? 'text-green-600' : mov.tipo === 'salida' ? 'text-red-600' : 'text-blue-600'}`}>
+                          {mov.tipo === 'entrada' ? '+' : mov.tipo === 'salida' ? '-' : '±'}{mov.cantidad || 0}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Cajero</p>
-                        <p className="font-semibold text-sm">{mov.CAJERO}</p>
+                        <p className="font-semibold text-sm">{mov.cajero || 'N/A'}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Descripción</p>
-                        <p className="text-sm text-muted-foreground">{mov.DESCRIPCION || 'Sin descripción'}</p>
+                        <p className="text-sm text-muted-foreground">Código</p>
+                        <p className="text-sm text-muted-foreground">{mov.codigoBarra || 'Sin código'}</p>
                       </div>
                     </div>
                   </CardContent>
