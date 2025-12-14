@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { TrendingUp, Calendar, User, CreditCard, Download, Eye, XCircle, Ban, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { TrendingUp, Calendar, User, CreditCard, Eye, Ban, FileSpreadsheet, Loader2, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { salesService } from "@/services/salesService";
 import type { Sale } from "@/types";
@@ -18,6 +19,9 @@ export default function Ventas() {
   const [cancelingIds, setCancelingIds] = useState<Set<number>>(new Set());
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
+  const [editingComment, setEditingComment] = useState('');
+  const [editingSaleId, setEditingSaleId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
   const [dateFilter, setDateFilter] = useState({
@@ -30,7 +34,6 @@ export default function Ventas() {
   }, []);
 
   const filterVentas = () => {
-    // Asegurar que ventas sea un array antes de usar spread operator
     let filtered = [...(ventas || [])];
 
     if (dateFilter.startDate) {
@@ -46,7 +49,6 @@ export default function Ventas() {
 
   useEffect(() => {
     filterVentas();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ventas, dateFilter]);
 
   const loadVentas = async () => {
@@ -65,30 +67,63 @@ export default function Ventas() {
       return;
     }
 
-    // Agregar ID al set de cargando
     setCancelingIds(prev => new Set(prev).add(id));
     
     try {
       const updatedSale = await salesService.cancel(id);
-      
-      // Actualizar la venta en la lista
       setVentas(prev => 
         prev.map(v => v.id === id ? { ...v, estado: updatedSale.estado } : v)
       );
-      
       toast.success('Venta anulada correctamente');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error al anular venta';
       toast.error(errorMessage);
-      console.error('Error canceling sale:', error);
     } finally {
-      // Remover ID del set de cargando
       setCancelingIds(prev => {
         const newSet = new Set(prev);
         newSet.delete(id);
         return newSet;
       });
     }
+  };
+
+  const handleUpdateComment = async () => {
+    if (editingSaleId === null) return;
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        toast.error('No hay sesión activa');
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/ventas/${editingSaleId}/comentario`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ comentario: editingComment }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al actualizar comentario');
+      }
+
+      toast.success('Comentario actualizado');
+      setIsCommentDialogOpen(false);
+      setEditingSaleId(null);
+      setEditingComment('');
+      loadVentas();
+    } catch (error) {
+      toast.error('Error al actualizar comentario');
+    }
+  };
+
+  const openCommentDialog = (sale: Sale) => {
+    setEditingSaleId(sale.id);
+    setEditingComment(sale.comentario || '');
+    setIsCommentDialogOpen(true);
   };
 
   const openDetailDialog = (sale: Sale) => {
@@ -219,28 +254,15 @@ export default function Ventas() {
                   <Badge variant={venta.estado === 'completada' ? 'default' : 'destructive'}>
                     {venta.estado.toUpperCase()}
                   </Badge>
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    onClick={() => openDetailDialog(venta)}
-                    title="Ver detalles de la venta"
-                  >
+                  <Button size="icon" variant="ghost" onClick={() => openDetailDialog(venta)} title="Ver detalles">
                     <Eye className="h-4 w-4" />
                   </Button>
-                  {venta.estado === 'COMPLETADO' && (
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      onClick={() => handleCancelSale(venta.id)}
-                      disabled={cancelingIds.has(venta.id)}
-                      title="Anular esta venta"
-                      className="hover:text-destructive"
-                    >
-                      {cancelingIds.has(venta.id) ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Ban className="h-4 w-4" />
-                      )}
+                  <Button size="icon" variant="ghost" onClick={() => openCommentDialog(venta)} title="Editar comentario">
+                    <MessageSquare className="h-4 w-4" />
+                  </Button>
+                  {(venta.estado === 'COMPLETADO' || venta.estado === 'completada') && (
+                    <Button size="icon" variant="ghost" onClick={() => handleCancelSale(venta.id)} disabled={cancelingIds.has(venta.id)} title="Anular" className="hover:text-destructive">
+                      {cancelingIds.has(venta.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
                     </Button>
                   )}
                 </div>
