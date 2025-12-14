@@ -30,7 +30,7 @@ export default function POS() {
   const [montoRecibido, setMontoRecibido] = useState<number | undefined>();
   
   // Estados para múltiples métodos de pago
-  const [metodosPageoUsados, setMetodosPageoUsados] = useState<Array<{
+  const [metodosPageo, setMetodosPageo] = useState<Array<{
     monto: number;
     metodoPago: PaymentMethod;
     referencia?: string;
@@ -178,7 +178,7 @@ export default function POS() {
       return;
     }
 
-    const totalPagado = metodosPageoUsados.reduce((sum, metodo) => sum + metodo.monto, 0);
+    const totalPagado = metodosPageo.reduce((sum, metodo) => sum + metodo.monto, 0);
     const montoRestante = total - totalPagado;
 
     if (montoActual > montoRestante) {
@@ -196,7 +196,7 @@ export default function POS() {
       referencia: referenciaActual || undefined,
     };
 
-    setMetodosPageoUsados([...metodosPageoUsados, nuevoMetodo]);
+    setMetodosPageo([...metodosPageo, nuevoMetodo]);
     setMontoActual(0);
     setReferenciaActual('');
     
@@ -207,12 +207,12 @@ export default function POS() {
   };
 
   const removerMetodoPago = (index: number) => {
-    const nuevosMetodos = metodosPageoUsados.filter((_, i) => i !== index);
-    setMetodosPageoUsados(nuevosMetodos);
+    const nuevosMetodos = metodosPageo.filter((_, i) => i !== index);
+    setMetodosPageo(nuevosMetodos);
   };
 
   const getTotalPagado = () => {
-    return metodosPageoUsados.reduce((sum, metodo) => sum + metodo.monto, 0);
+    return metodosPageo.reduce((sum, metodo) => sum + metodo.monto, 0);
   };
 
   const getMontoRestante = () => {
@@ -246,7 +246,7 @@ export default function POS() {
     }
 
     // Verificar si se están usando múltiples métodos de pago
-    if (metodosPageoUsados.length > 0) {
+    if (metodosPageo.length > 0) {
       // Validar que el pago esté completo
       if (!isPagoCompleto()) {
         toast({
@@ -258,15 +258,15 @@ export default function POS() {
       }
 
       // Usar múltiples métodos de pago
-      const metodoPrincipal = metodosPageoUsados[0]?.metodoPago || selectedPaymentMethod;
-      await completeSale(metodoPrincipal, 'Sistema', getTotalPagado(), metodosPageoUsados);
+      const metodoPrincipal = metodosPageo[0]?.metodoPago || selectedPaymentMethod;
+      await completeSale(metodoPrincipal, 'Sistema', getTotalPagado(), metodosPageo);
     } else {
       // Usar método de pago único (comportamiento original)
       await completeSale(selectedPaymentMethod, 'Sistema', montoRecibido);
     }
 
     // Limpiar estados de múltiples métodos de pago
-    setMetodosPageoUsados([]);
+    setMetodosPageo([]);
     setMontoActual(0);
     setReferenciaActual('');
     setIsPaymentOpen(false);
@@ -622,10 +622,10 @@ export default function POS() {
                       
 
                       {/* Lista de métodos agregados */}
-                      {metodosPageoUsados.length > 0 && (
+                      {metodosPageo.length > 0 && (
                         <div className="space-y-2">
                           <div className="text-xs font-medium text-blue-700">Métodos agregados:</div>
-                          {metodosPageoUsados.map((metodo, index) => (
+                          {metodosPageo.map((metodo, index) => (
                             <div key={index} className="flex items-center justify-between p-1 bg-white rounded border">
                               <div className="flex-1">
                                 <div className="text-sm font-medium">{metodo.metodoPago}</div>
@@ -724,10 +724,10 @@ export default function POS() {
                       onClick={handleCheckout} 
                       className="w-full" 
                       size="lg"
-                      disabled={metodosPageoUsados.length > 0 && !isPagoCompleto()}
+                      disabled={metodosPageo.length > 0 && !isPagoCompleto()}
                     >
                       <DollarSign className="mr-2 h-5 w-5" />
-                      {metodosPageoUsados.length > 0 
+                      {metodosPageo.length > 0 
                         ? `Confirmar Pago - S/ ${getTotalPagado().toFixed(2)} de S/ ${total.toFixed(2)}`
                         : `Confirmar Pago - S/ ${total.toFixed(2)}`
                       }

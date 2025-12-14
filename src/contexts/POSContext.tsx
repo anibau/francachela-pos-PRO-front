@@ -38,7 +38,7 @@ interface POSContextType {
     paymentMethod: PaymentMethod,
     cashierName: string,
     montoRecibido?: number,
-    metodosPageoUsados?: Array<{
+    metodosPageo?: Array<{
       monto: number;
       metodoPago: PaymentMethod;
       referencia?: string;
@@ -232,7 +232,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
       paymentMethod: PaymentMethod, 
       cashierName: string, 
       montoRecibido: number = 0,
-      metodosPageoUsados?: Array<{
+      metodosPageo?: Array<{
         monto: number;
         metodoPago: PaymentMethod;
         referencia?: string;
@@ -275,11 +275,11 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           montoRecibido: montoRecibido || 0,
           puntosUsados: 0,
           // Agregar múltiples métodos de pago si están disponibles
-          ...(metodosPageoUsados && metodosPageoUsados.length > 0 && {
-            metodosPageoUsados: metodosPageoUsados.map(metodo => ({
+          ...(metodosPageo && metodosPageo.length > 0 && {
+            metodosPageo: metodosPageo.map(metodo => ({
               monto: metodo.monto,
               metodoPago: metodo.metodoPago,
-              timestamp: new Date().toISOString(),
+              // timestamp: new Date().toISOString(),
               ...(metodo.referencia && { referencia: metodo.referencia })
             }))
           })

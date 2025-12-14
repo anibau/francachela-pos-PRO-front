@@ -11,35 +11,30 @@ export type PaymentMethod = 'EFECTIVO' | 'YAPE' | 'PLIN' | 'TARJETA';
 
 // Enums para categorías y proveedores
 export enum ProductCategory {
-  CERVEZAS = 'Cervezas',
-  BEBIDAS = 'Bebidas',
-  LICORES = 'Licores',
-  SNACKS = 'Snacks',
-  COMIDA = 'Comida',
-  LACTEOS = 'Lácteos',
-  ABARROTES = 'Abarrotes',
-  LIMPIEZA = 'Limpieza',
-  HIGIENE = 'Higiene Personal',
-  CONFITERIA = 'Confitería',
-  PANADERIA = 'Panadería',
-  CONGELADOS = 'Congelados',
-  OTROS = 'Otros',
+  CERVEZAS = 'CERVEZAS',
+  BEBIDAS = 'BEBIDAS',
+  LICORES = 'LICORES',
+  SNACKS = 'SNACKS',
+  OTROS = 'OTROS',
+  AGUA = 'AGUA',
+  GOLOSINAS = 'GOLOSINAS',
+  JUEGOS = 'JUEGOS',
+  COCTELES = 'COCTELES',
+  HIELO = 'HIELO',
+  INSUMOS = 'INSUMOS',
+  MENAJES = 'MENAJES',
+  PACKING = 'PACKING',
+  TABACO = 'TABACO'
 }
 
 export enum ProductSupplier {
   BACKUS = 'Backus',
-  ALICORP = 'Alicorp',
   GLORIA = 'Gloria',
-  NESTLE = 'Nestlé',
   PEPSICO = 'PepsiCo',
   COCA_COLA = 'Coca-Cola',
-  SAN_FERNANDO = 'San Fernando',
-  LAIVE = 'Laive',
-  ARCOR = 'Arcor',
-  MONDELEZ = 'Mondelez',
-  SAN_LUIS = 'San Luis',
-  VINAS_PERUANAS = 'Viñas Peruanas',
-  COCINA_LOCAL = 'Cocina Local',
+  KR = 'KR',
+  LAYS = 'Lays',
+  LOA = 'Loa',
   OTRO = 'Otro',
 }
 
