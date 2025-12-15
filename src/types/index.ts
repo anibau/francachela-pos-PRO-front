@@ -250,5 +250,39 @@ export interface InventoryMovement {
   ventaId?: number | null;
   fechaCreacion?: string;
   fechaActualizacion?: string;
- 
+}
+
+// Interface para el corte de ventas
+export interface VentasCorte {
+  fechaInicio: string;
+  fechaFin: string;
+  totalVentas: number;
+  numeroTransacciones: number;
+  ticketPromedio: number;
+  totalDescuentos: number;
+  puntosOtorgados: number;
+  puntosCanjeados: number;
+  desgloseMetodosPago: {
+    [key in PaymentMethod]: {
+      cantidad: number;
+      monto: number;
+    };
+  };
+  desgloseTipoCompra: {
+    LOCAL: { cantidad: number; monto: number };
+    DELIVERY: { cantidad: number; monto: number };
+  };
+  topProductos: Array<{
+    productoId: number;
+    descripcion: string;
+    cantidad: number;
+    monto: number;
+  }>;
+  ventasPorDia: Array<{
+    fecha: string;
+    cantidad: number;
+    monto: number;
+  }>;
+  ventasAnuladas: number;
+  montoVentasAnuladas: number;
 }
