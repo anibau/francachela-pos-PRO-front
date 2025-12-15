@@ -262,10 +262,10 @@ export default function POS() {
 
       // Usar múltiples métodos de pago
       const metodoPrincipal = metodosPageo[0]?.metodoPago || selectedPaymentMethod;
-      await completeSale(metodoPrincipal, 'Sistema', getTotalPagado(), metodosPageo);
+      await completeSale(metodoPrincipal, 'Sistema', getTotalPagado(), metodosPageo, products);
     } else {
       // Usar método de pago único (comportamiento original)
-      await completeSale(selectedPaymentMethod, 'Sistema', montoRecibido);
+      await completeSale(selectedPaymentMethod, 'Sistema', montoRecibido, undefined, products);
     }
 
     // Limpiar estados de múltiples métodos de pago

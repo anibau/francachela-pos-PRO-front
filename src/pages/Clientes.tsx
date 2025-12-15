@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { Users, Star, Plus, Pencil, Trash2, Search, AlertCircle, Check, Calendar, MessageCircle, FileSpreadsheet } from "lucide-react";
+import { Users, Star, Plus, Pencil, Trash2, Search, AlertCircle, Check, Calendar, MessageCircle, FileSpreadsheet, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from "@/hooks";
 import { clientsService } from '@/services/clientsService';
@@ -261,6 +261,51 @@ export default function Clientes() {
     } catch (error) {
       console.error('Error al enviar WhatsApp:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error al enviar información por WhatsApp';
+      toast.error(errorMessage);
+    }
+  };
+
+  // Función para verificar si es cumpleaños
+  const isBirthday = (fechaNacimiento: string | null): boolean => {
+    if (!fechaNacimiento) return false;
+    
+    const today = new Date();
+    const birthday = new Date(fechaNacimiento);
+    
+    return today.getMonth() === birthday.getMonth() && 
+           today.getDate() === birthday.getDate();
+  };
+
+  // Función para enviar mensaje de cumpleaños
+  const handleSendBirthdayMessage = async (clienteId: number) => {
+    try {
+      toast.loading('Enviando mensaje de cumpleaños...');
+      
+      // Obtener token de autenticación
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('No hay sesión activa');
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/whatsapp/birthday/${clienteId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+        }
+        throw new Error('Error al enviar mensaje de cumpleaños');
+      }
+
+      toast.success('¡Mensaje de cumpleaños enviado exitosamente!');
+    } catch (error) {
+      console.error('Error al enviar mensaje de cumpleaños:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error al enviar mensaje de cumpleaños';
       toast.error(errorMessage);
     }
   };
@@ -585,6 +630,16 @@ export default function Clientes() {
                 </Badge>
                 <Button size="icon" variant="ghost" onClick={() => handleSendWhatsApp(cliente.dni)} title="Enviar información por WhatsApp">
                   <MessageCircle className="h-4 w-4" />
+                </Button>
+                <Button 
+                  size="icon" 
+                  variant="ghost" 
+                  onClick={() => handleSendBirthdayMessage(cliente.id)} 
+                  disabled={!isBirthday(cliente.fechaNacimiento)}
+                  title={isBirthday(cliente.fechaNacimiento) ? "¡Enviar felicitación de cumpleaños!" : "No es cumpleaños hoy"}
+                  className={isBirthday(cliente.fechaNacimiento) ? "text-yellow-600 hover:text-yellow-700" : ""}
+                >
+                  <Gift className="h-4 w-4" />
                 </Button>
                 <Button size="icon" variant="ghost" onClick={() => openEditDialog(cliente)}>
                   <Pencil className="h-4 w-4" />
