@@ -446,6 +446,48 @@ export default function Ventas() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Dialog para editar comentario */}
+      <Dialog open={isCommentDialogOpen} onOpenChange={setIsCommentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Comentario</DialogTitle>
+            <DialogDescription>
+              Modifica el comentario de la venta
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="comment">Comentario</Label>
+              <Textarea
+                id="comment"
+                placeholder="Agregar comentario..."
+                value={editingComment}
+                onChange={(e) => setEditingComment(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsCommentDialogOpen(false);
+                setEditingSaleId(null);
+                setEditingComment('');
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleUpdateComment}
+              disabled={!editingComment.trim()}
+            >
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
