@@ -278,21 +278,27 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           
           descuentoMayoreo += descuentoPorItem * item.cantidad;
           
+          // Retornar solo los campos que el backend espera
           return {
             productoId: item.productId,
             cantidad: item.cantidad,
             precioUnitario: item.precio, // Precio que se está usando (normal o mayoreo)
-            ...(item.isWholesale && { esMayoreo: true }), // Indicar al backend que es mayoreo
-            ...(descuentoPorItem > 0 && { descuentoPorItem })
           };
         });
 
         // Crear venta en el backend
+        // NOTA: No incluir descuento cuando hay mayoreo porque el descuento ya está
+        // reflejado en el precioUnitario de los productos (ej: 3.5 en lugar de 4.5)
+        // Solo enviar descuento manual si no hay mayoreo
+        const hasMayoreo = descuentoMayoreo > 0;
+        
         const saleData = {
           // Siempre incluir clienteId si existe
           clienteId: ticket.clientId || null,
           listaProductos: listaProductosConDescuento,
-          descuento: (ticket.discount || 0) + descuentoMayoreo, // Descuento manual + descuento mayoreo
+          // Solo incluir descuento si es descuento manual Y no hay mayoreo
+          // Para evitar duplicación (descuento manual + descuento en precioUnitario)
+          ...(ticket.discount > 0 && !hasMayoreo && { descuento: ticket.discount }),
           metodoPago: paymentMethod, // Método principal para compatibilidad
           comentario: ticket.notes || '',
           tipoCompra: 'LOCAL',
