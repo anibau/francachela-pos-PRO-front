@@ -42,7 +42,8 @@ interface POSContextType {
       monto: number;
       metodoPago: PaymentMethod;
       referencia?: string;
-    }>
+    }>,
+    products?: Product[]
   ) => Promise<void>;
 }
 
@@ -236,7 +237,8 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         monto: number;
         metodoPago: PaymentMethod;
         referencia?: string;
-      }>
+      }>,
+      products?: Product[]
     ) => {
       const ticket = getActiveTicket();
       
@@ -260,15 +262,43 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           itemsCount: ticket.items.length,
         });
         
+        // Calcular descuento por mayoreo
+        let descuentoMayoreo = 0;
+        const listaProductosConDescuento = ticket.items.map(item => {
+          let descuentoPorItem = 0;
+          
+          if (item.isWholesale && products) {
+            // Buscar el producto original para obtener precio normal
+            const producto = products.find(p => p.id === item.productId);
+            if (producto && producto.precio && producto.precioMayoreo) {
+              // El descuento por mayoreo se calcula como: precio_normal - precio_mayoreo
+              descuentoPorItem = producto.precio - producto.precioMayoreo;
+            }
+          }
+          
+          descuentoMayoreo += descuentoPorItem * item.cantidad;
+          
+          // Retornar solo los campos que el backend espera
+          return {
+            productoId: item.productId,
+            cantidad: item.cantidad,
+            precioUnitario: item.precio, // Precio que se está usando (normal o mayoreo)
+          };
+        });
+
         // Crear venta en el backend
+        // NOTA: No incluir descuento cuando hay mayoreo porque el descuento ya está
+        // reflejado en el precioUnitario de los productos (ej: 3.5 en lugar de 4.5)
+        // Solo enviar descuento manual si no hay mayoreo
+        const hasMayoreo = descuentoMayoreo > 0;
+        
         const saleData = {
           // Siempre incluir clienteId si existe
           clienteId: ticket.clientId || null,
-          listaProductos: ticket.items.map(item => ({
-            productoId: item.productId,
-            cantidad: item.cantidad,
-          })),
-          descuento: ticket.discount || 0,
+          listaProductos: listaProductosConDescuento,
+          // Solo incluir descuento si es descuento manual Y no hay mayoreo
+          // Para evitar duplicación (descuento manual + descuento en precioUnitario)
+          ...(ticket.discount > 0 && !hasMayoreo && { descuento: ticket.discount }),
           metodoPago: paymentMethod, // Método principal para compatibilidad
           comentario: ticket.notes || '',
           tipoCompra: 'LOCAL',

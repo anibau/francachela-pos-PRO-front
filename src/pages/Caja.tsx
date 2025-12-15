@@ -10,13 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DollarSign, Clock, History, Plus, Calendar, TrendingUp, BarChart3, FileText, Lock, Unlock } from 'lucide-react';
 import { toast } from 'sonner';
 import { cashRegisterService } from '@/services/cashRegisterService';
-import type { CashRegister } from '@/types';
+import type { CashRegister, VentasCorte } from '@/types';
 
 export default function Caja() {
   const [current, setCurrent] = useState<CashRegister | null>(null);
   const [history, setHistory] = useState<CashRegister[]>([]);
   const [summary, setSummary] = useState(null);
-  const [statistics, setStatistics] = useState(null);
+  const [statistics, setStatistics] = useState<VentasCorte | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
@@ -117,12 +117,38 @@ export default function Caja() {
     }
 
     try {
-      const stats = await cashRegisterService.getStatistics({dateFrom, dateTo});
+      // Convertir fechas a formato YYYY-MM-DD
+      const fechaInicio = dateFrom;
+      const fechaFin = dateTo;
+      
+      // Llamar al nuevo endpoint de corte de ventas
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        toast.error('No hay sesión activa');
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/ventas/corte?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Error al obtener corte de ventas');
+      }
+
+      const stats: VentasCorte = await response.json();
       setStatistics(stats);
-      toast.success('Estadísticas cargadas correctamente');
+      toast.success('Corte de ventas generado correctamente');
     } catch (error) {
       console.error('Error loading statistics:', error);
-      toast.error('Error al cargar estadísticas');
+      toast.error('Error al generar corte de ventas');
     }
   };
 
@@ -449,92 +475,197 @@ export default function Caja() {
               </div>
 
               {statistics && (
-                <div className="space-y-6">
-                  {/* Estadísticas principales */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <p className="text-sm text-muted-foreground">Total Ventas</p>
-                          <p className="text-2xl font-bold text-green-600">
-                            S/ {statistics.totalVentas?.toFixed(2) || '0.00'}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <p className="text-sm text-muted-foreground">Total Gastos</p>
-                          <p className="text-2xl font-bold text-red-600">
-                            S/ {statistics.totalGastos?.toFixed(2) || '0.00'}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <p className="text-sm text-muted-foreground">Ganancia Neta</p>
-                          <p className="text-2xl font-bold text-blue-600">
-                            S/ {((statistics.totalVentas || 0) - (statistics.totalGastos || 0)).toFixed(2)}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <p className="text-sm text-muted-foreground">Transacciones</p>
-                          <p className="text-2xl font-bold text-purple-600">
-                            {statistics.totalTransacciones || 0}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                <Tabs defaultValue="resumen" className="w-full">
+                  <TabsList className="grid w-full grid-cols-6">
+                    <TabsTrigger value="resumen">Resumen</TabsTrigger>
+                    <TabsTrigger value="metodos">Métodos Pago</TabsTrigger>
+                    <TabsTrigger value="tipos">Tipo Compra</TabsTrigger>
+                    <TabsTrigger value="productos">Top Productos</TabsTrigger>
+                    <TabsTrigger value="diario">Por Día</TabsTrigger>
+                    <TabsTrigger value="anulaciones">Anulaciones</TabsTrigger>
+                  </TabsList>
 
-                  {/* Detalles por método de pago */}
-                  {statistics.ventasPorMetodoPago && (
+                  <TabsContent value="resumen" className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-center">
+                            <p className="text-sm text-muted-foreground">Total Ventas</p>
+                            <p className="text-2xl font-bold text-green-600">
+                              S/ {statistics.totalVentas.toFixed(2)}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-center">
+                            <p className="text-sm text-muted-foreground">Transacciones</p>
+                            <p className="text-2xl font-bold text-blue-600">
+                              {statistics.numeroTransacciones}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-center">
+                            <p className="text-sm text-muted-foreground">Ticket Promedio</p>
+                            <p className="text-2xl font-bold text-purple-600">
+                              S/ {statistics.ticketPromedio.toFixed(2)}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-center">
+                            <p className="text-sm text-muted-foreground">Total Descuentos</p>
+                            <p className="text-2xl font-bold text-orange-600">
+                              S/ {statistics.totalDescuentos.toFixed(2)}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-center">
+                            <p className="text-sm text-muted-foreground">Puntos Otorgados</p>
+                            <p className="text-2xl font-bold text-indigo-600">
+                              {statistics.puntosOtorgados}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-center">
+                            <p className="text-sm text-muted-foreground">Puntos Canjeados</p>
+                            <p className="text-2xl font-bold text-red-600">
+                              {statistics.puntosCanjeados}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="metodos" className="space-y-4">
                     <Card>
                       <CardHeader>
-                        <CardTitle>Ventas por Método de Pago</CardTitle>
+                        <CardTitle>Desglose por Método de Pago</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3">
-                          {Object.entries(statistics.ventasPorMetodoPago).map(([metodo, monto]) => (
+                          {Object.entries(statistics.desgloseMetodosPago).map(([metodo, data]) => (
                             <div key={metodo} className="flex justify-between items-center p-3 border rounded-lg">
-                              <span className="font-medium">{metodo}</span>
-                              <span className="font-bold text-green-600">S/ {(monto as number).toFixed(2)}</span>
+                              <div>
+                                <span className="font-medium">{metodo}</span>
+                                <p className="text-sm text-muted-foreground">{data.cantidad} transacciones</p>
+                              </div>
+                              <span className="font-bold text-green-600">S/ {data.monto.toFixed(2)}</span>
                             </div>
                           ))}
                         </div>
                       </CardContent>
                     </Card>
-                  )}
+                  </TabsContent>
 
-                  {/* Productos más vendidos */}
-                  {statistics.productosMasVendidos && (
+                  <TabsContent value="tipos" className="space-y-4">
                     <Card>
                       <CardHeader>
-                        <CardTitle>Productos Más Vendidos</CardTitle>
+                        <CardTitle>Desglose por Tipo de Compra</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3">
-                          {statistics.productosMasVendidos.slice(0, 10).map((producto, index: number) => (
-                            <div key={index} className="flex justify-between items-center p-3 border rounded-lg">
+                          {Object.entries(statistics.desgloseTipoCompra).map(([tipo, data]) => (
+                            <div key={tipo} className="flex justify-between items-center p-3 border rounded-lg">
                               <div>
-                                <p className="font-medium">{producto.nombre}</p>
+                                <span className="font-medium">{tipo}</span>
+                                <p className="text-sm text-muted-foreground">{data.cantidad} transacciones</p>
+                              </div>
+                              <span className="font-bold text-green-600">S/ {data.monto.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="productos" className="space-y-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Top 5 Productos Más Vendidos</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {statistics.topProductos.slice(0, 5).map((producto, index) => (
+                            <div key={producto.productoId} className="flex justify-between items-center p-3 border rounded-lg">
+                              <div>
+                                <p className="font-medium">{producto.descripcion}</p>
                                 <p className="text-sm text-muted-foreground">Cantidad: {producto.cantidad}</p>
                               </div>
-                              <span className="font-bold text-primary">S/ {producto.total.toFixed(2)}</span>
+                              <span className="font-bold text-primary">S/ {producto.monto.toFixed(2)}</span>
                             </div>
                           ))}
                         </div>
                       </CardContent>
                     </Card>
-                  )}
-                </div>
+                  </TabsContent>
+
+                  <TabsContent value="diario" className="space-y-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Ventas por Día</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {statistics.ventasPorDia.map((dia, index) => (
+                            <div key={index} className="flex justify-between items-center p-3 border rounded-lg">
+                              <div>
+                                <span className="font-medium">{new Date(dia.fecha).toLocaleDateString()}</span>
+                                <p className="text-sm text-muted-foreground">{dia.cantidad} transacciones</p>
+                              </div>
+                              <span className="font-bold text-green-600">S/ {dia.monto.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="anulaciones" className="space-y-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Resumen de Anulaciones</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <Card>
+                            <CardContent className="pt-6">
+                              <div className="text-center">
+                                <p className="text-sm text-muted-foreground">Ventas Anuladas</p>
+                                <p className="text-2xl font-bold text-red-600">
+                                  {statistics.ventasAnuladas}
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="pt-6">
+                              <div className="text-center">
+                                <p className="text-sm text-muted-foreground">Monto Anulado</p>
+                                <p className="text-2xl font-bold text-red-600">
+                                  S/ {statistics.montoVentasAnuladas.toFixed(2)}
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
               )}
             </CardContent>
           </Card>
