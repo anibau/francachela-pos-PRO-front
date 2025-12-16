@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Package, Plus, Pencil, Trash2, Search, ArrowUpDown, AlertCircle, Check, FileSpreadsheet, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
@@ -563,54 +564,31 @@ export default function Productos() {
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="cost">Costo S/ *</Label>
-                      <Input
-                        id="cost"
-                        type="number"
-                        step="0.01"
-                        value={formData.costo || ''}
-                        onChange={(e) => {
-                          const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                          setFormData({ ...formData, costo: value });
-                          if (editingProduct) setHasChanges(true);
-                          validateField('costo', value);
-                        }}
-                        placeholder="0.00"
-                        className={validationErrors.costo ? 'border-destructive' : ''}
-                        
-                      />
-                      {validationErrors.costo && (
-                        <p className="text-xs text-destructive flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {validationErrors.costo}
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="price">Precio S/ *</Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        step="0.01"
-                        value={formData.precio || ''}
-                        onChange={(e) => {
-                          const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                          setFormData({ ...formData, precio: value });
-                          if (editingProduct) setHasChanges(true);
-                          validateField('precio', value);
-                        }}
-                        placeholder="0.00"
-                        className={validationErrors.precio ? 'border-destructive' : ''}
-                        required
-                      />
-                      {validationErrors.precio && (
-                        <p className="text-xs text-destructive flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {validationErrors.precio}
-                        </p>
-                      )}
-                    </div>
+                    <MoneyInput
+                      id="cost"
+                      label="Costo S/"
+                      value={formData.costo}
+                      onChange={(value) => {
+                        setFormData({ ...formData, costo: value });
+                        if (editingProduct) setHasChanges(true);
+                        validateField('costo', value);
+                      }}
+                      placeholder="0.00"
+                      error={validationErrors.costo}
+                    />
+                    <MoneyInput
+                      id="price"
+                      label="Precio S/"
+                      value={formData.precio}
+                      onChange={(value) => {
+                        setFormData({ ...formData, precio: value });
+                        if (editingProduct) setHasChanges(true);
+                        validateField('precio', value);
+                      }}
+                      placeholder="0.00"
+                      error={validationErrors.precio}
+                      required
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -701,30 +679,18 @@ export default function Productos() {
                       placeholder="https://ejemplo.com/imagen.jpg"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="wholesalePrice">Precio Mayoreo S/ (Opcional)</Label>
-                    <Input
-                      id="wholesalePrice"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.precioMayoreo || ''}
-                      onChange={(e) => {
-                        const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                        setFormData({ ...formData, precioMayoreo: value });
-                        if (editingProduct) setHasChanges(true);
-                        validateField('precioMayoreo', value);
-                      }}
-                      placeholder="0.00"
-                      className={validationErrors.precioMayoreo ? 'border-destructive' : ''}
-                    />
-                    {validationErrors.precioMayoreo && (
-                      <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {validationErrors.precioMayoreo}
-                      </p>
-                    )}
-                  </div>
+                  <MoneyInput
+                    id="wholesalePrice"
+                    label="Precio Mayoreo S/ (Opcional)"
+                    value={formData.precioMayoreo}
+                    onChange={(value) => {
+                      setFormData({ ...formData, precioMayoreo: value });
+                      if (editingProduct) setHasChanges(true);
+                      validateField('precioMayoreo', value);
+                    }}
+                    placeholder="0.00"
+                    error={validationErrors.precioMayoreo}
+                  />
                   <div className="space-y-2">
                     <Label htmlFor="pointsValue">Valor en Puntos (Opcional)</Label>
                     <Input

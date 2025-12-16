@@ -15,5 +15,8 @@ export * from './useProducts';
 // Hooks de clientes
 export * from './useClients';
 
+// Hooks de inputs monetarios
+export * from './useMoneyInput';
+
 // Re-exportar hooks de TanStack Query para conveniencia
 export { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
