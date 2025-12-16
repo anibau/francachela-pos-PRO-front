@@ -121,22 +121,28 @@ export const validateName = (name: string, minLength: number = 2): ValidationRes
 };
 
 /**
- * Valida que el DNI sea un número válido de 8 dígitos
- * @param dni - DNI a validar
+ * Valida que el DNI o CE sea válido
+ * DNI: exactamente 8 dígitos
+ * CE: máximo 10 dígitos
+ * @param dni - DNI o CE a validar
  * @returns Objeto con validación y mensaje de error si aplica
  */
 export const validateDNI = (dni: string): ValidationResult => {
   if (!dni) {
     return {
       isValid: false,
-      message: 'El DNI es requerido',
+      message: 'El DNI o CE es requerido',
     };
   }
 
-  if (!/^\d{8}$/.test(dni)) {
+  // Validar DNI (exactamente 8 dígitos) o CE (máximo 10 dígitos)
+  const isDNI = /^\d{8}$/.test(dni);
+  const isCE = /^\d{1,10}$/.test(dni);
+
+  if (!isDNI && !isCE) {
     return {
       isValid: false,
-      message: 'El DNI debe tener exactamente 8 dígitos',
+      message: 'Debe ser un DNI válido (8 dígitos) o CE válido (máximo 10 dígitos)',
     };
   }
 

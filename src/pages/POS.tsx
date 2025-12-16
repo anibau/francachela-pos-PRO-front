@@ -29,6 +29,7 @@ export default function POS() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(PAYMENT_METHODS.EFECTIVO);
   const [notes, setNotes] = useState('');
   const [discount, setDiscount] = useState(0);
+  const [recargoExtra, setRecargoExtra] = useState(0);
   const [montoRecibido, setMontoRecibido] = useState<number | undefined>();
   const [showChangeCalculator, setShowChangeCalculator] = useState(false);
   
@@ -62,6 +63,7 @@ export default function POS() {
     setTicketClient,
     setTicketNotes,
     applyDiscount,
+    applyRecargoExtra,
     getActiveTicket,
     getTicketTotal,
     completeSale,
@@ -84,6 +86,11 @@ export default function POS() {
       setMontoRecibido(undefined);
     }
   }, [isPaymentOpen]);
+
+  // Actualizar recargo automáticamente cuando cambie el método de pago
+  useEffect(() => {
+    handleUpdateRecargoExtra();
+  }, [selectedPaymentMethod, recargoExtra]);
 
   // Filtrar productos localmente (patrón como en Clientes.tsx)
   const filteredProducts = (products || []).filter(producto => {
@@ -168,6 +175,23 @@ export default function POS() {
 
   const handleUpdateDiscount = () => {
     applyDiscount(discount);
+  };
+
+  const handleUpdateRecargoExtra = () => {
+    // Calcular recargo automático si el método de pago es TARJETA
+    let recargoFinal = recargoExtra;
+    
+    if (selectedPaymentMethod === PAYMENT_METHODS.TARJETA) {
+      const activeTicket = getActiveTicket();
+      if (activeTicket) {
+        const subtotal = activeTicket.items.reduce((sum, item) => sum + item.subtotal, 0);
+        const total = subtotal - activeTicket.discount;
+        const recargoAutomatico = total * 0.0005; // 0.05% del total
+        recargoFinal = recargoExtra + recargoAutomatico;
+      }
+    }
+    
+    applyRecargoExtra(recargoFinal);
   };
 
   // Funciones para múltiples métodos de pago
@@ -262,10 +286,10 @@ export default function POS() {
 
       // Usar múltiples métodos de pago
       const metodoPrincipal = metodosPageo[0]?.metodoPago || selectedPaymentMethod;
-      await completeSale(metodoPrincipal, 'Sistema', getTotalPagado(), metodosPageo, products);
+      await completeSale(metodoPrincipal, 'Sistema', getTotalPagado(), metodosPageo, products, refetchProducts, refetchClients);
     } else {
       // Usar método de pago único (comportamiento original)
-      await completeSale(selectedPaymentMethod, 'Sistema', montoRecibido, undefined, products);
+      await completeSale(selectedPaymentMethod, 'Sistema', montoRecibido, undefined, products, refetchProducts, refetchClients);
     }
 
     // Limpiar estados de múltiples métodos de pago
@@ -288,6 +312,7 @@ export default function POS() {
     setIsPaymentOpen(false);
     setNotes('');
     setDiscount(0);
+    setRecargoExtra(0);
     setMontoRecibido(undefined);
     setSelectedPaymentMethod(PAYMENT_METHODS.EFECTIVO);
   };
@@ -460,6 +485,18 @@ export default function POS() {
                       onChange={(e) => setDiscount(e.target.value === '' ? 0 : parseFloat(e.target.value))}
                       onBlur={handleUpdateDiscount}
                       placeholder="Descuento S/"
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={recargoExtra === 0 ? '' : recargoExtra}
+                      onChange={(e) => setRecargoExtra(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                      onBlur={handleUpdateRecargoExtra}
+                      placeholder="Recargo S/"
                       className="h-7 text-xs"
                     />
                   </div>

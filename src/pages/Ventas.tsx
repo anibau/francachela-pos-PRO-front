@@ -37,10 +37,14 @@ export default function Ventas() {
     let filtered = [...(ventas || [])];
 
     if (dateFilter.startDate) {
-      filtered = filtered.filter(v => new Date(v.fecha) >= new Date(dateFilter.startDate));
+      // Inicio del día: 00:00:00
+      const startDateTime = new Date(`${dateFilter.startDate} 00:00:00`);
+      filtered = filtered.filter(v => new Date(v.fecha) >= startDateTime);
     }
     if (dateFilter.endDate) {
-      filtered = filtered.filter(v => new Date(v.fecha) <= new Date(dateFilter.endDate));
+      // Fin del día: 23:59:59
+      const endDateTime = new Date(`${dateFilter.endDate} 23:59:59`);
+      filtered = filtered.filter(v => new Date(v.fecha) <= endDateTime);
     }
     
     setFilteredVentas(filtered);
@@ -139,10 +143,16 @@ export default function Ventas() {
         return;
       }
 
-      // Construir URL con parámetros de fecha
+      // Construir URL con parámetros de fecha con formato completo
       const params = new URLSearchParams();
-      if (dateFilter.startDate) params.append('fechaInicio', dateFilter.startDate);
-      if (dateFilter.endDate) params.append('fechaFin', dateFilter.endDate);
+      if (dateFilter.startDate) {
+        // Inicio del día: 00:00:00
+        params.append('fechaInicio', `${dateFilter.startDate} 00:00:00`);
+      }
+      if (dateFilter.endDate) {
+        // Fin del día: 23:59:59
+        params.append('fechaFin', `${dateFilter.endDate} 23:59:59`);
+      }
       params.append('tipoReporte', 'VENTAS');
       params.append('incluirDetalles', 'false');
 

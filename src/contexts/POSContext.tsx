@@ -18,6 +18,7 @@ interface Ticket {
   clientName?: string;
   notes?: string;
   discount: number;
+  recargoExtra: number;
 }
 
 interface POSContextType {
@@ -32,6 +33,7 @@ interface POSContextType {
   setTicketClient: (clientId?: number, clientName?: string) => void;
   setTicketNotes: (notes: string) => void;
   applyDiscount: (discount: number) => void;
+  applyRecargoExtra: (recargoExtra: number) => void;
   getActiveTicket: () => Ticket | undefined;
   getTicketTotal: (ticketId?: string) => number;
   completeSale: (
@@ -43,7 +45,9 @@ interface POSContextType {
       metodoPago: PaymentMethod;
       referencia?: string;
     }>,
-    products?: Product[]
+    products?: Product[],
+    refetchProducts?: () => void,
+    refetchClients?: () => void
   ) => Promise<void>;
 }
 
@@ -51,7 +55,7 @@ const POSContext = createContext<POSContextType | undefined>(undefined);
 
 export function POSProvider({ children }: { children: React.ReactNode }) {
   const [tickets, setTickets] = useState<Ticket[]>([
-    { id: '1', items: [], discount: 0 },
+    { id: '1', items: [], discount: 0, recargoExtra: 0 },
   ]);
   const [activeTicketId, setActiveTicketId] = useState('1');
   const [ticketCounter, setTicketCounter] = useState(1); // Contador único para evitar duplicaciones
@@ -59,7 +63,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
   const createTicket = useCallback(() => {
     const newId = String(ticketCounter + 1);
     setTicketCounter(prev => prev + 1);
-    setTickets(prev => [...prev, { id: newId, items: [], discount: 0 }]);
+    setTickets(prev => [...prev, { id: newId, items: [], discount: 0, recargoExtra: 0 }]);
     setActiveTicketId(newId);
   }, [ticketCounter]);
 
@@ -217,13 +221,26 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
     [activeTicketId]
   );
 
+  const applyRecargoExtra = useCallback(
+    (recargoExtra: number) => {
+      setTickets(prev =>
+        prev.map(ticket =>
+          ticket.id === activeTicketId
+            ? { ...ticket, recargoExtra: Math.max(0, recargoExtra) }
+            : ticket
+        )
+      );
+    },
+    [activeTicketId]
+  );
+
   const getTicketTotal = useCallback(
     (ticketId?: string) => {
       const ticket = tickets.find(t => t.id === (ticketId || activeTicketId));
       if (!ticket) return 0;
       
       const subtotal = ticket.items.reduce((sum, item) => sum + item.subtotal, 0);
-      return Math.max(0, subtotal - ticket.discount);
+      return Math.max(0, subtotal - ticket.discount + ticket.recargoExtra);
     },
     [tickets, activeTicketId]
   );
@@ -238,7 +255,9 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         metodoPago: PaymentMethod;
         referencia?: string;
       }>,
-      products?: Product[]
+      products?: Product[],
+      refetchProducts?: () => void,
+      refetchClients?: () => void
     ) => {
       const ticket = getActiveTicket();
       
@@ -249,7 +268,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
       
       try {
         const subtotal = ticket.items.reduce((sum, item) => sum + item.subtotal, 0);
-        const total = Math.max(0, subtotal - ticket.discount);
+        const total = Math.max(0, subtotal - ticket.discount + ticket.recargoExtra);
         
         // Calcular puntos (1 punto por cada sol gastado)
         const puntosOtorgados = Math.floor(total);
@@ -292,27 +311,30 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         // Solo enviar descuento manual si no hay mayoreo
         const hasMayoreo = descuentoMayoreo > 0;
         
+        // Construir metodosPageo - siempre como array
+        const metodosPageoArray = metodosPageo && metodosPageo.length > 0 
+          ? metodosPageo.map(metodo => ({
+              monto: metodo.monto,
+              metodoPago: metodo.metodoPago,
+              ...(metodo.referencia && { referencia: metodo.referencia })
+            }))
+          : [{
+              monto: total,
+              metodoPago: paymentMethod
+            }];
+
         const saleData = {
-          // Siempre incluir clienteId si existe
           clienteId: ticket.clientId || null,
           listaProductos: listaProductosConDescuento,
           // Solo incluir descuento si es descuento manual Y no hay mayoreo
           // Para evitar duplicación (descuento manual + descuento en precioUnitario)
           ...(ticket.discount > 0 && !hasMayoreo && { descuento: ticket.discount }),
-          metodoPago: paymentMethod, // Método principal para compatibilidad
+          recargoExtra: ticket.recargoExtra || 0,
+          metodosPageo: metodosPageoArray,
           comentario: ticket.notes || '',
           tipoCompra: 'LOCAL',
           montoRecibido: montoRecibido || 0,
-          puntosUsados: 0,
-          // Agregar múltiples métodos de pago si están disponibles
-          ...(metodosPageo && metodosPageo.length > 0 && {
-            metodosPageo: metodosPageo.map(metodo => ({
-              monto: metodo.monto,
-              metodoPago: metodo.metodoPago,
-              // timestamp: new Date().toISOString(),
-              ...(metodo.referencia && { referencia: metodo.referencia })
-            }))
-          })
+          puntosUsados: 0
         };
         
         console.log('[POSContext] Payload de venta:', saleData);
@@ -325,6 +347,19 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         // al crear la venta, por lo que no necesitamos hacer PATCH '/clientes/id' aquí
         
         toast.success('Venta completada exitosamente');
+        
+        // Refrescar datos después de venta exitosa
+        try {
+          if (refetchProducts) {
+            refetchProducts();
+          }
+          if (refetchClients) {
+            refetchClients();
+          }
+        } catch (refetchError) {
+          console.warn('Error al refrescar datos después de venta:', refetchError);
+          // No fallar la venta si el refetch falla
+        }
         
         // Limpiar ticket actual
         closeTicket(activeTicketId);
@@ -356,6 +391,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         setTicketClient,
         setTicketNotes,
         applyDiscount,
+        applyRecargoExtra,
         getActiveTicket,
         getTicketTotal,
         completeSale,
