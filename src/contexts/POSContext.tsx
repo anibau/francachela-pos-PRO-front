@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback } from "react";
 import type { PaymentMethod, SaleItem, Product, Client } from "@/types";
 import { salesService } from "@/services/salesService";
 import { clientsService } from "@/services/clientsService";
+import { roundMoney } from "@/utils/moneyUtils";
 import { toast } from "sonner";
 
 // Interfaz extendida para items en el ticket del POS
@@ -247,7 +248,10 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         (sum, item) => sum + item.subtotal,
         0
       );
-      return Math.max(0, subtotal - ticket.discount + ticket.recargoExtra);
+      const rawTotal = Math.max(0, subtotal - ticket.discount + ticket.recargoExtra);
+      // Redondear a decimales .X0 (4.56 → 4.60)
+      const roundedTotal = Math.ceil(rawTotal * 10) / 10;
+      return roundMoney(roundedTotal);
     },
     [tickets, activeTicketId]
   );
