@@ -11,6 +11,8 @@ import { TrendingUp, Calendar, User, CreditCard, Eye, Ban, FileSpreadsheet, Load
 import { toast } from "sonner";
 import { salesService } from "@/services/salesService";
 import type { Sale } from "@/types";
+import { showErrorToast, showSuccessToast, showLoadingToast, dismissToast } from "@/utils/errorHandler";
+import VentasPagosDisplay from "@/components/VentasPagosDisplay";
 
 export default function Ventas() {
   const [ventas, setVentas] = useState<Sale[]>([]);
@@ -60,7 +62,7 @@ export default function Ventas() {
       const data = await salesService.getAll();
       setVentas(data);
     } catch (error) {
-      toast.error('Error al cargar ventas');
+      showErrorToast(error, 'Error al cargar ventas');
     } finally {
       setIsLoading(false);
     }
@@ -78,10 +80,9 @@ export default function Ventas() {
       setVentas(prev => 
         prev.map(v => v.id === id ? { ...v, estado: updatedSale.estado } : v)
       );
-      toast.success('Venta anulada correctamente');
+      showSuccessToast('Venta anulada correctamente');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error al anular venta';
-      toast.error(errorMessage);
+      showErrorToast(error, 'Error al anular venta');
     } finally {
       setCancelingIds(prev => {
         const newSet = new Set(prev);
@@ -97,7 +98,7 @@ export default function Ventas() {
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        toast.error('No hay sesión activa');
+        showErrorToast('No hay sesión activa');
         return;
       }
 
@@ -114,13 +115,13 @@ export default function Ventas() {
         throw new Error('Error al actualizar comentario');
       }
 
-      toast.success('Comentario actualizado');
+      showSuccessToast('Comentario actualizado');
       setIsCommentDialogOpen(false);
       setEditingSaleId(null);
       setEditingComment('');
       loadVentas();
     } catch (error) {
-      toast.error('Error al actualizar comentario');
+      showErrorToast(error, 'Error al actualizar comentario');
     }
   };
 
@@ -136,10 +137,12 @@ export default function Ventas() {
   };
 
   const exportToExcel = async () => {
+    let loadingToastId: string | number;
+    
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        toast.error('No hay sesión activa');
+        showErrorToast('No hay sesión activa');
         return;
       }
 
@@ -154,11 +157,11 @@ export default function Ventas() {
         params.append('fechaFin', `${dateFilter.endDate} 23:59:59`);
       }
       params.append('tipoReporte', 'VENTAS');
-      params.append('incluirDetalles', 'false');
+      params.append('incluirDetalles', 'true');
 
       const url = `${import.meta.env.VITE_API_BASE_URL}/excel/export-ventas?${params.toString()}`;
       
-      toast.loading('Generando archivo Excel...');
+      loadingToastId = showLoadingToast('Generando archivo Excel...');
       
       const response = await fetch(url, {
         method: 'GET',
@@ -181,12 +184,14 @@ export default function Ventas() {
       document.body.removeChild(link);
       URL.revokeObjectURL(downloadUrl);
 
-      toast.dismiss();
-      toast.success('Ventas exportadas correctamente');
+      dismissToast(loadingToastId);
+      showSuccessToast('Ventas exportadas correctamente');
     } catch (error) {
-      toast.dismiss();
+      if (loadingToastId) {
+        dismissToast(loadingToastId);
+      }
       console.error('Error exporting sales:', error);
-      toast.error('Error al exportar ventas');
+      showErrorToast(error, 'Error al exportar ventas');
     }
   };
 
@@ -305,7 +310,7 @@ export default function Ventas() {
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Método de pago</p>
-                    <p className="font-semibold text-sm">{venta.metodoPago}</p>
+                    <VentasPagosDisplay venta={venta} />
                   </div>
                 </div>
                 <div>
@@ -395,7 +400,7 @@ export default function Ventas() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Método de Pago</p>
-                  <p className="font-semibold">{selectedSale.metodoPago}</p>
+                  <VentasPagosDisplay venta={selectedSale} />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Estado</p>

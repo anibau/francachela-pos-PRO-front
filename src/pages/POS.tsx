@@ -480,6 +480,9 @@ export default function POS() {
               {/* Compact discount and notes row */}
               {activeTicket?.items.length > 0 && (
                 <div className="flex gap-2">
+                  <div>
+
+                  <label htmlFor="" className='text-xs'> Descuento </label>
                   <MoneyInput
                     value={discount}
                     onChange={(value) => {
@@ -490,6 +493,9 @@ export default function POS() {
                     showValidation={false}
                     className="h-7 text-xs flex-1"
                   />
+                  </div>
+                  <div>
+                  <label htmlFor="" className='text-xs'> Recargo Extra </label>                 
                   <MoneyInput
                     value={recargoExtra}
                     onChange={(value) => {
@@ -500,7 +506,9 @@ export default function POS() {
                     showValidation={false}
                     className="h-7 text-xs flex-1"
                   />
+                  </div>
                   <div className="flex-1">
+                    <label htmlFor="" className='text-xs'>Notas </label>
                     <Input
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}

@@ -141,10 +141,16 @@ export default function Productos() {
         break;
       }
       case 'precioMayoreo': {
-        const validation = validatePrice(Number(value), 'El precio mayoreo', false); // No permite 0 - debe ser mayor que 0
-        if (!validation.isValid) {
-          errors.precioMayoreo = validation.message;
+        // Precio mayoreo es OPCIONAL - permitir 0 o vacío
+        if (value && Number(value) > 0) {
+          const validation = validatePrice(Number(value), 'El precio mayoreo', true); // Permite 0 ya que es opcional
+          if (!validation.isValid) {
+            errors.precioMayoreo = validation.message;
+          } else {
+            delete errors.precioMayoreo;
+          }
         } else {
+          // Si está vacío o es 0, no hay error (campo opcional)
           delete errors.precioMayoreo;
         }
         break;

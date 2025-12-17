@@ -90,6 +90,20 @@ export interface SaleItem {
   descripcion: string;
 }
 
+// Payment type - para el array de pagos en ventas
+export interface Payment {
+  id: number;
+  ventaId: number;
+  metodoPago: PaymentMethod;
+  monto: number;
+  referencia?: string | null;
+  estado: string;
+  notas?: string | null;
+  fechaRegistro: string;
+  registradoPor: string;
+  secuencia: number;
+}
+
 // Sale type - nombres en español para coincidir con backend
 export interface Sale {
   id: number;
@@ -100,7 +114,10 @@ export interface Sale {
   subTotal: number;
   descuento: number;
   total: number;
-  metodoPago: PaymentMethod;
+  // Compatibilidad retroactiva: mantener metodoPago para ventas antiguas
+  metodoPago?: PaymentMethod;
+  // Nueva estructura: array de pagos para múltiples métodos
+  pagos?: Payment[];
   comentario?: string | null;
   cajero: string;
   estado: string;

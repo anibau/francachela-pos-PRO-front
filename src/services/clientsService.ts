@@ -3,6 +3,7 @@ import { httpClient, simulateDelay } from './httpClient';
 import type { Client } from '@/types';
 import type { ClienteQueryParams, PaginatedResponse } from '@/types/backend';
 import { normalizeClient, normalizeClients } from '@/utils/dataTransform';
+import { extractErrorMessage } from '@/utils/errorHandler';
 
 export const clientsService = {
   /**
@@ -31,7 +32,7 @@ export const clientsService = {
       return normalizeClients(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Error getting clients:', error);
-      throw new Error('Error al cargar los clientes');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -44,7 +45,7 @@ export const clientsService = {
       return normalizeClient(client);
     } catch (error) {
       console.error('Error getting client by ID:', error);
-      throw new Error('Error al cargar el cliente');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -84,7 +85,7 @@ export const clientsService = {
       return normalizeClients(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Error getting birthday clients:', error);
-      throw new Error('Error al cargar clientes con cumpleaños');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -101,7 +102,7 @@ export const clientsService = {
       return normalizeClients(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Error getting top clients:', error);
-      throw new Error('Error al cargar clientes top');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -115,6 +116,19 @@ export const clientsService = {
     } catch (error) {
       console.error('Error getting client by DNI:', error);
       return null;
+    }
+  },
+
+  /**
+   * Obtener estadísticas de un cliente específico
+   */
+  getEstadisticas: async (clienteId: number): Promise<any> => {
+    try {
+      const response = await httpClient.get<any>(`${API_ENDPOINTS.CLIENTS.BASE}/${clienteId}/estadisticas`);
+      return response;
+    } catch (error) {
+      console.error('Error getting client statistics:', error);
+      throw new Error(extractErrorMessage(error));
     }
   },
 

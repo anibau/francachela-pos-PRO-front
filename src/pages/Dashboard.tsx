@@ -16,7 +16,9 @@ import {
 import { salesService } from "@/services/salesService";
 import { productsService } from "@/services/productsService";
 import { clientsService } from "@/services/clientsService";
-import { toast } from "sonner";
+import { showErrorToast } from "@/utils/errorHandler";
+import InventarioStats from "@/components/Dashboard/InventarioStats";
+import ClienteStats from "@/components/Dashboard/ClienteStats";
 
 interface DashboardStats {
   ventasHoy: number;
@@ -175,7 +177,7 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-      toast.error('Error al cargar datos del dashboard');
+      showErrorToast(error, 'Error al cargar datos del dashboard');
     } finally {
       setIsLoading(false);
     }
@@ -330,6 +332,12 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Estadísticas de Inventario */}
+      <InventarioStats />
+
+      {/* Estadísticas de Cliente */}
+      <ClienteStats />
     </div>
   );
 }
