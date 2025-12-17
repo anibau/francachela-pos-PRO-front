@@ -3,10 +3,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { MoneyInput } from '@/components/ui/money-input';
 import { useProducts, useClients, productKeys, clientKeys } from '@/hooks';
 import type { Product, Client, PaymentMethod } from '@/types';
 import { PAYMENT_METHODS, PAYMENT_METHOD_OPTIONS } from '@/constants/paymentMethods';
 import { usePOS } from '@/contexts/POSContext';
+import { roundMoney } from '@/utils/moneyUtils';
 import { Search, Plus, Minus, Trash2, User, FileText, DollarSign, X, ShoppingCart, Send, Calculator, ChevronDown, ChevronUp } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -124,7 +126,9 @@ export default function POS() {
   );
 
   const activeTicket = getActiveTicket();
-  const total = getTicketTotal();
+  const rawTotal = getTicketTotal();
+  // Redondear total a decimales .X0 (4.56 → 4.60)
+  const total = Math.ceil(rawTotal * 10) / 10;
   const pointsEarned = activeTicket ? calculateTotalPoints(activeTicket.items) : 0;
 
   const handleAddProduct = (product: Product) => {
@@ -476,30 +480,26 @@ export default function POS() {
               {/* Compact discount and notes row */}
               {activeTicket?.items.length > 0 && (
                 <div className="flex gap-2">
-                  <div className="flex-1">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={discount === 0 ? '' : discount}
-                      onChange={(e) => setDiscount(e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                      onBlur={handleUpdateDiscount}
-                      placeholder="Descuento S/"
-                      className="h-7 text-xs"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={recargoExtra === 0 ? '' : recargoExtra}
-                      onChange={(e) => setRecargoExtra(e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                      onBlur={handleUpdateRecargoExtra}
-                      placeholder="Recargo S/"
-                      className="h-7 text-xs"
-                    />
-                  </div>
+                  <MoneyInput
+                    value={discount}
+                    onChange={(value) => {
+                      setDiscount(value);
+                      applyDiscount(value);
+                    }}
+                    placeholder="Descuento S/"
+                    showValidation={false}
+                    className="h-7 text-xs flex-1"
+                  />
+                  <MoneyInput
+                    value={recargoExtra}
+                    onChange={(value) => {
+                      setRecargoExtra(value);
+                      handleUpdateRecargoExtra();
+                    }}
+                    placeholder="Recargo S/"
+                    showValidation={false}
+                    className="h-7 text-xs flex-1"
+                  />
                   <div className="flex-1">
                     <Input
                       value={notes}
