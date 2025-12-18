@@ -146,7 +146,7 @@ export default function Ventas() {
         return;
       }
 
-      // Construir URL con parámetros de fecha con formato completo
+      // Construir parámetros de fecha con formato completo
       const params = new URLSearchParams();
       if (dateFilter.startDate) {
         // Inicio del día: 00:00:00
@@ -159,39 +159,76 @@ export default function Ventas() {
       params.append('tipoReporte', 'VENTAS');
       params.append('incluirDetalles', 'true');
 
-      const url = `${import.meta.env.VITE_API_BASE_URL}/excel/export-ventas?${params.toString()}`;
+      // URLs para ambos endpoints
+      const baseUrl = import.meta.env.VITE_API_BASE_URL;
+      const ventasUrl = `${baseUrl}/excel/export-ventas?${params.toString()}`;
+      const ventasPagosUrl = `${baseUrl}/excel/export-venta-pagos?${params.toString()}`;
       
-      loadingToastId = showLoadingToast('Generando archivo Excel...');
+      loadingToastId = showLoadingToast('Generando archivos Excel...');
       
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      // Realizar ambas peticiones simultáneamente
+      const [ventasResponse, ventasPagosResponse] = await Promise.all([
+        fetch(ventasUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }),
+        fetch(ventasPagosUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+      ]);
 
-      if (!response.ok) {
+      // Verificar que ambas respuestas sean exitosas
+      if (!ventasResponse.ok) {
         throw new Error('Error al exportar ventas');
       }
+      if (!ventasPagosResponse.ok) {
+        throw new Error('Error al exportar ventas-pagos');
+      }
 
-      const blob = await response.blob();
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `ventas_${new Date().toISOString().split('T')[0]}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(downloadUrl);
+      // Obtener los blobs de ambas respuestas
+      const [ventasBlob, ventasPagosBlob] = await Promise.all([
+        ventasResponse.blob(),
+        ventasPagosResponse.blob()
+      ]);
+
+      // Generar fecha para nombres de archivos
+      const fechaArchivo = new Date().toISOString().split('T')[0];
+
+      // Descargar primer archivo (ventas)
+      const ventasDownloadUrl = URL.createObjectURL(ventasBlob);
+      const ventasLink = document.createElement('a');
+      ventasLink.href = ventasDownloadUrl;
+      ventasLink.download = `ventas_${fechaArchivo}.xlsx`;
+      document.body.appendChild(ventasLink);
+      ventasLink.click();
+      document.body.removeChild(ventasLink);
+      URL.revokeObjectURL(ventasDownloadUrl);
+
+      // Descargar segundo archivo (venta-pagos) con un pequeño delay
+      setTimeout(() => {
+        const ventasPagosDownloadUrl = URL.createObjectURL(ventasPagosBlob);
+        const ventasPagosLink = document.createElement('a');
+        ventasPagosLink.href = ventasPagosDownloadUrl;
+        ventasPagosLink.download = `venta-pagos_${fechaArchivo}.xlsx`;
+        document.body.appendChild(ventasPagosLink);
+        ventasPagosLink.click();
+        document.body.removeChild(ventasPagosLink);
+        URL.revokeObjectURL(ventasPagosDownloadUrl);
+      }, 500);
 
       dismissToast(loadingToastId);
-      showSuccessToast('Ventas exportadas correctamente');
+      showSuccessToast('Archivos Excel exportados correctamente (2 archivos descargados)');
     } catch (error) {
       if (loadingToastId) {
         dismissToast(loadingToastId);
       }
       console.error('Error exporting sales:', error);
-      showErrorToast(error, 'Error al exportar ventas');
+      showErrorToast(error, 'Error al exportar archivos Excel');
     }
   };
 

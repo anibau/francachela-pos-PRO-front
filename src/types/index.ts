@@ -303,3 +303,35 @@ export interface VentasCorte {
   ventasAnuladas: number;
   montoVentasAnuladas: number;
 }
+
+// Nueva interface para estadísticas de ventas del backend (estructura actualizada)
+export interface VentasEstadisticasBackend {
+  totalVentas: number;
+  totalMonto: number;
+  promedioVenta: number;
+  totalDescuentos: number;
+  totalRecargos: number;
+  totalPuntosOtorgados: number;
+  totalPuntosUsados: number;
+  ventasPorMetodo: {
+    [metodo: string]: {
+      cantidadVentas: number;
+      montoTotal: number;
+    };
+  };
+  ventasPorTipo: {
+    [tipo: string]: {
+      cantidadVentas: number;
+      montoTotal: number;
+    };
+  };
+  topProductos: Array<{
+    codigoBarra: string;
+    descripcion: string;
+    cantidad: number;
+    monto: number;
+  }>;
+  fechaInicio: string;
+  fechaFin: string;
+  fechaGeneracion: string;
+}
