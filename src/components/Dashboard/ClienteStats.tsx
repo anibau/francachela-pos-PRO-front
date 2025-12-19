@@ -19,48 +19,70 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { clientsService } from '@/services/clientsService';
 import { showErrorToast, showLoadingToast, dismissToast, showSuccessToast } from '@/utils/errorHandler';
 
-interface Metricas {
-  totalCompras?: number;
-  montoTotalGastado?: number;
-  promedioCompra?: number;
-  puntosAcumulados?: number;
-  puntosCanjeados?: number;
-  fechaPrimeraCompra?: string;
-  fechaUltimaCompra?: string;
+interface HistorialCompra {
+  fecha: string;
+  monto: number;
+  ventaId: number;
+  puntosGanados: number;
 }
 
-interface ComprasPorMes {
-  mes?: string;
-  cantidad?: number;
-  monto?: number;
+interface HistorialCanje {
+  fecha: string;
+  ventaId: number;
+  descripcion: string;
+  puntosUsados: number;
 }
 
-interface ProductoFavorito {
-  productoId?: number;
-  descripcion?: string;
-  cantidadComprada?: number;
-  montoGastado?: number;
+interface ClienteData {
+  id: number;
+  nombres: string;
+  apellidos: string;
+  dni: string;
+  fechaNacimiento: string;
+  telefono: string;
+  fechaRegistro: string;
+  puntosAcumulados: number;
+  historialCompras: HistorialCompra[];
+  historialCanjes: HistorialCanje[];
+  codigoCorto: string;
+  direccion: string;
+  activo: boolean;
+  fechaCreacion: string;
+  fechaActualizacion: string;
+  esCumpleañosHoy: boolean;
+  edad: number;
 }
 
-interface ClienteEstadisticas {
-  cliente?: {
-    id?: number;
-    nombre?: string;
-    telefono?: string;
-    email?: string;
-    puntos?: number;
-    fechaRegistro?: string;
-  };
-  metricas?: Metricas;
-  comprasPorMes?: ComprasPorMes[];
-  productosFavoritos?: ProductoFavorito[];
+interface EstadisticasCliente {
+  totalCompras: number;
+  totalGastado: number;
+  totalCanjes: number;
+  totalPuntosCanjeados: number;
+  puntosDisponibles: number;
+}
+
+interface ClienteResponse {
+  cliente: ClienteData;
+  estadisticas: EstadisticasCliente;
 }
 
 export default function ClienteStats() {
   const [clienteId, setClienteId] = useState('');
-  const [estadisticas, setEstadisticas] = useState<ClienteEstadisticas | null>(null);
+  const [clienteData, setClienteData] = useState<ClienteResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+
+  // Función para formatear moneda
+  const formatCurrency = (amount: number) => `S/${amount.toFixed(2)}`;
+
+  // Función para formatear fecha
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-PE', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
 
   const buscarEstadisticas = async () => {
     if (!clienteId.trim()) {
@@ -84,10 +106,10 @@ export default function ClienteStats() {
       if (!data || !data.cliente) {
         throw new Error('Datos inválidos recibidos del servidor');
       }
-      setEstadisticas(data);
+      setClienteData(data);
       showSuccessToast('Estadísticas cargadas correctamente');
     } catch (error) {
-      setEstadisticas(null);
+      setClienteData(null);
       showErrorToast(error, 'Error al cargar estadísticas del cliente');
     } finally {
       dismissToast(loadingToastId);
@@ -99,15 +121,6 @@ export default function ClienteStats() {
     if (e.key === 'Enter') {
       buscarEstadisticas();
     }
-  };
-
-  const formatCurrency = (amount: number) => `S/${amount.toFixed(2)}`;
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-PE', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
   };
 
   return (
@@ -150,40 +163,66 @@ export default function ClienteStats() {
             <RefreshCw className="h-6 w-6 animate-spin mr-2" />
             Cargando estadísticas del cliente...
           </div>
-        ) : estadisticas ? (
+        ) : clienteData ? (
           <>
             {/* Información del cliente */}
-            <Card className="bg-blue-50 border-blue-200">
+            <Card className={`${clienteData.cliente.esCumpleañosHoy ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200'}`}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-lg">{estadisticas.cliente.nombre}</h3>
-                    <p className="text-sm text-muted-foreground">{estadisticas.cliente.telefono}</p>
-                    {estadisticas.cliente.email && (
-                      <p className="text-sm text-muted-foreground">{estadisticas.cliente.email}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Cliente desde: {formatDate(estadisticas.cliente.fechaRegistro)}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-lg">
+                        {clienteData.cliente.nombres} {clienteData.cliente.apellidos}
+                      </h3>
+                      {clienteData.cliente.esCumpleañosHoy && (
+                        <Badge variant="secondary" className="bg-yellow-200 text-yellow-800">
+                          🎂 ¡Cumpleaños!
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">DNI:</p>
+                        <p className="font-medium">{clienteData.cliente.dni}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Código:</p>
+                        <p className="font-medium">{clienteData.cliente.codigoCorto}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Teléfono:</p>
+                        <p className="font-medium">{clienteData.cliente.telefono}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Edad:</p>
+                        <p className="font-medium">{clienteData.cliente.edad} años</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Cliente desde: {formatDate(clienteData.cliente.fechaRegistro)}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right space-y-2">
                     <Badge variant="secondary" className="text-lg px-3 py-1">
                       <Star className="h-4 w-4 mr-1" />
-                      {estadisticas.cliente.puntos} pts
+                      {clienteData.estadisticas.puntosDisponibles} pts
                     </Badge>
+                    <p className="text-xs text-muted-foreground">
+                      {clienteData.cliente.puntosAcumulados} acumulados
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* Métricas principales */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs text-muted-foreground">Total Compras</p>
-                      <p className="text-lg font-bold">{estadisticas?.metricas?.totalCompras ?? 0}</p>
+                      <p className="text-lg font-bold">{clienteData.estadisticas.totalCompras}</p>
                     </div>
                     <ShoppingCart className="h-4 w-4 text-blue-500" />
                   </div>
@@ -194,9 +233,9 @@ export default function ClienteStats() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-muted-foreground">Monto Total</p>
+                      <p className="text-xs text-muted-foreground">Total Gastado</p>
                       <p className="text-lg font-bold text-green-600">
-                        {formatCurrency(estadisticas?.metricas?.montoTotalGastado ?? 0)}
+                        {formatCurrency(clienteData.estadisticas.totalGastado)}
                       </p>
                     </div>
                     <DollarSign className="h-4 w-4 text-green-500" />
@@ -208,9 +247,9 @@ export default function ClienteStats() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-muted-foreground">Promedio/Compra</p>
+                      <p className="text-xs text-muted-foreground">Total Canjes</p>
                       <p className="text-lg font-bold text-orange-600">
-                        {formatCurrency(estadisticas?.metricas?.promedioCompra ?? 0)}
+                        {clienteData.estadisticas.totalCanjes}
                       </p>
                     </div>
                     <TrendingUp className="h-4 w-4 text-orange-500" />
@@ -222,9 +261,23 @@ export default function ClienteStats() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-muted-foreground">Puntos Ganados</p>
+                      <p className="text-xs text-muted-foreground">Puntos Canjeados</p>
+                      <p className="text-lg font-bold text-red-600">
+                        {clienteData.estadisticas.totalPuntosCanjeados}
+                      </p>
+                    </div>
+                    <Star className="h-4 w-4 text-red-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Puntos Disponibles</p>
                       <p className="text-lg font-bold text-purple-600">
-                        {estadisticas?.metricas?.puntosAcumulados ?? 0}
+                        {clienteData.estadisticas.puntosDisponibles}
                       </p>
                     </div>
                     <Star className="h-4 w-4 text-purple-500" />
@@ -233,127 +286,83 @@ export default function ClienteStats() {
               </Card>
             </div>
 
-            {/* Fechas importantes */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-blue-500" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Primera Compra</p>
-                      <p className="text-sm font-medium">
-                        {estadisticas?.metricas?.fechaPrimeraCompra 
-                          ? formatDate(estadisticas.metricas.fechaPrimeraCompra)
-                          : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-green-500" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Última Compra</p>
-                      <p className="text-sm font-medium">
-                        {estadisticas?.metricas?.fechaUltimaCompra
-                          ? formatDate(estadisticas.metricas.fechaUltimaCompra)
-                          : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
+            {/* Historial de Compras y Canjes */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Gráfico de compras por mes */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Compras por Mes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {(estadisticas?.comprasPorMes?.length ?? 0) > 0 ? (
-                    <ResponsiveContainer width="100%" height={200}>
-                      <LineChart data={estadisticas.comprasPorMes!}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="mes" />
-                        <YAxis />
-                        <Tooltip />
-                        <Line 
-                          type="monotone" 
-                          dataKey="cantidad" 
-                          stroke="#0088FE" 
-                          strokeWidth={2}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      No hay datos de compras por mes
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Productos favoritos */}
+              {/* Historial de Compras */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Heart className="h-4 w-4" />
-                    Productos Favoritos
+                    <ShoppingCart className="h-4 w-4 text-green-500" />
+                    Historial de Compras
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {(estadisticas?.productosFavoritos?.length ?? 0) > 0 ? (
-                    <div className="space-y-2">
-                      {estadisticas.productosFavoritos!.slice(0, 5).map((producto, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  {clienteData.cliente.historialCompras.length > 0 ? (
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {clienteData.cliente.historialCompras.map((compra, index) => (
+                        <div key={index} className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                           <div>
-                            <p className="text-sm font-medium">
-                              {producto.descripcion.length > 25 
-                                ? producto.descripcion.substring(0, 25) + '...' 
-                                : producto.descripcion
-                              }
-                            </p>
+                            <p className="text-sm font-medium">Venta #{compra.ventaId}</p>
                             <p className="text-xs text-muted-foreground">
-                              {formatCurrency(producto.montoGastado)}
+                              {formatDate(compra.fecha)}
                             </p>
                           </div>
-                          <Badge variant="secondary">{producto.cantidadComprada}</Badge>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-green-600">
+                              {formatCurrency(compra.monto)}
+                            </p>
+                            <p className="text-xs text-green-500">
+                              +{compra.puntosGanados} pts
+                            </p>
+                          </div>
                         </div>
                       ))}
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                      No hay productos favoritos
+                      No hay compras registradas
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Historial de Canjes */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Star className="h-4 w-4 text-red-500" />
+                    Historial de Canjes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {clienteData.cliente.historialCanjes.length > 0 ? (
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {clienteData.cliente.historialCanjes.map((canje, index) => (
+                        <div key={index} className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                          <div>
+                            <p className="text-sm font-medium">{canje.descripcion}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDate(canje.fecha)} - Venta #{canje.ventaId}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-red-600">
+                              -{canje.puntosUsados} pts
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No hay canjes registrados
                     </p>
                   )}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Gráfico de monto gastado por mes */}
-            {(estadisticas?.comprasPorMes?.length ?? 0) > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Monto Gastado por Mes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={estadisticas.comprasPorMes!}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="mes" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Monto']} />
-                      <Bar dataKey="monto" fill="#00C49F" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            )}
+
           </>
         ) : hasSearched ? (
           <div className="text-center py-8">

@@ -151,6 +151,7 @@ export const API_ENDPOINTS = {
   // Exportación Excel
   EXCEL: {
     SALES: '/excel/export-ventas',
+    SALES_PAYMENTS: '/excel/export-venta-pagos',
     PRODUCTS: '/excel/export-productos',
     CLIENTS: '/excel/export-clientes',
     INVENTORY: '/excel/export-inventario',

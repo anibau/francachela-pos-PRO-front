@@ -11,7 +11,8 @@ import {
   AlertTriangle, 
   BarChart3,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  DollarSign
 } from "lucide-react";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { inventarioService, type InventarioEstadisticas } from '@/services/inventarioService';
@@ -84,6 +85,9 @@ export default function InventarioStats() {
   const resetToCurrentMonth = () => {
     setDateRange(getMonthDates());
   };
+
+  // Función para formatear moneda
+  const formatCurrency = (amount: number) => `S/${amount.toFixed(2)}`;
 
   // Preparar datos para gráficos
   const movimientosPorTipoData = estadisticas ? [
@@ -174,7 +178,7 @@ export default function InventarioStats() {
         ) : estadisticas ? (
           <>
             {/* Cards de métricas principales */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -219,6 +223,34 @@ export default function InventarioStats() {
                       <p className="text-lg font-bold text-orange-600">{estadisticas.ajustes}</p>
                     </div>
                     <AlertTriangle className="h-4 w-4 text-orange-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Valor Entradas</p>
+                      <p className="text-lg font-bold text-green-600">
+                        {formatCurrency(estadisticas.valorTotalEntradas)}
+                      </p>
+                    </div>
+                    <DollarSign className="h-4 w-4 text-green-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Valor Salidas</p>
+                      <p className="text-lg font-bold text-red-600">
+                        {formatCurrency(estadisticas.valorTotalSalidas)}
+                      </p>
+                    </div>
+                    <DollarSign className="h-4 w-4 text-red-500" />
                   </div>
                 </CardContent>
               </Card>

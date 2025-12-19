@@ -141,7 +141,7 @@ export const clientsService = {
       return normalizeClient(client);
     } catch (error) {
       console.error('Error creating client:', error);
-      throw new Error('Error al crear el cliente');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -154,7 +154,7 @@ export const clientsService = {
       return normalizeClient(client);
     } catch (error) {
       console.error('Error updating client:', error);
-      throw new Error('Error al actualizar el cliente');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -166,7 +166,7 @@ export const clientsService = {
       await httpClient.delete(API_ENDPOINTS.CLIENTS.BY_ID(id));
     } catch (error) {
       console.error('Error deleting client:', error);
-      throw new Error('Error al eliminar el cliente');
+      throw new Error(extractErrorMessage(error));
     }
   },
 

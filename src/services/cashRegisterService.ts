@@ -2,6 +2,7 @@ import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
 import { httpClient, simulateDelay } from './httpClient';
 import { mockCashRegistersAligned } from './mockDataAligned';
 import { ensureArray } from '@/utils/apiValidators';
+import { extractErrorMessage } from '@/utils/errorHandler';
 import type { CashRegister, CashRegisterStatus } from '@/types';
 import type { 
   CashRegisterOpenRequest,
@@ -88,7 +89,7 @@ export const cashRegisterService = {
       return await httpClient.get<CashRegister>(API_ENDPOINTS.CASH_REGISTER.BY_ID(id));
     } catch (error) {
       console.error('Error getting cash register by ID:', error);
-      throw new Error('Error al cargar la caja registradora');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -128,7 +129,7 @@ export const cashRegisterService = {
       return await httpClient.post<CashRegister>(API_ENDPOINTS.CASH_REGISTER.OPEN, openData);
     } catch (error) {
       console.error('Error opening cash register:', error);
-      throw new Error('Error al abrir la caja registradora');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -166,7 +167,7 @@ export const cashRegisterService = {
       );
     } catch (error) {
       console.error('Error closing cash register:', error);
-      throw new Error('Error al cerrar la caja registradora');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -200,7 +201,7 @@ export const cashRegisterService = {
       return await httpClient.get<CashRegisterStatistics>(API_ENDPOINTS.CASH_REGISTER.SUMMARY);
     } catch (error) {
       console.error('Error getting cash register summary:', error);
-      throw new Error('Error al cargar el resumen de caja');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -252,7 +253,7 @@ export const cashRegisterService = {
       return await httpClient.get<CashRegisterStatistics>(url);
     } catch (error) {
       console.error('Error getting cash register statistics:', error);
-      throw new Error('Error al cargar las estadísticas de caja');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -283,7 +284,7 @@ export const cashRegisterService = {
       );
     } catch (error) {
       console.error('Error updating cash register totals:', error);
-      throw new Error('Error al actualizar los totales de caja');
+      throw new Error(extractErrorMessage(error));
     }
   },
 };

@@ -2,6 +2,7 @@ import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
 import { httpClient, simulateDelay } from './httpClient';
 import { mockExpensesAligned, mockExpenseCategories } from './mockDataAligned';
 import { ensureArray } from '@/utils/apiValidators';
+import { extractErrorMessage } from '@/utils/errorHandler';
 import type { Expense } from '@/types';
 import type { 
   ExpenseCreateRequest,
@@ -96,7 +97,7 @@ export const expensesService = {
       return await httpClient.get<Expense>(API_ENDPOINTS.EXPENSES.BY_ID(id));
     } catch (error) {
       console.error('Error getting expense by ID:', error);
-      throw new Error('Error al cargar el gasto');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -241,7 +242,7 @@ export const expensesService = {
       return await httpClient.post<Expense>(API_ENDPOINTS.EXPENSES.BASE, createRequest);
     } catch (error) {
       console.error('Error creating expense:', error);
-      throw new Error('Error al crear el gasto');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -278,7 +279,7 @@ export const expensesService = {
       return await httpClient.patch<Expense>(API_ENDPOINTS.EXPENSES.BY_ID(id), updateRequest);
     } catch (error) {
       console.error('Error updating expense:', error);
-      throw new Error('Error al actualizar el gasto');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -302,7 +303,7 @@ export const expensesService = {
       await httpClient.delete(API_ENDPOINTS.EXPENSES.BY_ID(id));
     } catch (error) {
       console.error('Error deleting expense:', error);
-      throw new Error('Error al eliminar el gasto');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -404,7 +405,7 @@ export const expensesService = {
       return await httpClient.get<any>(url);
     } catch (error) {
       console.error('Error getting expense statistics:', error);
-      throw new Error('Error al cargar las estadísticas de gastos');
+      throw new Error(extractErrorMessage(error));
     }
   },
 };

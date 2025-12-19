@@ -1,6 +1,7 @@
 import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
 import { httpClient, simulateDelay } from './httpClient';
 import { ensureArray } from '@/utils/apiValidators';
+import { extractErrorMessage } from '@/utils/errorHandler';
 import type { InventoryMovement } from '@/types';
 import type { 
   InventoryMovementCreateRequest,
@@ -147,7 +148,7 @@ export const inventoryService = {
       return await httpClient.get<InventoryMovement>(API_ENDPOINTS.INVENTORY_MOVEMENTS.BY_ID(id));
     } catch (error) {
       console.error('Error getting inventory movement by ID:', error);
-      throw new Error('Error al cargar el movimiento de inventario');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -276,7 +277,7 @@ export const inventoryService = {
       return await httpClient.post<InventoryMovement>(API_ENDPOINTS.INVENTORY_MOVEMENTS.ENTRY, entryData);
     } catch (error) {
       console.error('Error creating inventory entry:', error);
-      throw new Error('Error al crear la entrada de inventario');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -310,7 +311,7 @@ export const inventoryService = {
       return await httpClient.post<InventoryMovement>(API_ENDPOINTS.INVENTORY_MOVEMENTS.ADJUSTMENT, adjustmentData);
     } catch (error) {
       console.error('Error creating inventory adjustment:', error);
-      throw new Error('Error al crear el ajuste de inventario');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -344,7 +345,7 @@ export const inventoryService = {
       return await httpClient.post<InventoryMovement>(API_ENDPOINTS.INVENTORY_MOVEMENTS.SALE, saleData);
     } catch (error) {
       console.error('Error creating sale movement:', error);
-      throw new Error('Error al crear el movimiento de venta');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -388,7 +389,7 @@ export const inventoryService = {
       return await httpClient.post<InventoryMovement>(API_ENDPOINTS.INVENTORY_MOVEMENTS.BASE, createRequest);
     } catch (error) {
       console.error('Error creating inventory movement:', error);
-      throw new Error('Error al crear el movimiento de inventario');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -417,7 +418,7 @@ export const inventoryService = {
       return await httpClient.get<Record<string, unknown>>(url);
     } catch (error) {
       console.error('Error getting inventory statistics:', error);
-      throw new Error('Error al cargar las estadísticas de inventario');
+      throw new Error(extractErrorMessage(error));
     }
   },
 };

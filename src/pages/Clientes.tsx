@@ -245,8 +245,8 @@ export default function Clientes() {
   };
 
   const handleSendWhatsApp = async (dni: string) => {
+    const toastId = toast.loading('Enviando información por WhatsApp...');
     try {
-      toast.loading('Enviando información por WhatsApp...');
       
       // Obtener token de autenticación
       const token = localStorage.getItem('auth_token');
@@ -254,7 +254,7 @@ export default function Clientes() {
         throw new Error('No hay sesión activa');
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/clientes/send-info/${dni}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/whatsapp/send-client-info/${dni}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -269,11 +269,14 @@ export default function Clientes() {
         throw new Error('Error al enviar información');
       }
 
-      toast.success('Información enviada por WhatsApp exitosamente');
+      toast.success('Información enviada por WhatsApp exitosamente', {
+      id: toastId,
+    });
+
     } catch (error) {
       console.error('Error al enviar WhatsApp:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error al enviar información por WhatsApp';
-      toast.error(errorMessage);
+      toast.error(errorMessage, { id: toastId  });
     }
   };
 

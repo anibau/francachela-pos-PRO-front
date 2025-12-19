@@ -81,4 +81,27 @@ export const salesService = {
       throw new Error(extractErrorMessage(error));
     }
   },
+
+  /**
+   * Obtener estadísticas de ventas con filtros de fecha
+   * @param fechaInicio - Fecha de inicio en formato YYYY-MM-DD HH:mm:ss
+   * @param fechaFin - Fecha de fin en formato YYYY-MM-DD HH:mm:ss
+   */
+  getEstadisticas: async (fechaInicio: string, fechaFin: string): Promise<any> => {
+    try {
+      // URLSearchParams maneja el encoding automáticamente
+      const params = new URLSearchParams({
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin
+      });
+
+      const url = `/ventas/estadisticas?${params.toString()}`;
+      const response = await httpClient.get<any>(url);
+      
+      return response;
+    } catch (error) {
+      console.error('Error getting sales statistics:', error);
+      throw new Error(extractErrorMessage(error));
+    }
+  }
 };
