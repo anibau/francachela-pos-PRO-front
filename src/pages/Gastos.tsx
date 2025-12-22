@@ -41,6 +41,20 @@ export default function Gastos() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
+  // Estados para la sección RESUMEN (Requerimiento 1)
+  const [resumenExpenses, setResumenExpenses] = useState<any[]>([]);
+  const [resumenTotal, setResumenTotal] = useState(0);
+  const [isLoadingResumen, setIsLoadingResumen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Estados para filtros de fecha en sección GASTOS (Requerimiento 2)
+  const [gastosExpenses, setGastosExpenses] = useState<any[]>([]);
+  const [gastosTotal, setGastosTotal] = useState(0);
+  const [isLoadingGastos, setIsLoadingGastos] = useState(false);
+  const [filtroFechaInicio, setFiltroFechaInicio] = useState('');
+  const [filtroFechaFin, setFiltroFechaFin] = useState('');
+
   const [formData, setFormData] = useState({
     description: '',
     amount: 0,
@@ -53,7 +67,92 @@ export default function Gastos() {
 
   useEffect(() => {
     loadData();
+    loadResumenData(); // Cargar datos del mes actual para RESUMEN
   }, []);
+
+  // Función auxiliar para obtener fechas del mes actual
+  const getMonthDates = () => {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    const formatDateTime = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day} ${date === firstDay ? '00:00:00' : '23:59:59'}`;
+    };
+    
+    return {
+      fechaInicio: formatDateTime(firstDay),
+      fechaFin: formatDateTime(lastDay)
+    };
+  };
+
+  // Función para cargar datos del mes actual en RESUMEN (Requerimiento 1)
+  const loadResumenData = async () => {
+    setIsLoadingResumen(true);
+    try {
+      const { fechaInicio, fechaFin } = getMonthDates();
+      const data = await expensesService.getByDateRange({ fechaInicio, fechaFin });
+      
+      // Adaptar al response esperado: { data: [], total: number }
+      if (data && typeof data === 'object' && 'data' in data) {
+        setResumenExpenses(data.data || []);
+        setResumenTotal(data.total || 0);
+      } else if (Array.isArray(data)) {
+        setResumenExpenses(data);
+        setResumenTotal(data.length);
+      } else {
+        setResumenExpenses([]);
+        setResumenTotal(0);
+      }
+    } catch (error) {
+      console.error('Error loading resumen data:', error);
+      setResumenExpenses([]);
+      setResumenTotal(0);
+      toast.error('Error al cargar gastos del mes actual');
+    } finally {
+      setIsLoadingResumen(false);
+    }
+  };
+
+  // Función para aplicar filtros de fecha en sección GASTOS (Requerimiento 2)
+  const aplicarFiltrosFecha = async () => {
+    if (!filtroFechaInicio || !filtroFechaFin) {
+      toast.error('Por favor selecciona ambas fechas');
+      return;
+    }
+
+    setIsLoadingGastos(true);
+    try {
+      const fechaInicio = `${filtroFechaInicio} 00:00:00`;
+      const fechaFin = `${filtroFechaFin} 23:59:59`;
+      
+      const data = await expensesService.getByDateRange({ fechaInicio, fechaFin });
+      
+      // Adaptar al response esperado
+      if (data && typeof data === 'object' && 'data' in data) {
+        setGastosExpenses(data.data || []);
+        setGastosTotal(data.total || 0);
+      } else if (Array.isArray(data)) {
+        setGastosExpenses(data);
+        setGastosTotal(data.length);
+      } else {
+        setGastosExpenses([]);
+        setGastosTotal(0);
+      }
+      
+      toast.success('Filtros aplicados correctamente');
+    } catch (error) {
+      console.error('Error applying date filters:', error);
+      setGastosExpenses([]);
+      setGastosTotal(0);
+      toast.error('Error al aplicar filtros de fecha');
+    } finally {
+      setIsLoadingGastos(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -156,6 +255,34 @@ export default function Gastos() {
       receipt: ''
     });
   };
+
+  // Funciones auxiliares para formateo
+  const formatCurrency = (amount: number) => `S/${amount.toFixed(2)}`;
+  
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-PE', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('es-PE', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Paginación para RESUMEN
+  const totalPages = Math.ceil(resumenTotal / itemsPerPage);
+  const paginatedResumenExpenses = resumenExpenses.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   // Datos están garantizados como arrays por los servicios
   const filteredExpenses = expenses.filter(expense => {
@@ -350,148 +477,245 @@ export default function Gastos() {
             </Card>
           </div>
 
-          {/* Gastos recientes */}
+          {/* Gastos del Mes Actual - REQUERIMIENTO 1 */}
           <Card>
             <CardHeader>
-              <CardTitle>Gastos Recientes</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Gastos del Mes Actual
+                <Badge variant="outline" className="ml-2">
+                  Total: {resumenTotal}
+                </Badge>
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {expenses.slice(0, 5).map((expense) => (
-                  <div key={expense.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Receipt className="h-5 w-5 text-primary" />
-                      <div>
-                        <p className="font-semibold">{expense.description}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {expense.category} • {new Date(expense.creationDate || '').toLocaleDateString('es-PE')}
-                        </p>
+              {isLoadingResumen ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="text-center">
+                    <Receipt className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+                    <p>Cargando gastos del mes...</p>
+                  </div>
+                </div>
+              ) : paginatedResumenExpenses.length > 0 ? (
+                <div className="space-y-4">
+                  {/* Tabla de gastos */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-2 font-semibold">Fecha</th>
+                          <th className="text-left p-2 font-semibold">Descripción</th>
+                          <th className="text-left p-2 font-semibold">Monto</th>
+                          <th className="text-left p-2 font-semibold">Categoría</th>
+                          <th className="text-left p-2 font-semibold">Método Pago</th>
+                          <th className="text-left p-2 font-semibold">Cajero</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedResumenExpenses.map((expense) => (
+                          <tr key={expense.id} className="border-b hover:bg-muted/50">
+                            <td className="p-2 text-sm">
+                              {formatDateTime(expense.fecha || expense.fechaCreacion)}
+                            </td>
+                            <td className="p-2 font-medium">
+                              {expense.descripcion}
+                            </td>
+                            <td className="p-2 font-bold text-destructive">
+                              {formatCurrency(parseFloat(expense.monto || 0))}
+                            </td>
+                            <td className="p-2">
+                              <Badge variant="outline">{expense.categoria}</Badge>
+                            </td>
+                            <td className="p-2">
+                              <Badge variant="secondary">{expense.metodoPago}</Badge>
+                            </td>
+                            <td className="p-2 text-sm text-muted-foreground">
+                              {expense.cajero}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Paginación */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        Mostrando {(currentPage - 1) * itemsPerPage + 1} a{' '}
+                        {Math.min(currentPage * itemsPerPage, resumenTotal)} de {resumenTotal} gastos
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                        >
+                          Anterior
+                        </Button>
+                        <span className="text-sm">
+                          Página {currentPage} de {totalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                        >
+                          Siguiente
+                        </Button>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-destructive">S/ {expense.amount?.toFixed(2)}</p>
-                      <Badge variant="outline">{expense.paymentMethod}</Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Receipt className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-lg font-semibold mb-2">No hay gastos este mes</p>
+                  <p className="text-muted-foreground">Los gastos del mes actual aparecerán aquí</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="expenses" className="space-y-4">
-          {/* Filtros */}
+          {/* Filtros - REQUERIMIENTO 2 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Filter className="h-5 w-5" />
-                Filtros
+                Filtros de Fecha
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Buscar</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar gastos..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Categoría</Label>
-                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todas las categorías</SelectItem>
-                      {EXPENSE_CATEGORIES.map((cat) => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Fecha Desde</Label>
+                  <Label>Fecha Inicio</Label>
                   <Input
                     type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
+                    value={filtroFechaInicio}
+                    onChange={(e) => setFiltroFechaInicio(e.target.value)}
+                    placeholder="Selecciona fecha inicio"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Fecha Hasta</Label>
+                  <Label>Fecha Fin</Label>
                   <Input
                     type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
+                    value={filtroFechaFin}
+                    onChange={(e) => setFiltroFechaFin(e.target.value)}
+                    placeholder="Selecciona fecha fin"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>&nbsp;</Label>
+                  <Button 
+                    onClick={aplicarFiltrosFecha}
+                    disabled={isLoadingGastos || !filtroFechaInicio || !filtroFechaFin}
+                    className="w-full"
+                  >
+                    {isLoadingGastos ? (
+                      <>
+                        <Receipt className="h-4 w-4 animate-spin mr-2" />
+                        Aplicando...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="h-4 w-4 mr-2" />
+                        APLICAR
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
+              
+              {gastosTotal > 0 && (
+                <div className="mt-4 p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    Se encontraron <span className="font-semibold">{gastosTotal}</span> gastos 
+                    entre {filtroFechaInicio} y {filtroFechaFin}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Lista de gastos */}
-          <div className="grid gap-4">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <div className="text-center">
-                  <Receipt className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
-                  <p>Cargando gastos...</p>
-                </div>
-              </div>
-            ) : filteredExpenses.length > 0 ? (
-              filteredExpenses.map((expense) => (
-                <Card key={expense.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Receipt className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="font-semibold text-lg">{expense.description}</p>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span>{new Date(expense.creationDate || '').toLocaleString('es-PE')}</span>
-                            <Badge variant="outline">{expense.category}</Badge>
-                            <Badge variant="secondary">{expense.paymentMethod}</Badge>
-                            {expense.provider && <span>• {expense.provider}</span>}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-right mr-4">
-                          <p className="text-2xl font-bold text-destructive">S/ {expense.amount?.toFixed(2)}</p>
-                          {expense.voucherNumber && (
-                            <p className="text-sm text-muted-foreground">{expense.voucherNumber}</p>
-                          )}
-                        </div>
-                        <Button size="icon" variant="ghost" onClick={() => openEditDialog(expense)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleDelete(expense.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center py-8">
-                    <Receipt className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-lg font-semibold mb-2">No hay gastos registrados</p>
-                    <p className="text-muted-foreground">Los gastos aparecerán aquí cuando los registres</p>
+          {/* Lista de gastos filtrados - REQUERIMIENTO 2 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Gastos Filtrados</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingGastos ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="text-center">
+                    <Receipt className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+                    <p>Cargando gastos filtrados...</p>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                </div>
+              ) : gastosExpenses.length > 0 ? (
+                <div className="space-y-4">
+                  {/* Tabla de gastos filtrados */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-2 font-semibold">Fecha</th>
+                          <th className="text-left p-2 font-semibold">Descripción</th>
+                          <th className="text-left p-2 font-semibold">Monto</th>
+                          <th className="text-left p-2 font-semibold">Categoría</th>
+                          <th className="text-left p-2 font-semibold">Método Pago</th>
+                          <th className="text-left p-2 font-semibold">Cajero</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gastosExpenses.map((expense) => (
+                          <tr key={expense.id} className="border-b hover:bg-muted/50">
+                            <td className="p-2 text-sm">
+                              {formatDateTime(expense.fecha || expense.fechaCreacion)}
+                            </td>
+                            <td className="p-2 font-medium">
+                              {expense.descripcion}
+                            </td>
+                            <td className="p-2 font-bold text-destructive">
+                              {formatCurrency(parseFloat(expense.monto || 0))}
+                            </td>
+                            <td className="p-2">
+                              <Badge variant="outline">{expense.categoria}</Badge>
+                            </td>
+                            <td className="p-2">
+                              <Badge variant="secondary">{expense.metodoPago}</Badge>
+                            </td>
+                            <td className="p-2 text-sm text-muted-foreground">
+                              {expense.cajero}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : gastosTotal === 0 && (filtroFechaInicio || filtroFechaFin) ? (
+                <div className="text-center py-8">
+                  <Receipt className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-lg font-semibold mb-2">No se encontraron gastos</p>
+                  <p className="text-muted-foreground">
+                    No hay gastos en el rango de fechas seleccionado
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Search className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-lg font-semibold mb-2">Selecciona un rango de fechas</p>
+                  <p className="text-muted-foreground">
+                    Usa los filtros de fecha y presiona APLICAR para ver los gastos
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">

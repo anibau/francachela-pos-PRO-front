@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MoneyInput } from "@/components/ui/money-input";
-import { Package, Plus, Pencil, Trash2, Search, ArrowUpDown, AlertCircle, Check, FileSpreadsheet, RefreshCw } from "lucide-react";
+import { Package, Plus, Pencil, Trash2, Search, ArrowUpDown, AlertCircle, Check, FileSpreadsheet, RefreshCw, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import { inventoryService } from '@/services/inventoryService';
@@ -45,6 +45,30 @@ export default function Productos() {
   const [isLoadingMovements, setIsLoadingMovements] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ProductValidationErrors>({});
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Estados para Requerimiento 3: Gestión de Productos - paginación y filtros
+  const [categorias, setCategorias] = useState<string[]>([]);
+  const [selectedCategoria, setSelectedCategoria] = useState<string>('todas');
+  const [stockBajoProducts, setStockBajoProducts] = useState<Product[]>([]);
+  const [isLoadingStockBajo, setIsLoadingStockBajo] = useState(false);
+  const [currentProductPage, setCurrentProductPage] = useState(1);
+  const productsPerPage = 10;
+
+  // Estados para Requerimiento 4: Movimientos - día actual
+  const [movimientosHoy, setMovimientosHoy] = useState<any[]>([]);
+  const [totalMovimientosHoy, setTotalMovimientosHoy] = useState(0);
+  const [isLoadingMovimientosHoy, setIsLoadingMovimientosHoy] = useState(false);
+
+  // Estados para Requerimiento 5: Movimientos - filtros por tipo
+  const [selectedTipoMovimiento, setSelectedTipoMovimiento] = useState<string>('todos');
+  const [movimientosPorTipo, setMovimientosPorTipo] = useState<any[]>([]);
+  const [isLoadingMovimientosTipo, setIsLoadingMovimientosTipo] = useState(false);
+
+  // Estados para Requerimiento 6: Movimientos - filtros de rango de fechas
+  const [fechaInicioMovimientos, setFechaInicioMovimientos] = useState('');
+  const [fechaFinMovimientos, setFechaFinMovimientos] = useState('');
+  const [movimientosRango, setMovimientosRango] = useState<any[]>([]);
+  const [isLoadingMovimientosRango, setIsLoadingMovimientosRango] = useState(false);
   
   const [formData, setFormData] = useState({
     productoDescripcion: '',
@@ -82,7 +106,123 @@ export default function Productos() {
       }
     };
     loadMovements();
+    loadCategorias(); // Cargar categorías para filtros
+    loadMovimientosHoy(); // Cargar movimientos del día actual
   }, []);
+
+  // Función para cargar categorías (Requerimiento 3)
+  const loadCategorias = async () => {
+    try {
+      const data = await productsService.getCategories();
+      setCategorias(data || []);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      setCategorias([]);
+    }
+  };
+
+  // Función para cargar productos con stock bajo (Requerimiento 3)
+  const loadStockBajo = async () => {
+    setIsLoadingStockBajo(true);
+    try {
+      const data = await productsService.getLowStock();
+      setStockBajoProducts(data || []);
+      toast.success(`Se encontraron ${data?.length || 0} productos con stock bajo`);
+    } catch (error) {
+      console.error('Error loading low stock products:', error);
+      setStockBajoProducts([]);
+      toast.error('Error al cargar productos con stock bajo');
+    } finally {
+      setIsLoadingStockBajo(false);
+    }
+  };
+
+  // Función para cargar movimientos del día actual (Requerimiento 4)
+  const loadMovimientosHoy = async () => {
+    setIsLoadingMovimientosHoy(true);
+    try {
+      const data = await inventoryService.getToday();
+      
+      // Adaptar al response esperado: { movimientos: [], totalMovimientos: number }
+      if (data && typeof data === 'object' && 'movimientos' in data) {
+        setMovimientosHoy(data.movimientos || []);
+        setTotalMovimientosHoy(data.totalMovimientos || 0);
+      } else if (Array.isArray(data)) {
+        setMovimientosHoy(data);
+        setTotalMovimientosHoy(data.length);
+      } else {
+        setMovimientosHoy([]);
+        setTotalMovimientosHoy(0);
+      }
+    } catch (error) {
+      console.error('Error loading today movements:', error);
+      setMovimientosHoy([]);
+      setTotalMovimientosHoy(0);
+    } finally {
+      setIsLoadingMovimientosHoy(false);
+    }
+  };
+
+  // Función para cargar movimientos por tipo (Requerimiento 5)
+  const loadMovimientosPorTipo = async (tipo: string) => {
+    if (tipo === 'todos') {
+      setMovimientosPorTipo([]);
+      return;
+    }
+
+    setIsLoadingMovimientosTipo(true);
+    try {
+      const data = await inventoryService.getByType(tipo);
+      
+      // Adaptar al response con paginación
+      if (data && typeof data === 'object' && 'data' in data) {
+        setMovimientosPorTipo(data.data || []);
+      } else if (Array.isArray(data)) {
+        setMovimientosPorTipo(data);
+      } else {
+        setMovimientosPorTipo([]);
+      }
+      
+      toast.success(`Se encontraron ${data?.data?.length || data?.length || 0} movimientos de tipo ${tipo}`);
+    } catch (error) {
+      console.error('Error loading movements by type:', error);
+      setMovimientosPorTipo([]);
+      toast.error('Error al cargar movimientos por tipo');
+    } finally {
+      setIsLoadingMovimientosTipo(false);
+    }
+  };
+
+  // Función para aplicar filtros de rango de fechas (Requerimiento 6)
+  const aplicarFiltrosRangoMovimientos = async () => {
+    if (!fechaInicioMovimientos || !fechaFinMovimientos) {
+      toast.error('Por favor selecciona ambas fechas');
+      return;
+    }
+
+    setIsLoadingMovimientosRango(true);
+    try {
+      const fechaInicio = `${fechaInicioMovimientos} 00:00:00`;
+      const fechaFin = `${fechaFinMovimientos} 23:59:59`;
+      
+      const data = await inventoryService.getByDateRange({ fechaInicio, fechaFin });
+      
+      // Response es array simple según especificación
+      if (Array.isArray(data)) {
+        setMovimientosRango(data);
+      } else {
+        setMovimientosRango([]);
+      }
+      
+      toast.success(`Se encontraron ${data?.length || 0} movimientos en el rango seleccionado`);
+    } catch (error) {
+      console.error('Error loading movements by date range:', error);
+      setMovimientosRango([]);
+      toast.error('Error al aplicar filtros de fecha');
+    } finally {
+      setIsLoadingMovimientosRango(false);
+    }
+  };
 
   // Manejar errores
   useEffect(() => {
@@ -352,17 +492,70 @@ export default function Productos() {
     });
   };
 
-  // Filtrar productos localmente
+  // Funciones auxiliares para formateo
+  const formatCurrency = (amount: number | string) => {
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return `S/${num.toFixed(2)}`;
+  };
+
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('es-PE', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString('es-PE', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Filtrar productos localmente (Requerimiento 3)
   const filteredProductos = (productos || []).filter(producto => {
     if (!producto?.productoDescripcion || !producto?.codigoBarra || !producto?.categoria) return false;
     
     const searchTermLower = searchTerm.toLowerCase();
-    return (
+    const matchesSearch = (
       producto.productoDescripcion.toLowerCase().includes(searchTermLower) ||
       producto.codigoBarra.includes(searchTerm) ||
       producto.categoria.toLowerCase().includes(searchTermLower)
     );
+
+    const matchesCategory = selectedCategoria === 'todas' || producto.categoria === selectedCategoria;
+    
+    return matchesSearch && matchesCategory;
   });
+
+  // Paginación para productos (Requerimiento 3)
+  const totalProductPages = Math.ceil(filteredProductos.length / productsPerPage);
+  const paginatedProductos = filteredProductos.slice(
+    (currentProductPage - 1) * productsPerPage,
+    currentProductPage * productsPerPage
+  );
+
+  // Función para cargar productos por categoría (Requerimiento 3)
+  const loadProductosPorCategoria = async (categoria: string) => {
+    if (categoria === 'todas') {
+      setSelectedCategoria('todas');
+      return;
+    }
+
+    try {
+      const data = await productsService.getByCategory(categoria);
+      // Los productos filtrados se manejan automáticamente por el filtro local
+      setSelectedCategoria(categoria);
+      setCurrentProductPage(1); // Reset página al cambiar filtro
+      toast.success(`Mostrando productos de categoría: ${categoria}`);
+    } catch (error) {
+      console.error('Error loading products by category:', error);
+      toast.error('Error al filtrar productos por categoría');
+    }
+  };
 
   const exportProductsToExcel = async () => {
     try {
@@ -773,8 +966,176 @@ export default function Productos() {
             />
           </div>
 
-          <div className="grid gap-4">
-            {filteredProductos.map((producto) => (
+          {/* Filtros y controles - REQUERIMIENTO 3 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="h-5 w-5" />
+                Filtros y Controles
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Categoría</Label>
+                  <Select value={selectedCategoria} onValueChange={loadProductosPorCategoria}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todas">Todas las categorías</SelectItem>
+                      {categorias.map((categoria) => (
+                        <SelectItem key={categoria} value={categoria}>
+                          {categoria}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>&nbsp;</Label>
+                  <Button 
+                    onClick={loadStockBajo}
+                    disabled={isLoadingStockBajo}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {isLoadingStockBajo ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                        Cargando...
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-4 w-4 mr-2" />
+                        Stock Bajo
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Productos por página</Label>
+                  <Select 
+                    value={productsPerPage.toString()} 
+                    onValueChange={(value) => {
+                      // Actualizar productos por página (se puede hacer dinámico si se necesita)
+                      setCurrentProductPage(1);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10 productos</SelectItem>
+                      <SelectItem value="20">20 productos</SelectItem>
+                      <SelectItem value="50">50 productos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Información de filtros aplicados */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {selectedCategoria !== 'todas' && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    Categoría: {selectedCategoria}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0 hover:bg-transparent"
+                      onClick={() => loadProductosPorCategoria('todas')}
+                    >
+                      ×
+                    </Button>
+                  </Badge>
+                )}
+                {stockBajoProducts.length > 0 && (
+                  <Badge variant="destructive" className="flex items-center gap-1">
+                    {stockBajoProducts.length} productos con stock bajo
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0 hover:bg-transparent"
+                      onClick={() => setStockBajoProducts([])}
+                    >
+                      ×
+                    </Button>
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Lista de productos con paginación - REQUERIMIENTO 3 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Productos</span>
+                <Badge variant="outline">
+                  {stockBajoProducts.length > 0 ? 
+                    `${stockBajoProducts.length} con stock bajo` : 
+                    `${filteredProductos.length} productos`
+                  }
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4">
+                {/* Mostrar productos con stock bajo si están cargados */}
+                {stockBajoProducts.length > 0 ? (
+                  stockBajoProducts.map((producto) => (
+                    <Card key={`stock-bajo-${producto.id}`} className="hover:shadow-lg transition-all border-destructive">
+                      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
+                        <CardTitle className="flex items-center gap-3 text-lg">
+                          <AlertCircle className="h-5 w-5 text-destructive" />
+                          {producto.productoDescripcion}
+                        </CardTitle>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <Badge variant="destructive">
+                            Stock: {producto.cantidadActual} / Min: {producto.cantidadMinima}
+                          </Badge>
+                          <Button size="icon" variant="ghost" onClick={() => openMovementDialog(producto)}>
+                            <ArrowUpDown className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => openEditDialog(producto)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => handleDelete(producto.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Categoría</p>
+                            <p className="font-semibold">{producto.categoria}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Código</p>
+                            <p className="font-semibold text-sm">{producto.codigoBarra}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Costo</p>
+                            <p className="font-semibold">{formatCurrency(producto.costo)}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Precio</p>
+                            <p className="font-semibold text-primary">{formatCurrency(producto.precio)}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Proveedor</p>
+                            <p className="font-semibold">{producto.proveedor}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  /* Productos normales con paginación */
+                  paginatedProductos.map((producto) => (
               <Card key={producto.id} className="hover:shadow-lg transition-all">
                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
                   <CardTitle className="flex items-center gap-3 text-lg">
@@ -808,11 +1169,11 @@ export default function Productos() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Costo</p>
-                      <p className="font-semibold">S/ {producto.costo.toFixed(2)}</p>
+                      <p className="font-semibold">{formatCurrency(producto.costo)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Precio</p>
-                      <p className="font-semibold text-primary">S/ {producto.precio.toFixed(2)}</p>
+                      <p className="font-semibold text-primary">{formatCurrency(producto.precio)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Proveedor</p>
@@ -821,8 +1182,42 @@ export default function Productos() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+                  ))
+                )}
+              </div>
+
+              {/* Paginación - REQUERIMIENTO 3 */}
+              {stockBajoProducts.length === 0 && totalProductPages > 1 && (
+                <div className="flex items-center justify-between mt-6">
+                  <p className="text-sm text-muted-foreground">
+                    Mostrando {(currentProductPage - 1) * productsPerPage + 1} a{' '}
+                    {Math.min(currentProductPage * productsPerPage, filteredProductos.length)} de {filteredProductos.length} productos
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentProductPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentProductPage === 1}
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-sm">
+                      Página {currentProductPage} de {totalProductPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentProductPage(prev => Math.min(prev + 1, totalProductPages))}
+                      disabled={currentProductPage === totalProductPages}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="movimientos" className="space-y-6">
@@ -867,40 +1262,80 @@ export default function Productos() {
             </div>
           </div>
 
-          {/* Filtros de movimientos */}
+          {/* Filtros de movimientos - REQUERIMIENTOS 5 y 6 */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Filtros</CardTitle>
+              <CardTitle className="text-lg">Filtros de Movimientos</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label>Tipo de Movimiento</Label>
-                  <Select defaultValue="todos">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="ENTRADA">Entradas</SelectItem>
-                      <SelectItem value="SALIDA">Salidas</SelectItem>
-                      <SelectItem value="AJUSTE">Ajustes</SelectItem>
-                      <SelectItem value="VENTA">Ventas</SelectItem>
-                      <SelectItem value="DEVOLUCION">Devoluciones</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-4">
+                {/* Filtro por tipo - REQUERIMIENTO 5 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Tipo de Movimiento</Label>
+                    <Select 
+                      value={selectedTipoMovimiento} 
+                      onValueChange={(value) => {
+                        setSelectedTipoMovimiento(value);
+                        loadMovimientosPorTipo(value);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="ENTRADA">Entradas</SelectItem>
+                        <SelectItem value="SALIDA">Salidas</SelectItem>
+                        <SelectItem value="AJUSTE">Ajustes</SelectItem>
+                        <SelectItem value="VENTA">Ventas</SelectItem>
+                        <SelectItem value="DEVOLUCIÓN">Devoluciones</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Fecha Desde</Label>
-                  <Input type="date" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Fecha Hasta</Label>
-                  <Input type="date" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Cajero</Label>
-                  <Input placeholder="Buscar por cajero..." />
+
+                {/* Filtro por rango de fechas - REQUERIMIENTO 6 */}
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-3">Filtro por Rango de Fechas</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Fecha Inicio</Label>
+                      <Input 
+                        type="date" 
+                        value={fechaInicioMovimientos}
+                        onChange={(e) => setFechaInicioMovimientos(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Fecha Fin</Label>
+                      <Input 
+                        type="date" 
+                        value={fechaFinMovimientos}
+                        onChange={(e) => setFechaFinMovimientos(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>&nbsp;</Label>
+                      <Button 
+                        onClick={aplicarFiltrosRangoMovimientos}
+                        disabled={isLoadingMovimientosRango || !fechaInicioMovimientos || !fechaFinMovimientos}
+                        className="w-full"
+                      >
+                        {isLoadingMovimientosRango ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                            Aplicando...
+                          </>
+                        ) : (
+                          <>
+                            <Search className="h-4 w-4 mr-2" />
+                            APLICAR
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
