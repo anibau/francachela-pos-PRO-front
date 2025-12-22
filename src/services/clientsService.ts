@@ -120,11 +120,11 @@ export const clientsService = {
   },
 
   /**
-   * Obtener estadísticas de un cliente específico
+   * Obtener estadísticas de un cliente específico por DNI
    */
-  getEstadisticas: async (clienteId: number): Promise<any> => {
+  getEstadisticas: async (dni: string): Promise<any> => {
     try {
-      const response = await httpClient.get<any>(`${API_ENDPOINTS.CLIENTS.BASE}/${clienteId}/estadisticas`);
+      const response = await httpClient.get<any>(API_ENDPOINTS.CLIENTS.STATISTICS(dni));
       return response;
     } catch (error) {
       console.error('Error getting client statistics:', error);
@@ -183,6 +183,18 @@ export const clientsService = {
     } catch (error) {
       console.error('Error validating DNI:', error);
       return false;
+    }
+  },
+
+  /**
+   * Enviar mensaje de bienvenida por WhatsApp
+   */
+  sendWelcomeMessage: async (idCliente: number): Promise<void> => {
+    try {
+      await httpClient.post(API_ENDPOINTS.WHATSAPP.SEND_WELCOME(idCliente), {});
+    } catch (error) {
+      console.error('Error sending welcome message:', error);
+      throw new Error(extractErrorMessage(error));
     }
   },
 };

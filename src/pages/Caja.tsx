@@ -20,6 +20,21 @@ export default function Caja() {
   const [isLoading, setIsLoading] = useState(true);
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
+  // Función para obtener fechas del mes actual
+  const getMonthDates = () => {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    const formatDateOnly = (date: Date) => date.toISOString().split('T')[0];
+    
+    return {
+      fechaInicio: formatDateOnly(firstDay),
+      fechaFin: formatDateOnly(lastDay)
+    };
+  };
+
+  const [dateRange, setDateRange] = useState(() => getMonthDates());
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
@@ -35,7 +50,7 @@ export default function Caja() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [dateRange]);
 
   const loadData = async () => {
     try {
@@ -43,7 +58,12 @@ export default function Caja() {
       
       // Los servicios ya retornan datos validados
       const currentData = await cashRegisterService.getCurrent().catch(() => null);
-      const historyData = await cashRegisterService.getHistory().catch(() => []);
+      
+      // Cargar historial con filtros de fecha
+      const historyData = await cashRegisterService.getHistory({
+        startDate: dateRange.fechaInicio,
+        endDate: dateRange.fechaFin
+      }).catch(() => []);
       
       setCurrent(currentData);
       setHistory(historyData);
@@ -400,6 +420,61 @@ export default function Caja() {
                 <History className="h-5 w-5" />
                 Historial de Cajas
               </CardTitle>
+              
+              {/* Controles de filtros de fecha */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+                <div className="flex gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="fechaInicio" className="text-xs">Fecha Inicio</Label>
+                    <Input
+                      id="fechaInicio"
+                      type="date"
+                      value={dateRange.fechaInicio}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, fechaInicio: e.target.value }))}
+                      className="w-40"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="fechaFin" className="text-xs">Fecha Fin</Label>
+                    <Input
+                      id="fechaFin"
+                      type="date"
+                      value={dateRange.fechaFin}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, fechaFin: e.target.value }))}
+                      className="w-40"
+                    />
+                  </div>
+                  <Button onClick={loadData} size="sm">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    Aplicar
+                  </Button>
+                </div>
+                
+                {/* Botones de rango rápido */}
+                <div className="flex gap-1">
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const today = new Date();
+                    const startDate = new Date(today);
+                    startDate.setDate(today.getDate() - 6);
+                    const formatDateOnly = (date: Date) => date.toISOString().split('T')[0];
+                    setDateRange({
+                      fechaInicio: formatDateOnly(startDate),
+                      fechaFin: formatDateOnly(today)
+                    });
+                  }}>7d</Button>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const today = new Date();
+                    const startDate = new Date(today);
+                    startDate.setDate(today.getDate() - 29);
+                    const formatDateOnly = (date: Date) => date.toISOString().split('T')[0];
+                    setDateRange({
+                      fechaInicio: formatDateOnly(startDate),
+                      fechaFin: formatDateOnly(today)
+                    });
+                  }}>30d</Button>
+                  <Button variant="outline" size="sm" onClick={() => setDateRange(getMonthDates())} title="Mes Actual">Mes</Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">

@@ -19,6 +19,7 @@ import { clientsService } from "@/services/clientsService";
 import { showErrorToast } from "@/utils/errorHandler";
 import InventarioStats from "@/components/Dashboard/InventarioStats";
 import ClienteStats from "@/components/Dashboard/ClienteStats";
+import GastosStats from "@/components/Dashboard/GastosStats";
 
 interface DashboardStats {
   ventasHoy: number;
@@ -338,6 +339,9 @@ export default function Dashboard() {
 
       {/* Estadísticas de Cliente */}
       <ClienteStats />
+
+      {/* Estadísticas de Gastos */}
+      <GastosStats />
     </div>
   );
 }

@@ -60,7 +60,7 @@ export const API_ENDPOINTS = {
     TOP: '/clientes/top',
     BY_DNI: (dni: string) => `/clientes/dni/${dni}`,
     BY_CODE: (codigo: string) => `/clientes/codigo/${codigo}`,
-    STATISTICS: (id: number) => `/clientes/${id}/estadisticas`,
+    STATISTICS: (dni: string) => `/clientes/${dni}/estadisticas`,
     ACTIVATE: (id: number) => `/clientes/${id}/activate`,
   },
   
@@ -146,6 +146,7 @@ export const API_ENDPOINTS = {
     SEND: '/whatsapp/send',
     STATUS: '/whatsapp/status',
     LOGOUT: '/whatsapp/logout',
+    SEND_WELCOME: (idCliente: number) => `/whatsapp/send-welcome/${idCliente}`,
   },
   
   // Exportación Excel
