@@ -1,6 +1,7 @@
 import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
 import { httpClient, simulateDelay } from './httpClient';
 import { ensureArray } from '@/utils/apiValidators';
+import { extractErrorMessage } from '@/utils/errorHandler';
 import type { InventoryMovement } from '@/types';
 import type { 
   InventoryMovementCreateRequest,
@@ -147,7 +148,7 @@ export const inventoryService = {
       return await httpClient.get<InventoryMovement>(API_ENDPOINTS.INVENTORY_MOVEMENTS.BY_ID(id));
     } catch (error) {
       console.error('Error getting inventory movement by ID:', error);
-      throw new Error('Error al cargar el movimiento de inventario');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -173,52 +174,113 @@ export const inventoryService = {
   },
 
   /**
-   * Obtener movimientos por rango de fechas
+   * Obtener movimientos por rango de fechas con paginación
    */
-  getByDateRange: async (filters: DateRangeFilterParams): Promise<InventoryMovement[]> => {
+  getByDateRange: async (filters: DateRangeFilterParams & { page?: number; limit?: number }): Promise<PaginatedMovementsResponse> => {
     try {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
-        return [];
+        return {
+          data: [],
+          total: 0,
+          page: 1,
+          limit: 10,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        };
       }
       
       const queryParams = new URLSearchParams();
-      if (filters.startDate) queryParams.append('startDate', filters.startDate);
-      if (filters.endDate) queryParams.append('endDate', filters.endDate);
+      if (filters.startDate) queryParams.append('fechaInicio', filters.startDate);
+      if (filters.endDate) queryParams.append('fechaFin', filters.endDate);
+      if (filters.page) queryParams.append('page', filters.page.toString());
+      if (filters.limit) queryParams.append('limit', filters.limit.toString());
       
       const response = await httpClient.get<PaginatedMovementsResponse | InventoryMovement[]>(
         `${API_ENDPOINTS.INVENTORY_MOVEMENTS.BY_RANGE}?${queryParams}`
       );
+      
       if (response && typeof response === 'object' && 'data' in response) {
-        return (response as PaginatedMovementsResponse).data;
+        return response as PaginatedMovementsResponse;
       }
-      return Array.isArray(response) ? response : [];
+      
+      // Si es un array directo, convertir a formato paginado
+      const movements = Array.isArray(response) ? response : [];
+      return {
+        data: movements,
+        total: movements.length,
+        page: 1,
+        limit: movements.length,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false
+      };
     } catch (error) {
       console.error('Error getting inventory movements by date range:', error);
-      return [];
+      return {
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPrevPage: false
+      };
     }
   },
 
   /**
-   * Obtener movimientos por tipo
+   * Obtener movimientos por tipo con paginación
    */
-  getByType: async (tipo: string): Promise<InventoryMovement[]> => {
+  getByType: async (tipo: string, page?: number, limit?: number): Promise<PaginatedMovementsResponse> => {
     try {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
-        return [];
+        return {
+          data: [],
+          total: 0,
+          page: 1,
+          limit: 10,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        };
       }
       
-      const response = await httpClient.get<PaginatedMovementsResponse | InventoryMovement[]>(
-        API_ENDPOINTS.INVENTORY_MOVEMENTS.BY_TYPE(tipo)
-      );
+      const queryParams = new URLSearchParams();
+      if (page) queryParams.append('page', page.toString());
+      if (limit) queryParams.append('limit', limit.toString());
+      
+      const url = `${API_ENDPOINTS.INVENTORY_MOVEMENTS.BY_TYPE(tipo)}${queryParams.toString() ? `?${queryParams}` : ''}`;
+      const response = await httpClient.get<PaginatedMovementsResponse | InventoryMovement[]>(url);
+      
       if (response && typeof response === 'object' && 'data' in response) {
-        return (response as PaginatedMovementsResponse).data;
+        return response as PaginatedMovementsResponse;
       }
-      return Array.isArray(response) ? response : [];
+      
+      // Si es un array directo, convertir a formato paginado
+      const movements = Array.isArray(response) ? response : [];
+      return {
+        data: movements,
+        total: movements.length,
+        page: 1,
+        limit: movements.length,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false
+      };
     } catch (error) {
       console.error('Error getting inventory movements by type:', error);
-      return [];
+      return {
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPrevPage: false
+      };
     }
   },
 
@@ -276,7 +338,7 @@ export const inventoryService = {
       return await httpClient.post<InventoryMovement>(API_ENDPOINTS.INVENTORY_MOVEMENTS.ENTRY, entryData);
     } catch (error) {
       console.error('Error creating inventory entry:', error);
-      throw new Error('Error al crear la entrada de inventario');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -310,7 +372,7 @@ export const inventoryService = {
       return await httpClient.post<InventoryMovement>(API_ENDPOINTS.INVENTORY_MOVEMENTS.ADJUSTMENT, adjustmentData);
     } catch (error) {
       console.error('Error creating inventory adjustment:', error);
-      throw new Error('Error al crear el ajuste de inventario');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -344,7 +406,7 @@ export const inventoryService = {
       return await httpClient.post<InventoryMovement>(API_ENDPOINTS.INVENTORY_MOVEMENTS.SALE, saleData);
     } catch (error) {
       console.error('Error creating sale movement:', error);
-      throw new Error('Error al crear el movimiento de venta');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -388,7 +450,7 @@ export const inventoryService = {
       return await httpClient.post<InventoryMovement>(API_ENDPOINTS.INVENTORY_MOVEMENTS.BASE, createRequest);
     } catch (error) {
       console.error('Error creating inventory movement:', error);
-      throw new Error('Error al crear el movimiento de inventario');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -417,7 +479,7 @@ export const inventoryService = {
       return await httpClient.get<Record<string, unknown>>(url);
     } catch (error) {
       console.error('Error getting inventory statistics:', error);
-      throw new Error('Error al cargar las estadísticas de inventario');
+      throw new Error(extractErrorMessage(error));
     }
   },
 };

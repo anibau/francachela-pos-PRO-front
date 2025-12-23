@@ -8,6 +8,7 @@ import type {
   PaginatedResponse
 } from '@/types/api';
 import { normalizeCombo, normalizeCombos } from '@/utils/dataTransform';
+import { extractErrorMessage } from '@/utils/errorHandler';
 
 export const combosService = {
   /**
@@ -48,7 +49,7 @@ export const combosService = {
       return normalizeCombos(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Error getting combos:', error);
-      throw new Error('Error al cargar los combos');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -71,7 +72,7 @@ export const combosService = {
       return normalizeCombo(combo);
     } catch (error) {
       console.error('Error getting combo by ID:', error);
-      throw new Error('Error al cargar el combo');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -109,7 +110,7 @@ export const combosService = {
       return normalizeCombo(combo);
     } catch (error) {
       console.error('Error creating combo:', error);
-      throw new Error('Error al crear el combo');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -152,7 +153,7 @@ export const combosService = {
       return normalizeCombo(combo);
     } catch (error) {
       console.error('Error updating combo:', error);
-      throw new Error('Error al actualizar el combo');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -176,7 +177,7 @@ export const combosService = {
       await httpClient.delete(API_ENDPOINTS.COMBOS.BY_ID(id));
     } catch (error) {
       console.error('Error deleting combo:', error);
-      throw new Error('Error al eliminar el combo');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -198,7 +199,7 @@ export const combosService = {
       return normalizeCombos(Array.isArray(combos) ? combos : []);
     } catch (error) {
       console.error('Error getting active combos:', error);
-      throw new Error('Error al cargar los combos activos');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -223,7 +224,7 @@ export const combosService = {
       return normalizeCombo(combo);
     } catch (error) {
       console.error('Error activating combo:', error);
-      throw new Error('Error al activar el combo');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -248,7 +249,7 @@ export const combosService = {
       return normalizeCombo(combo);
     } catch (error) {
       console.error('Error deactivating combo:', error);
-      throw new Error('Error al desactivar el combo');
+      throw new Error(extractErrorMessage(error));
     }
   },
 };

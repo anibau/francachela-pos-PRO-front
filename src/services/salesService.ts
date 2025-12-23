@@ -2,6 +2,7 @@ import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
 import { httpClient, simulateDelay } from './httpClient';
 import type { Sale } from '@/types';
 import { normalizeSale, normalizeSales } from '@/utils/dataTransform';
+import { extractErrorMessage } from '@/utils/errorHandler';
 
 export const salesService = {
   /**
@@ -25,7 +26,7 @@ export const salesService = {
       return normalizeSales(Array.isArray(response) ? response : response?.data ? response.data : []);
     } catch (error) {
       console.error('Error getting sales:', error);
-      throw new Error('Error al cargar las ventas');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -38,7 +39,7 @@ export const salesService = {
       return normalizeSale(sale);
     } catch (error) {
       console.error('Error getting sale by ID:', error);
-      throw new Error('Error al cargar la venta');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -51,7 +52,7 @@ export const salesService = {
       return normalizeSales(Array.isArray(response) ? response : response?.data ? response.data : []);
     } catch (error) {
       console.error('Error getting today sales:', error);
-      throw new Error('Error al cargar las ventas del día');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -64,7 +65,7 @@ export const salesService = {
       return normalizeSale(sale);
     } catch (error) {
       console.error('Error creating sale:', error);
-      throw new Error('Error al crear la venta');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -77,7 +78,30 @@ export const salesService = {
       return normalizeSale(sale);
     } catch (error) {
       console.error('Error canceling sale:', error);
-      throw new Error('Error al anular la venta');
+      throw new Error(extractErrorMessage(error));
     }
   },
+
+  /**
+   * Obtener estadísticas de ventas con filtros de fecha
+   * @param fechaInicio - Fecha de inicio en formato YYYY-MM-DD HH:mm:ss
+   * @param fechaFin - Fecha de fin en formato YYYY-MM-DD HH:mm:ss
+   */
+  getEstadisticas: async (fechaInicio: string, fechaFin: string): Promise<any> => {
+    try {
+      // URLSearchParams maneja el encoding automáticamente
+      const params = new URLSearchParams({
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin
+      });
+
+      const url = `/ventas/estadisticas?${params.toString()}`;
+      const response = await httpClient.get<any>(url);
+      
+      return response;
+    } catch (error) {
+      console.error('Error getting sales statistics:', error);
+      throw new Error(extractErrorMessage(error));
+    }
+  }
 };

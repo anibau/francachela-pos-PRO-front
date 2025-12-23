@@ -83,7 +83,21 @@ export const useCreateClient = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (clientData: Omit<Client, 'id'>) => clientsService.create(clientData),
+    mutationFn: async (clientData: Omit<Client, 'id'>) => {
+      // Crear el cliente
+      const newClient = await clientsService.create(clientData);
+      
+      // Enviar mensaje de bienvenida por WhatsApp automáticamente
+      try {
+        await clientsService.sendWelcomeMessage(newClient.id);
+        console.log('Mensaje de bienvenida enviado exitosamente');
+      } catch (error) {
+        console.warn('Error al enviar mensaje de bienvenida:', error);
+        // No fallar la creación del cliente si falla el WhatsApp
+      }
+      
+      return newClient;
+    },
     onSuccess: (newClient) => {
       // Invalidar y actualizar caché
       queryClient.invalidateQueries({ queryKey: clientKeys.lists() });

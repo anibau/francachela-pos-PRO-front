@@ -3,6 +3,7 @@ import { httpClient, simulateDelay } from './httpClient';
 import type { Client } from '@/types';
 import type { ClienteQueryParams, PaginatedResponse } from '@/types/backend';
 import { normalizeClient, normalizeClients } from '@/utils/dataTransform';
+import { extractErrorMessage } from '@/utils/errorHandler';
 
 export const clientsService = {
   /**
@@ -31,7 +32,7 @@ export const clientsService = {
       return normalizeClients(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Error getting clients:', error);
-      throw new Error('Error al cargar los clientes');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -44,7 +45,7 @@ export const clientsService = {
       return normalizeClient(client);
     } catch (error) {
       console.error('Error getting client by ID:', error);
-      throw new Error('Error al cargar el cliente');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -84,7 +85,7 @@ export const clientsService = {
       return normalizeClients(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Error getting birthday clients:', error);
-      throw new Error('Error al cargar clientes con cumpleaños');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -101,7 +102,7 @@ export const clientsService = {
       return normalizeClients(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Error getting top clients:', error);
-      throw new Error('Error al cargar clientes top');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -119,6 +120,19 @@ export const clientsService = {
   },
 
   /**
+   * Obtener estadísticas de un cliente específico por DNI
+   */
+  getEstadisticas: async (dni: string): Promise<any> => {
+    try {
+      const response = await httpClient.get<any>(API_ENDPOINTS.CLIENTS.STATISTICS(dni));
+      return response;
+    } catch (error) {
+      console.error('Error getting client statistics:', error);
+      throw new Error(extractErrorMessage(error));
+    }
+  },
+
+  /**
    * Crear nuevo cliente
    */
   create: async (clientData: Omit<Client, 'id'>): Promise<Client> => {
@@ -127,7 +141,7 @@ export const clientsService = {
       return normalizeClient(client);
     } catch (error) {
       console.error('Error creating client:', error);
-      throw new Error('Error al crear el cliente');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -140,7 +154,7 @@ export const clientsService = {
       return normalizeClient(client);
     } catch (error) {
       console.error('Error updating client:', error);
-      throw new Error('Error al actualizar el cliente');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -152,7 +166,7 @@ export const clientsService = {
       await httpClient.delete(API_ENDPOINTS.CLIENTS.BY_ID(id));
     } catch (error) {
       console.error('Error deleting client:', error);
-      throw new Error('Error al eliminar el cliente');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -169,6 +183,18 @@ export const clientsService = {
     } catch (error) {
       console.error('Error validating DNI:', error);
       return false;
+    }
+  },
+
+  /**
+   * Enviar mensaje de bienvenida por WhatsApp
+   */
+  sendWelcomeMessage: async (idCliente: number): Promise<void> => {
+    try {
+      await httpClient.post(API_ENDPOINTS.WHATSAPP.SEND_WELCOME(idCliente), {});
+    } catch (error) {
+      console.error('Error sending welcome message:', error);
+      throw new Error(extractErrorMessage(error));
     }
   },
 };

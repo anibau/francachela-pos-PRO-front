@@ -11,6 +11,8 @@ import { TrendingUp, Calendar, User, CreditCard, Eye, Ban, FileSpreadsheet, Load
 import { toast } from "sonner";
 import { salesService } from "@/services/salesService";
 import type { Sale } from "@/types";
+import { showErrorToast, showSuccessToast, showLoadingToast, dismissToast } from "@/utils/errorHandler";
+import VentasPagosDisplay from "@/components/VentasPagosDisplay";
 
 export default function Ventas() {
   const [ventas, setVentas] = useState<Sale[]>([]);
@@ -37,10 +39,14 @@ export default function Ventas() {
     let filtered = [...(ventas || [])];
 
     if (dateFilter.startDate) {
-      filtered = filtered.filter(v => new Date(v.fecha) >= new Date(dateFilter.startDate));
+      // Inicio del día: 00:00:00
+      const startDateTime = new Date(`${dateFilter.startDate} 00:00:00`);
+      filtered = filtered.filter(v => new Date(v.fecha) >= startDateTime);
     }
     if (dateFilter.endDate) {
-      filtered = filtered.filter(v => new Date(v.fecha) <= new Date(dateFilter.endDate));
+      // Fin del día: 23:59:59
+      const endDateTime = new Date(`${dateFilter.endDate} 23:59:59`);
+      filtered = filtered.filter(v => new Date(v.fecha) <= endDateTime);
     }
     
     setFilteredVentas(filtered);
@@ -56,7 +62,7 @@ export default function Ventas() {
       const data = await salesService.getAll();
       setVentas(data);
     } catch (error) {
-      toast.error('Error al cargar ventas');
+      showErrorToast(error, 'Error al cargar ventas');
     } finally {
       setIsLoading(false);
     }
@@ -74,10 +80,9 @@ export default function Ventas() {
       setVentas(prev => 
         prev.map(v => v.id === id ? { ...v, estado: updatedSale.estado } : v)
       );
-      toast.success('Venta anulada correctamente');
+      showSuccessToast('Venta anulada correctamente');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error al anular venta';
-      toast.error(errorMessage);
+      showErrorToast(error, 'Error al anular venta');
     } finally {
       setCancelingIds(prev => {
         const newSet = new Set(prev);
@@ -93,7 +98,7 @@ export default function Ventas() {
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        toast.error('No hay sesión activa');
+        showErrorToast('No hay sesión activa');
         return;
       }
 
@@ -110,13 +115,13 @@ export default function Ventas() {
         throw new Error('Error al actualizar comentario');
       }
 
-      toast.success('Comentario actualizado');
+      showSuccessToast('Comentario actualizado');
       setIsCommentDialogOpen(false);
       setEditingSaleId(null);
       setEditingComment('');
       loadVentas();
     } catch (error) {
-      toast.error('Error al actualizar comentario');
+      showErrorToast(error, 'Error al actualizar comentario');
     }
   };
 
@@ -132,51 +137,98 @@ export default function Ventas() {
   };
 
   const exportToExcel = async () => {
+    let loadingToastId: string | number;
+    
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        toast.error('No hay sesión activa');
+        showErrorToast('No hay sesión activa');
         return;
       }
 
-      // Construir URL con parámetros de fecha
+      // Construir parámetros de fecha con formato completo
       const params = new URLSearchParams();
-      if (dateFilter.startDate) params.append('fechaInicio', dateFilter.startDate);
-      if (dateFilter.endDate) params.append('fechaFin', dateFilter.endDate);
+      if (dateFilter.startDate) {
+        // Inicio del día: 00:00:00
+        params.append('fechaInicio', `${dateFilter.startDate} 00:00:00`);
+      }
+      if (dateFilter.endDate) {
+        // Fin del día: 23:59:59
+        params.append('fechaFin', `${dateFilter.endDate} 23:59:59`);
+      }
       params.append('tipoReporte', 'VENTAS');
-      params.append('incluirDetalles', 'false');
+      params.append('incluirDetalles', 'true');
 
-      const url = `${import.meta.env.VITE_API_BASE_URL}/excel/export-ventas?${params.toString()}`;
+      // URLs para ambos endpoints
+      const baseUrl = import.meta.env.VITE_API_BASE_URL;
+      const ventasUrl = `${baseUrl}/excel/export-ventas?${params.toString()}`;
+      const ventasPagosUrl = `${baseUrl}/excel/export-venta-pagos?${params.toString()}`;
       
-      toast.loading('Generando archivo Excel...');
+      loadingToastId = showLoadingToast('Generando archivos Excel...');
       
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      // Realizar ambas peticiones simultáneamente
+      const [ventasResponse, ventasPagosResponse] = await Promise.all([
+        fetch(ventasUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }),
+        fetch(ventasPagosUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+      ]);
 
-      if (!response.ok) {
+      // Verificar que ambas respuestas sean exitosas
+      if (!ventasResponse.ok) {
         throw new Error('Error al exportar ventas');
       }
+      if (!ventasPagosResponse.ok) {
+        throw new Error('Error al exportar ventas-pagos');
+      }
 
-      const blob = await response.blob();
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `ventas_${new Date().toISOString().split('T')[0]}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(downloadUrl);
+      // Obtener los blobs de ambas respuestas
+      const [ventasBlob, ventasPagosBlob] = await Promise.all([
+        ventasResponse.blob(),
+        ventasPagosResponse.blob()
+      ]);
 
-      toast.dismiss();
-      toast.success('Ventas exportadas correctamente');
+      // Generar fecha para nombres de archivos
+      const fechaArchivo = new Date().toISOString().split('T')[0];
+
+      // Descargar primer archivo (ventas)
+      const ventasDownloadUrl = URL.createObjectURL(ventasBlob);
+      const ventasLink = document.createElement('a');
+      ventasLink.href = ventasDownloadUrl;
+      ventasLink.download = `ventas_${fechaArchivo}.xlsx`;
+      document.body.appendChild(ventasLink);
+      ventasLink.click();
+      document.body.removeChild(ventasLink);
+      URL.revokeObjectURL(ventasDownloadUrl);
+
+      // Descargar segundo archivo (venta-pagos) con un pequeño delay
+      setTimeout(() => {
+        const ventasPagosDownloadUrl = URL.createObjectURL(ventasPagosBlob);
+        const ventasPagosLink = document.createElement('a');
+        ventasPagosLink.href = ventasPagosDownloadUrl;
+        ventasPagosLink.download = `venta-pagos_${fechaArchivo}.xlsx`;
+        document.body.appendChild(ventasPagosLink);
+        ventasPagosLink.click();
+        document.body.removeChild(ventasPagosLink);
+        URL.revokeObjectURL(ventasPagosDownloadUrl);
+      }, 500);
+
+      dismissToast(loadingToastId);
+      showSuccessToast('Archivos Excel exportados correctamente (2 archivos descargados)');
     } catch (error) {
-      toast.dismiss();
+      if (loadingToastId) {
+        dismissToast(loadingToastId);
+      }
       console.error('Error exporting sales:', error);
-      toast.error('Error al exportar ventas');
+      showErrorToast(error, 'Error al exportar archivos Excel');
     }
   };
 
@@ -295,7 +347,7 @@ export default function Ventas() {
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Método de pago</p>
-                    <p className="font-semibold text-sm">{venta.metodoPago}</p>
+                    <VentasPagosDisplay venta={venta} />
                   </div>
                 </div>
                 <div>
@@ -385,7 +437,7 @@ export default function Ventas() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Método de Pago</p>
-                  <p className="font-semibold">{selectedSale.metodoPago}</p>
+                  <VentasPagosDisplay venta={selectedSale} />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Estado</p>

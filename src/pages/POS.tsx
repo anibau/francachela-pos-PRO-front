@@ -3,10 +3,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { MoneyInput } from '@/components/ui/money-input';
 import { useProducts, useClients, productKeys, clientKeys } from '@/hooks';
 import type { Product, Client, PaymentMethod } from '@/types';
 import { PAYMENT_METHODS, PAYMENT_METHOD_OPTIONS } from '@/constants/paymentMethods';
 import { usePOS } from '@/contexts/POSContext';
+import { roundMoney } from '@/utils/moneyUtils';
 import { Search, Plus, Minus, Trash2, User, FileText, DollarSign, X, ShoppingCart, Send, Calculator, ChevronDown, ChevronUp } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -29,6 +31,7 @@ export default function POS() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(PAYMENT_METHODS.EFECTIVO);
   const [notes, setNotes] = useState('');
   const [discount, setDiscount] = useState(0);
+  const [recargoExtra, setRecargoExtra] = useState(0);
   const [montoRecibido, setMontoRecibido] = useState<number | undefined>();
   const [showChangeCalculator, setShowChangeCalculator] = useState(false);
   
@@ -62,6 +65,7 @@ export default function POS() {
     setTicketClient,
     setTicketNotes,
     applyDiscount,
+    applyRecargoExtra,
     getActiveTicket,
     getTicketTotal,
     completeSale,
@@ -84,6 +88,11 @@ export default function POS() {
       setMontoRecibido(undefined);
     }
   }, [isPaymentOpen]);
+
+  // Actualizar recargo automáticamente cuando cambie el método de pago
+  useEffect(() => {
+    handleUpdateRecargoExtra();
+  }, [selectedPaymentMethod, recargoExtra]);
 
   // Filtrar productos localmente (patrón como en Clientes.tsx)
   const filteredProducts = (products || []).filter(producto => {
@@ -117,7 +126,9 @@ export default function POS() {
   );
 
   const activeTicket = getActiveTicket();
-  const total = getTicketTotal();
+  const rawTotal = getTicketTotal();
+  // Redondear total a decimales .X0 (4.56 → 4.60)
+  const total = Math.ceil(rawTotal * 10) / 10;
   const pointsEarned = activeTicket ? calculateTotalPoints(activeTicket.items) : 0;
 
   const handleAddProduct = (product: Product) => {
@@ -168,6 +179,23 @@ export default function POS() {
 
   const handleUpdateDiscount = () => {
     applyDiscount(discount);
+  };
+
+  const handleUpdateRecargoExtra = () => {
+    // Calcular recargo automático si el método de pago es TARJETA
+    let recargoFinal = recargoExtra;
+    
+    if (selectedPaymentMethod === PAYMENT_METHODS.TARJETA) {
+      const activeTicket = getActiveTicket();
+      if (activeTicket) {
+        const subtotal = activeTicket.items.reduce((sum, item) => sum + item.subtotal, 0);
+        const total = subtotal - activeTicket.discount;
+        const recargoAutomatico = total * 0.0005; // 0.05% del total
+        recargoFinal = recargoExtra + recargoAutomatico;
+      }
+    }
+    
+    applyRecargoExtra(recargoFinal);
   };
 
   // Funciones para múltiples métodos de pago
@@ -262,10 +290,10 @@ export default function POS() {
 
       // Usar múltiples métodos de pago
       const metodoPrincipal = metodosPageo[0]?.metodoPago || selectedPaymentMethod;
-      await completeSale(metodoPrincipal, 'Sistema', getTotalPagado(), metodosPageo, products);
+      await completeSale(metodoPrincipal, 'Sistema', getTotalPagado(), metodosPageo, products, refetchProducts, refetchClients);
     } else {
       // Usar método de pago único (comportamiento original)
-      await completeSale(selectedPaymentMethod, 'Sistema', montoRecibido, undefined, products);
+      await completeSale(selectedPaymentMethod, 'Sistema', montoRecibido, undefined, products, refetchProducts, refetchClients);
     }
 
     // Limpiar estados de múltiples métodos de pago
@@ -288,6 +316,7 @@ export default function POS() {
     setIsPaymentOpen(false);
     setNotes('');
     setDiscount(0);
+    setRecargoExtra(0);
     setMontoRecibido(undefined);
     setSelectedPaymentMethod(PAYMENT_METHODS.EFECTIVO);
   };
@@ -365,7 +394,7 @@ export default function POS() {
                                 onClick={() => handleSelectClient(client)}
                               >
                                 <div className="text-left">
-                                  <div className="text-sm font-medium">{client.nombres}</div>
+                                  <div className="text-sm font-medium">{client.nombres} {client.esCumpleañosHoy ? <span className="text-green-500">🎂</span> : ''}</div>
                                   <div className="text-xs text-muted-foreground">
                                     {client.codigoCorto || client.dni} • {client.puntosAcumulados} pts
                                   </div>
@@ -451,19 +480,35 @@ export default function POS() {
               {/* Compact discount and notes row */}
               {activeTicket?.items.length > 0 && (
                 <div className="flex gap-2">
-                  <div className="flex-1">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={discount === 0 ? '' : discount}
-                      onChange={(e) => setDiscount(e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                      onBlur={handleUpdateDiscount}
-                      placeholder="Descuento S/"
-                      className="h-7 text-xs"
-                    />
+                  <div>
+
+                  <label htmlFor="" className='text-xs'> Descuento </label>
+                  <MoneyInput
+                    value={discount}
+                    onChange={(value) => {
+                      setDiscount(value);
+                      applyDiscount(value);
+                    }}
+                    placeholder="Descuento S/"
+                    showValidation={false}
+                    className="h-7 text-xs flex-1"
+                  />
+                  </div>
+                  <div>
+                  <label htmlFor="" className='text-xs'> Recargo Extra </label>                 
+                  <MoneyInput
+                    value={recargoExtra}
+                    onChange={(value) => {
+                      setRecargoExtra(value);
+                      handleUpdateRecargoExtra();
+                    }}
+                    placeholder="Recargo S/"
+                    showValidation={false}
+                    className="h-7 text-xs flex-1"
+                  />
                   </div>
                   <div className="flex-1">
+                    <label htmlFor="" className='text-xs'>Notas </label>
                     <Input
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}

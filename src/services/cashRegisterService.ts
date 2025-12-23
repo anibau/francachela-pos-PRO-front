@@ -2,6 +2,7 @@ import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
 import { httpClient, simulateDelay } from './httpClient';
 import { mockCashRegistersAligned } from './mockDataAligned';
 import { ensureArray } from '@/utils/apiValidators';
+import { extractErrorMessage } from '@/utils/errorHandler';
 import type { CashRegister, CashRegisterStatus } from '@/types';
 import type { 
   CashRegisterOpenRequest,
@@ -19,7 +20,7 @@ export const cashRegisterService = {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
         
-        const openRegister = mockCashRegistersAligned.find(cr => cr.status === 'ABIERTA');
+        const openRegister = mockCashRegistersAligned.find(cr => cr.estado === 'ABIERTA');
         return openRegister || null;
       }
       
@@ -45,19 +46,19 @@ export const cashRegisterService = {
           const toDate = new Date(filters.endDate);
           
           registers = registers.filter(register => {
-            const openDate = new Date(register.openedAt);
+            const openDate = new Date(register.fechaApertura);
             return openDate >= fromDate && openDate <= toDate;
           });
         }
         
         return registers.sort((a, b) => 
-          new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime()
+          new Date(b.fechaApertura).getTime() - new Date(a.fechaApertura).getTime()
         );
       }
       
       const queryParams = new URLSearchParams();
-      if (filters?.startDate) queryParams.append('from', filters.startDate);
-      if (filters?.endDate) queryParams.append('to', filters.endDate);
+      if (filters?.startDate) queryParams.append('fechaInicio', filters.startDate);
+      if (filters?.endDate) queryParams.append('fechaFin', filters.endDate);
       
       const url = `${API_ENDPOINTS.CASH_REGISTER.BY_RANGE}${queryParams.toString() ? `?${queryParams}` : ''}`;
       const result = await httpClient.get<CashRegister[]>(url);
@@ -88,7 +89,7 @@ export const cashRegisterService = {
       return await httpClient.get<CashRegister>(API_ENDPOINTS.CASH_REGISTER.BY_ID(id));
     } catch (error) {
       console.error('Error getting cash register by ID:', error);
-      throw new Error('Error al cargar la caja registradora');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -100,20 +101,20 @@ export const cashRegisterService = {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
         
-        const existingOpen = mockCashRegistersAligned.find(cr => cr.status === 'ABIERTA');
+        const existingOpen = mockCashRegistersAligned.find(cr => cr.estado === 'ABIERTA');
         if (existingOpen) {
           throw new Error('Ya hay una caja registradora abierta');
         }
         
         const newRegister: CashRegister = {
           id: Math.max(...mockCashRegistersAligned.map(cr => cr.id)) + 1,
-          cashier: openData.cajero || 'Sistema',
-          openedAt: new Date().toISOString(),
-          initialCash: openData.montoInicial,
-          totalSales: 0,
-          totalExpenses: 0,
-          status: 'ABIERTA',
-          paymentBreakdown: {
+          cajero: openData.cajero || 'Sistema',
+          fechaApertura: new Date().toISOString(),
+          montoInicial: openData.montoInicial,
+          totalVentas: 0,
+          totalGastos: 0,
+          estado: 'ABIERTA',
+          desglosePorMetodo: {
             efectivo: openData.montoInicial,
             yape: 0,
             plin: 0,
@@ -128,7 +129,7 @@ export const cashRegisterService = {
       return await httpClient.post<CashRegister>(API_ENDPOINTS.CASH_REGISTER.OPEN, openData);
     } catch (error) {
       console.error('Error opening cash register:', error);
-      throw new Error('Error al abrir la caja registradora');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -145,16 +146,16 @@ export const cashRegisterService = {
           throw new Error('Caja registradora no encontrada');
         }
         
-        if (mockCashRegistersAligned[index].status !== 'ABIERTA') {
+        if (mockCashRegistersAligned[index].estado !== 'ABIERTA') {
           throw new Error('La caja registradora no está abierta');
         }
         
         mockCashRegistersAligned[index] = {
           ...mockCashRegistersAligned[index],
-          closedAt: new Date().toISOString(),
-          finalCash: closeData.montoFinal,
-          status: 'CERRADA',
-          notes: closeData.observaciones,
+          fechaCierre: new Date().toISOString(),
+          montoFinal: closeData.montoFinal,
+          estado: 'CERRADA',
+          observaciones: closeData.observaciones,
         };
         
         return mockCashRegistersAligned[index];
@@ -166,7 +167,7 @@ export const cashRegisterService = {
       );
     } catch (error) {
       console.error('Error closing cash register:', error);
-      throw new Error('Error al cerrar la caja registradora');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -184,23 +185,23 @@ export const cashRegisterService = {
         }
         
         return {
-          ventasEfectivo: register.paymentBreakdown?.efectivo || 0,
-          ventasYape: register.paymentBreakdown?.yape || 0,
-          ventasPlin: register.paymentBreakdown?.plin || 0,
-          ventasTarjeta: register.paymentBreakdown?.tarjeta || 0,
-          totalVentas: register.totalSales,
-          totalGastos: register.totalExpenses,
-          diferencia: register.totalSales - register.totalExpenses,
+          ventasEfectivo: register.desglosePorMetodo?.efectivo || 0,
+          ventasYape: register.desglosePorMetodo?.yape || 0,
+          ventasPlin: register.desglosePorMetodo?.plin || 0,
+          ventasTarjeta: register.desglosePorMetodo?.tarjeta || 0,
+          totalVentas: register.totalVentas,
+          totalGastos: register.totalGastos,
+          diferencia: register.totalVentas - register.totalGastos,
           totalCajas: 1,
-          cajasAbiertas: register.status === 'ABIERTA' ? 1 : 0,
-          cajasCerradas: register.status === 'CERRADA' ? 1 : 0,
+          cajasAbiertas: register.estado === 'ABIERTA' ? 1 : 0,
+          cajasCerradas: register.estado === 'CERRADA' ? 1 : 0,
         };
       }
       
       return await httpClient.get<CashRegisterStatistics>(API_ENDPOINTS.CASH_REGISTER.SUMMARY);
     } catch (error) {
       console.error('Error getting cash register summary:', error);
-      throw new Error('Error al cargar el resumen de caja');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
@@ -219,25 +220,25 @@ export const cashRegisterService = {
           const toDate = new Date(filters.endDate);
           
           registers = registers.filter(register => {
-            const openDate = new Date(register.openedAt);
+            const openDate = new Date(register.fechaApertura);
             return openDate >= fromDate && openDate <= toDate;
           });
         }
         
-        const closedRegisters = registers.filter(r => r.status === 'CERRADA');
-        const totalVentas = closedRegisters.reduce((sum, r) => sum + r.totalSales, 0);
-        const totalGastos = closedRegisters.reduce((sum, r) => sum + r.totalExpenses, 0);
+        const closedRegisters = registers.filter(r => r.estado === 'CERRADA');
+        const totalVentas = closedRegisters.reduce((sum, r) => sum + r.totalVentas, 0);
+        const totalGastos = closedRegisters.reduce((sum, r) => sum + r.totalGastos, 0);
         
         return {
-          ventasEfectivo: closedRegisters.reduce((sum, r) => sum + (r.paymentBreakdown?.efectivo || 0), 0),
-          ventasYape: closedRegisters.reduce((sum, r) => sum + (r.paymentBreakdown?.yape || 0), 0),
-          ventasPlin: closedRegisters.reduce((sum, r) => sum + (r.paymentBreakdown?.plin || 0), 0),
-          ventasTarjeta: closedRegisters.reduce((sum, r) => sum + (r.paymentBreakdown?.tarjeta || 0), 0),
+          ventasEfectivo: closedRegisters.reduce((sum, r) => sum + (r.desglosePorMetodo?.efectivo || 0), 0),
+          ventasYape: closedRegisters.reduce((sum, r) => sum + (r.desglosePorMetodo?.yape || 0), 0),
+          ventasPlin: closedRegisters.reduce((sum, r) => sum + (r.desglosePorMetodo?.plin || 0), 0),
+          ventasTarjeta: closedRegisters.reduce((sum, r) => sum + (r.desglosePorMetodo?.tarjeta || 0), 0),
           totalVentas,
           totalGastos,
           diferencia: totalVentas - totalGastos,
           totalCajas: registers.length,
-          cajasAbiertas: registers.filter(r => r.status === 'ABIERTA').length,
+          cajasAbiertas: registers.filter(r => r.estado === 'ABIERTA').length,
           cajasCerradas: closedRegisters.length,
           promedioVentasPorCaja: closedRegisters.length > 0 ? totalVentas / closedRegisters.length : 0,
           cajeroMasActivo: 'Juan Cajero',
@@ -252,14 +253,14 @@ export const cashRegisterService = {
       return await httpClient.get<CashRegisterStatistics>(url);
     } catch (error) {
       console.error('Error getting cash register statistics:', error);
-      throw new Error('Error al cargar las estadísticas de caja');
+      throw new Error(extractErrorMessage(error));
     }
   },
 
   /**
    * Actualizar totales de caja
    */
-  updateTotals: async (id: number, totals: { totalSales?: number; totalExpenses?: number; paymentBreakdown?: CashRegister['paymentBreakdown'] }): Promise<CashRegister> => {
+  updateTotals: async (id: number, totals: { totalSales?: number; totalExpenses?: number; paymentBreakdown?: CashRegister['desglosePorMetodo'] }): Promise<CashRegister> => {
     try {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
@@ -283,7 +284,7 @@ export const cashRegisterService = {
       );
     } catch (error) {
       console.error('Error updating cash register totals:', error);
-      throw new Error('Error al actualizar los totales de caja');
+      throw new Error(extractErrorMessage(error));
     }
   },
 };
