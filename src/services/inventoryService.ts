@@ -457,29 +457,5 @@ export const inventoryService = {
   /**
    * Obtener estadísticas de inventario
    */
-  getStatistics: async (filters?: DateRangeFilterParams): Promise<Record<string, unknown>> => {
-    try {
-      if (API_CONFIG.USE_MOCKS) {
-        await simulateDelay();
-        
-        return {
-          totalMovimientos: 0,
-          entradas: { cantidad: 0, total: 0 },
-          salidas: { cantidad: 0, total: 0 },
-          ajustes: { cantidad: 0, total: 0 },
-          movimientosHoy: 0,
-        };
-      }
-      
-      const queryParams = new URLSearchParams();
-      if (filters?.startDate) queryParams.append('startDate', filters.startDate);
-      if (filters?.endDate) queryParams.append('endDate', filters.endDate);
-      
-      const url = `${API_ENDPOINTS.INVENTORY_MOVEMENTS.STATISTICS}${queryParams.toString() ? `?${queryParams}` : ''}`;
-      return await httpClient.get<Record<string, unknown>>(url);
-    } catch (error) {
-      console.error('Error getting inventory statistics:', error);
-      throw new Error(extractErrorMessage(error));
-    }
-  },
+ 
 };

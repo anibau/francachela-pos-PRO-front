@@ -33,6 +33,7 @@ export const API_ENDPOINTS = {
     CATEGORIES: '/productos/categorias',
     LOW_STOCK: '/productos/stock-bajo',
     BY_CATEGORY: (categoria: string) => `/productos/categoria/${categoria}`,
+    BY_PROVIDER: (proveedor: string) => `/productos/proveedor/${proveedor}`,
     MOVEMENTS: '/productos/movimientos',
     UPDATE_STOCK: (id: number) => `/productos/${id}/stock`,
     ACTIVATE: (id: number) => `/productos/${id}/activate`,

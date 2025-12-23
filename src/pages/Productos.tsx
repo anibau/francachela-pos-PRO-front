@@ -17,6 +17,7 @@ import { MovimientosInventario } from '@/components/productos/MovimientosInventa
 import { validateProductName, validateBarcode, validatePrice, validateQuantity } from '@/utils/validators';
 import type { Product, InventoryMovement } from "@/types";
 import { ProductCategory, ProductSupplier } from "@/types";
+import { ProductForm } from '../components/productos/ProductForm';
 
 interface ProductValidationErrors {
   productoDescripcion?: string;
@@ -1275,12 +1276,12 @@ export default function Productos() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="todos">Seleccionar</SelectItem>
                         <SelectItem value="ENTRADA">Entradas</SelectItem>
                         <SelectItem value="SALIDA">Salidas</SelectItem>
                         <SelectItem value="AJUSTE">Ajustes</SelectItem>
                         <SelectItem value="VENTA">Ventas</SelectItem>
-                        <SelectItem value="DEVOLUCIÓN">Devoluciones</SelectItem>
+                        <SelectItem value="DEVOLUCION">Devoluciones</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1383,67 +1384,7 @@ export default function Productos() {
               </CardContent>
             </Card>
           </div>
-
-          {isLoadingMovements ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="text-center">
-                <Package className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
-                <p>Cargando movimientos...</p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-4">
-              {movimientos.slice(0, 50).map((mov) => (
-                <Card key={mov.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="pt-6">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Fecha/Hora</p>
-                        <p className="font-semibold text-sm">
-                          {mov.hora ? new Date(mov.hora).toLocaleString('es-PE') : 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Producto</p>
-                        <p className="font-semibold text-sm">{mov.descripcion || 'Sin especificar'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Tipo</p>
-                        <Badge variant={mov.tipo === 'entrada' ? 'default' : mov.tipo === 'salida' ? 'destructive' : 'secondary'}>
-                          {(mov.tipo || 'desconocido').toUpperCase()}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Cantidad</p>
-                        <p className={`font-semibold ${mov.tipo === 'entrada' ? 'text-green-600' : mov.tipo === 'salida' ? 'text-red-600' : 'text-blue-600'}`}>
-                          {mov.tipo === 'entrada' ? '+' : mov.tipo === 'salida' ? '-' : '±'}{mov.cantidad || 0}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Cajero</p>
-                        <p className="font-semibold text-sm">{mov.cajero || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Código</p>
-                        <p className="text-sm text-muted-foreground">{mov.codigoBarra || 'Sin código'}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {movimientos.length === 0 && (
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="text-center py-8">
-                      <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-lg font-semibold mb-2">No hay movimientos registrados</p>
-                      <p className="text-muted-foreground">Los movimientos de inventario aparecerán aquí</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
+          
 
           {/* Componente de Movimientos - REQUERIMIENTOS 4, 5, 6 */}
           <MovimientosInventario
