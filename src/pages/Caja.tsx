@@ -25,58 +25,64 @@ export default function Caja() {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    
-    const formatDateOnly = (date: Date) => date.toISOString().split('T')[0];
-    
+
+    const formatDateOnly = (date: Date) => date.toISOString().split("T")[0];
+
     return {
       fechaInicio: formatDateOnly(firstDay),
-      fechaFin: formatDateOnly(lastDay)
+      fechaFin: formatDateOnly(lastDay),
     };
   };
 
   const [dateRange, setDateRange] = useState(() => getMonthDates());
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const [openData, setOpenData] = useState({
     montoInicial: 0,
-    observaciones: ''
+    observaciones: "",
   });
 
   const [closeData, setCloseData] = useState({
     montoFinal: 0,
-    observaciones: ''
+    observaciones: "",
   });
 
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      
+
       // Los servicios ya retornan datos validados
-      const currentData = await cashRegisterService.getCurrent().catch(() => null);
-      
+      const currentData = await cashRegisterService
+        .getCurrent()
+        .catch(() => null);
+
       // Cargar historial con filtros de fecha
-      const historyData = await cashRegisterService.getHistory({
-        startDate: dateRange.fechaInicio,
-        endDate: dateRange.fechaFin
-      }).catch(() => []);
-      
+      const historyData = await cashRegisterService
+        .getHistory({
+          startDate: dateRange.fechaInicio,
+          endDate: dateRange.fechaFin,
+        })
+        .catch(() => []);
+
       setCurrent(currentData);
       setHistory(historyData);
-      
+
       // Load summary only if there's a current cash register
       if (currentData?.id) {
         try {
-          const summaryData = await cashRegisterService.getSummary(currentData.id).catch(() => null);
+          const summaryData = await cashRegisterService
+            .getSummary(currentData.id)
+            .catch(() => null);
           setSummary(summaryData);
         } catch (summaryError) {
-          console.error('Error loading summary:', summaryError);
+          console.error("Error loading summary:", summaryError);
           // No mostrar toast aquí, continuamos sin el resumen
         }
       }
     } catch (error) {
-      console.error('Unexpected error loading cash register data:', error);
-      toast.error('Error inesperado al cargar datos de caja');
+      console.error("Unexpected error loading cash register data:", error);
+      toast.error("Error inesperado al cargar datos de caja");
       // Establecer valores por defecto
       setCurrent(null);
       setHistory([]);
@@ -92,47 +98,47 @@ export default function Caja() {
 
   const handleOpenCash = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!openData.montoInicial || openData.montoInicial <= 0) {
-      toast.error('El monto inicial debe ser mayor a 0');
+      toast.error("El monto inicial debe ser mayor a 0");
       return;
     }
 
     try {
       await cashRegisterService.open(openData);
-      toast.success('Caja abierta correctamente');
+      toast.success("Caja abierta correctamente");
       setIsOpenDialogOpen(false);
-      setOpenData({ montoInicial: 0, observaciones: '' });
+      setOpenData({ montoInicial: 0, observaciones: "" });
       loadData();
     } catch (error) {
-      console.error('Error opening cash register:', error);
-      toast.error('Error al abrir caja');
+      console.error("Error opening cash register:", error);
+      toast.error("Error al abrir caja");
     }
   };
 
   const handleCloseCash = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!current || !closeData.montoFinal || closeData.montoFinal < 0) {
-      toast.error('El monto final debe ser mayor o igual a 0');
+      toast.error("El monto final debe ser mayor o igual a 0");
       return;
     }
 
     try {
       await cashRegisterService.close(current.id, closeData);
-      toast.success('Caja cerrada correctamente');
+      toast.success("Caja cerrada correctamente");
       setIsCloseDialogOpen(false);
-      setCloseData({ montoFinal: 0, observaciones: '' });
+      setCloseData({ montoFinal: 0, observaciones: "" });
       loadData();
     } catch (error) {
-      console.error('Error closing cash register:', error);
-      toast.error('Error al cerrar caja');
+      console.error("Error closing cash register:", error);
+      toast.error("Error al cerrar caja");
     }
   };
 
   const loadStatistics = async () => {
     if (!dateFrom || !dateTo) {
-      toast.error('Por favor selecciona un rango de fechas');
+      toast.error("Por favor selecciona un rango de fechas");
       return;
     }
 
@@ -140,35 +146,37 @@ export default function Caja() {
       // Convertir fechas a formato YYYY-MM-DD
       const fechaInicio = dateFrom;
       const fechaFin = dateTo;
-      
+
       // Llamar al nuevo endpoint de corte de ventas
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem("auth_token");
       if (!token) {
-        toast.error('No hay sesión activa');
+        toast.error("No hay sesión activa");
         return;
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/ventas/corte?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        `${
+          import.meta.env.VITE_API_BASE_URL
+        }/ventas/corte?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
         }
       );
 
       if (!response.ok) {
-        throw new Error('Error al obtener corte de ventas');
+        throw new Error("Error al obtener corte de ventas");
       }
 
       const stats: VentasCorte = await response.json();
       setStatistics(stats);
-      toast.success('Corte de ventas generado correctamente');
+      toast.success("Corte de ventas generado correctamente");
     } catch (error) {
-      console.error('Error loading statistics:', error);
-      toast.error('Error al generar corte de ventas');
+      console.error("Error loading statistics:", error);
+      toast.error("Error al generar corte de ventas");
     }
   };
 
@@ -177,7 +185,9 @@ export default function Caja() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold mb-2">Control de Caja</h1>
-          <p className="text-muted-foreground">Gestión de turnos, cierre de caja y corte de ventas</p>
+          <p className="text-muted-foreground">
+            Gestión de turnos, cierre de caja y corte de ventas
+          </p>
         </div>
         <div className="flex gap-2">
           {!current ? (
@@ -202,8 +212,13 @@ export default function Caja() {
                       id="montoInicial"
                       type="number"
                       step="0.01"
-                      value={openData.montoInicial || ''}
-                      onChange={(e) => setOpenData({ ...openData, montoInicial: parseFloat(e.target.value) || 0 })}
+                      value={openData.montoInicial || ""}
+                      onChange={(e) =>
+                        setOpenData({
+                          ...openData,
+                          montoInicial: parseFloat(e.target.value) || 0,
+                        })
+                      }
                       placeholder="100.00"
                       required
                     />
@@ -213,7 +228,12 @@ export default function Caja() {
                     <Textarea
                       id="observaciones"
                       value={openData.observaciones}
-                      onChange={(e) => setOpenData({ ...openData, observaciones: e.target.value })}
+                      onChange={(e) =>
+                        setOpenData({
+                          ...openData,
+                          observaciones: e.target.value,
+                        })
+                      }
                       placeholder="Apertura normal del día..."
                     />
                   </div>
@@ -226,7 +246,10 @@ export default function Caja() {
               </DialogContent>
             </Dialog>
           ) : (
-            <Dialog open={isCloseDialogOpen} onOpenChange={setIsCloseDialogOpen}>
+            <Dialog
+              open={isCloseDialogOpen}
+              onOpenChange={setIsCloseDialogOpen}
+            >
               <DialogTrigger asChild>
                 <Button variant="destructive" className="gap-2">
                   <Lock className="h-4 w-4" />
@@ -247,8 +270,13 @@ export default function Caja() {
                       id="montoFinal"
                       type="number"
                       step="0.01"
-                      value={closeData.montoFinal || ''}
-                      onChange={(e) => setCloseData({ ...closeData, montoFinal: parseFloat(e.target.value) || 0 })}
+                      value={closeData.montoFinal || ""}
+                      onChange={(e) =>
+                        setCloseData({
+                          ...closeData,
+                          montoFinal: parseFloat(e.target.value) || 0,
+                        })
+                      }
                       placeholder="450.00"
                       required
                     />
@@ -258,12 +286,21 @@ export default function Caja() {
                     <Textarea
                       id="observacionesCierre"
                       value={closeData.observaciones}
-                      onChange={(e) => setCloseData({ ...closeData, observaciones: e.target.value })}
+                      onChange={(e) =>
+                        setCloseData({
+                          ...closeData,
+                          observaciones: e.target.value,
+                        })
+                      }
                       placeholder="Cierre normal, sin novedades..."
                     />
                   </div>
                   <DialogFooter>
-                    <Button type="submit" variant="destructive" className="w-full">
+                    <Button
+                      type="submit"
+                      variant="destructive"
+                      className="w-full"
+                    >
                       Cerrar Caja
                     </Button>
                   </DialogFooter>
@@ -299,7 +336,9 @@ export default function Caja() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-muted-foreground">Estado</p>
-                        <p className="text-2xl font-bold text-green-600">ABIERTA</p>
+                        <p className="text-2xl font-bold text-green-600">
+                          ABIERTA
+                        </p>
                       </div>
                       <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                         <Unlock className="h-4 w-4 text-green-600" />
@@ -311,8 +350,12 @@ export default function Caja() {
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">Monto Inicial</p>
-                        <p className="text-2xl font-bold text-primary">S/ {current.initialCash?.toFixed(2)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Monto Inicial
+                        </p>
+                        <p className="text-2xl font-bold text-primary">
+                          S/ {current.montoInicial?.toFixed(2)}
+                        </p>
                       </div>
                       <div className="h-8 w-8 bg-primary/10 rounded-full flex items-center justify-center">
                         <DollarSign className="h-4 w-4 text-primary" />
@@ -324,11 +367,15 @@ export default function Caja() {
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">Hora Apertura</p>
+                        <p className="text-sm text-muted-foreground">
+                          Hora Apertura
+                        </p>
                         <p className="text-2xl font-bold text-blue-600">
-                          {new Date(current.openedAt || '').toLocaleTimeString('es-PE', { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
+                          {new Date(
+                            current.fechaApertura || ""
+                          ).toLocaleTimeString("es-PE", {
+                            hour: "2-digit",
+                            minute: "2-digit",
                           })}
                         </p>
                       </div>
@@ -343,7 +390,9 @@ export default function Caja() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-muted-foreground">Cajero</p>
-                        <p className="text-2xl font-bold text-purple-600">{current.cashier || 'N/A'}</p>
+                        <p className="text-2xl font-bold text-purple-600">
+                          {current.cajero || "N/A"}
+                        </p>
                       </div>
                       <div className="h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center">
                         <FileText className="h-4 w-4 text-purple-600" />
@@ -362,22 +411,41 @@ export default function Caja() {
                   <CardContent>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="text-center p-4 border rounded-lg">
-                        <p className="text-sm text-muted-foreground">Ventas del Día</p>
-                        <p className="text-2xl font-bold text-green-600">S/ {summary.totalVentas?.toFixed(2) || '0.00'}</p>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg">
-                        <p className="text-sm text-muted-foreground">Gastos del Día</p>
-                        <p className="text-2xl font-bold text-red-600">S/ {summary.totalGastos?.toFixed(2) || '0.00'}</p>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg">
-                        <p className="text-sm text-muted-foreground">Efectivo Esperado</p>
-                        <p className="text-2xl font-bold text-blue-600">
-                          S/ {((current.openedAt || 0) + (summary.totalVentas || 0) - (summary.totalGastos || 0)).toFixed(2)}
+                        <p className="text-sm text-muted-foreground">
+                          Ventas del Día
+                        </p>
+                        <p className="text-2xl font-bold text-green-600">
+                          S/ {summary.totalVentas?.toFixed(2) || "0.00"}
                         </p>
                       </div>
                       <div className="text-center p-4 border rounded-lg">
-                        <p className="text-sm text-muted-foreground">Transacciones</p>
-                        <p className="text-2xl font-bold text-purple-600">{summary.totalTransacciones || 0}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Gastos del Día
+                        </p>
+                        <p className="text-2xl font-bold text-red-600">
+                          S/ {summary.totalGastos?.toFixed(2) || "0.00"}
+                        </p>
+                      </div>
+                      <div className="text-center p-4 border rounded-lg">
+                        <p className="text-sm text-muted-foreground">
+                          Efectivo Esperado
+                        </p>
+                        <p className="text-2xl font-bold text-blue-600">
+                          S/{" "}
+                          {(
+                            (current.fechaApertura || 0) +
+                            (summary.totalVentas || 0) -
+                            (summary.totalGastos || 0)
+                          ).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="text-center p-4 border rounded-lg">
+                        <p className="text-sm text-muted-foreground">
+                          Transacciones
+                        </p>
+                        <p className="text-2xl font-bold text-purple-600">
+                          {summary.totalTransacciones || 0}
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -385,13 +453,15 @@ export default function Caja() {
               )}
 
               {/* Observaciones */}
-              {current.notes && (
+              {current.observaciones && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Observaciones de Apertura</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground">{current.notes}</p>
+                    <p className="text-muted-foreground">
+                      {current.observaciones}
+                    </p>
                   </CardContent>
                 </Card>
               )}
@@ -401,9 +471,16 @@ export default function Caja() {
               <CardContent className="pt-6">
                 <div className="text-center py-8">
                   <Lock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-lg font-semibold mb-2">No hay caja abierta</p>
-                  <p className="text-muted-foreground mb-4">Abre una caja para comenzar las operaciones del día</p>
-                  <Button onClick={() => setIsOpenDialogOpen(true)} className="gap-2">
+                  <p className="text-lg font-semibold mb-2">
+                    No hay caja abierta
+                  </p>
+                  <p className="text-muted-foreground mb-4">
+                    Abre una caja para comenzar las operaciones del día
+                  </p>
+                  <Button
+                    onClick={() => setIsOpenDialogOpen(true)}
+                    className="gap-2"
+                  >
                     <Unlock className="h-4 w-4" />
                     Abrir Caja
                   </Button>
@@ -420,59 +497,99 @@ export default function Caja() {
                 <History className="h-5 w-5" />
                 Historial de Cajas
               </CardTitle>
-              
+
               {/* Controles de filtros de fecha */}
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
                 <div className="flex gap-4">
                   <div className="space-y-1">
-                    <Label htmlFor="fechaInicio" className="text-xs">Fecha Inicio</Label>
+                    <Label htmlFor="fechaInicio" className="text-xs">
+                      Fecha Inicio
+                    </Label>
                     <Input
                       id="fechaInicio"
                       type="date"
                       value={dateRange.fechaInicio}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, fechaInicio: e.target.value }))}
+                      onChange={(e) =>
+                        setDateRange((prev) => ({
+                          ...prev,
+                          fechaInicio: e.target.value,
+                        }))
+                      }
                       className="w-40"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="fechaFin" className="text-xs">Fecha Fin</Label>
+                    <Label htmlFor="fechaFin" className="text-xs">
+                      Fecha Fin
+                    </Label>
                     <Input
                       id="fechaFin"
                       type="date"
                       value={dateRange.fechaFin}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, fechaFin: e.target.value }))}
+                      onChange={(e) =>
+                        setDateRange((prev) => ({
+                          ...prev,
+                          fechaFin: e.target.value,
+                        }))
+                      }
                       className="w-40"
                     />
                   </div>
-                  <Button onClick={loadData} size="sm">
+                  <div>
+
+                  <div></div>
+
+                  <Button onClick={loadData} size="sm" >
                     <Calendar className="h-4 w-4 mr-1" />
                     Aplicar
                   </Button>
+                  </div>
                 </div>
-                
+
                 {/* Botones de rango rápido */}
                 <div className="flex gap-1">
-                  <Button variant="outline" size="sm" onClick={() => {
-                    const today = new Date();
-                    const startDate = new Date(today);
-                    startDate.setDate(today.getDate() - 6);
-                    const formatDateOnly = (date: Date) => date.toISOString().split('T')[0];
-                    setDateRange({
-                      fechaInicio: formatDateOnly(startDate),
-                      fechaFin: formatDateOnly(today)
-                    });
-                  }}>7d</Button>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    const today = new Date();
-                    const startDate = new Date(today);
-                    startDate.setDate(today.getDate() - 29);
-                    const formatDateOnly = (date: Date) => date.toISOString().split('T')[0];
-                    setDateRange({
-                      fechaInicio: formatDateOnly(startDate),
-                      fechaFin: formatDateOnly(today)
-                    });
-                  }}>30d</Button>
-                  <Button variant="outline" size="sm" onClick={() => setDateRange(getMonthDates())} title="Mes Actual">Mes</Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const today = new Date();
+                      const startDate = new Date(today);
+                      startDate.setDate(today.getDate() - 6);
+                      const formatDateOnly = (date: Date) =>
+                        date.toISOString().split("T")[0];
+                      setDateRange({
+                        fechaInicio: formatDateOnly(startDate),
+                        fechaFin: formatDateOnly(today),
+                      });
+                    }}
+                  >
+                    7d
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const today = new Date();
+                      const startDate = new Date(today);
+                      startDate.setDate(today.getDate() - 29);
+                      const formatDateOnly = (date: Date) =>
+                        date.toISOString().split("T")[0];
+                      setDateRange({
+                        fechaInicio: formatDateOnly(startDate),
+                        fechaFin: formatDateOnly(today),
+                      });
+                    }}
+                  >
+                    30d
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDateRange(getMonthDates())}
+                    title="Mes Actual"
+                  >
+                    Mes
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -480,23 +597,43 @@ export default function Caja() {
               <div className="space-y-4">
                 {Array.isArray(history) && history.length > 0 ? (
                   history.map((cashRegister) => (
-                    <div key={cashRegister.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div
+                      key={cashRegister.id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
                       <div className="flex items-center gap-4">
-                        <div className={`h-3 w-3 rounded-full ${cashRegister.status === 'ABIERTA' ? 'bg-green-500' : 'bg-gray-500'}`} />
+                        <div
+                          className={`h-3 w-3 rounded-full ${
+                            cashRegister.estado === "ABIERTA"
+                              ? "bg-green-500"
+                              : "bg-gray-500"
+                          }`}
+                        />
                         <div>
                           <p className="font-semibold">
-                            {new Date(cashRegister.openedAt || '').toLocaleDateString('es-PE')}
+                            {cashRegister.fechaApertura
+                              ? new Date(
+                                  cashRegister.fechaApertura
+                                ).toLocaleDateString("es-PE", {
+                                  year: "numeric",
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                  timeZone: "America/Lima",
+                                })
+                              : "--"}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {cashRegister.cashier} • {cashRegister.status}
+                            {cashRegister.cajero} • {cashRegister.estado}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold">S/ {cashRegister.initialCash?.toFixed(2)}</p>
-                        {cashRegister.finalCash && (
+                        <p className="font-semibold">
+                          S/ {cashRegister.montoInicial?.toFixed(2)}
+                        </p>
+                        {cashRegister.montoFinal && (
                           <p className="text-sm text-muted-foreground">
-                            Final: S/ {cashRegister.finalCash.toFixed(2)}
+                            Final: S/ {cashRegister.montoFinal.toFixed(2)}
                           </p>
                         )}
                       </div>
@@ -505,8 +642,13 @@ export default function Caja() {
                 ) : (
                   <div className="text-center py-8">
                     <History className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-lg font-semibold mb-2">No hay historial de cajas</p>
-                    <p className="text-muted-foreground">El historial aparecerá aquí cuando tengas cajas registradas</p>
+                    <p className="text-lg font-semibold mb-2">
+                      No hay historial de cajas
+                    </p>
+                    <p className="text-muted-foreground">
+                      El historial aparecerá aquí cuando tengas cajas
+                      registradas
+                    </p>
                   </div>
                 )}
               </div>
@@ -565,7 +707,9 @@ export default function Caja() {
                       <Card>
                         <CardContent className="pt-6">
                           <div className="text-center">
-                            <p className="text-sm text-muted-foreground">Total Ventas</p>
+                            <p className="text-sm text-muted-foreground">
+                              Total Ventas
+                            </p>
                             <p className="text-2xl font-bold text-green-600">
                               S/ {statistics.totalVentas.toFixed(2)}
                             </p>
@@ -575,7 +719,9 @@ export default function Caja() {
                       <Card>
                         <CardContent className="pt-6">
                           <div className="text-center">
-                            <p className="text-sm text-muted-foreground">Transacciones</p>
+                            <p className="text-sm text-muted-foreground">
+                              Transacciones
+                            </p>
                             <p className="text-2xl font-bold text-blue-600">
                               {statistics.numeroTransacciones}
                             </p>
@@ -585,7 +731,9 @@ export default function Caja() {
                       <Card>
                         <CardContent className="pt-6">
                           <div className="text-center">
-                            <p className="text-sm text-muted-foreground">Ticket Promedio</p>
+                            <p className="text-sm text-muted-foreground">
+                              Ticket Promedio
+                            </p>
                             <p className="text-2xl font-bold text-purple-600">
                               S/ {statistics.ticketPromedio.toFixed(2)}
                             </p>
@@ -595,7 +743,9 @@ export default function Caja() {
                       <Card>
                         <CardContent className="pt-6">
                           <div className="text-center">
-                            <p className="text-sm text-muted-foreground">Total Descuentos</p>
+                            <p className="text-sm text-muted-foreground">
+                              Total Descuentos
+                            </p>
                             <p className="text-2xl font-bold text-orange-600">
                               S/ {statistics.totalDescuentos.toFixed(2)}
                             </p>
@@ -605,7 +755,9 @@ export default function Caja() {
                       <Card>
                         <CardContent className="pt-6">
                           <div className="text-center">
-                            <p className="text-sm text-muted-foreground">Puntos Otorgados</p>
+                            <p className="text-sm text-muted-foreground">
+                              Puntos Otorgados
+                            </p>
                             <p className="text-2xl font-bold text-indigo-600">
                               {statistics.puntosOtorgados}
                             </p>
@@ -615,7 +767,9 @@ export default function Caja() {
                       <Card>
                         <CardContent className="pt-6">
                           <div className="text-center">
-                            <p className="text-sm text-muted-foreground">Puntos Canjeados</p>
+                            <p className="text-sm text-muted-foreground">
+                              Puntos Canjeados
+                            </p>
                             <p className="text-2xl font-bold text-red-600">
                               {statistics.puntosCanjeados}
                             </p>
@@ -632,15 +786,24 @@ export default function Caja() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3">
-                          {Object.entries(statistics.desgloseMetodosPago).map(([metodo, data]) => (
-                            <div key={metodo} className="flex justify-between items-center p-3 border rounded-lg">
-                              <div>
-                                <span className="font-medium">{metodo}</span>
-                                <p className="text-sm text-muted-foreground">{data.cantidad} transacciones</p>
+                          {Object.entries(statistics.desgloseMetodosPago).map(
+                            ([metodo, data]) => (
+                              <div
+                                key={metodo}
+                                className="flex justify-between items-center p-3 border rounded-lg"
+                              >
+                                <div>
+                                  <span className="font-medium">{metodo}</span>
+                                  <p className="text-sm text-muted-foreground">
+                                    {data.cantidad} transacciones
+                                  </p>
+                                </div>
+                                <span className="font-bold text-green-600">
+                                  S/ {data.monto.toFixed(2)}
+                                </span>
                               </div>
-                              <span className="font-bold text-green-600">S/ {data.monto.toFixed(2)}</span>
-                            </div>
-                          ))}
+                            )
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -653,15 +816,24 @@ export default function Caja() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3">
-                          {Object.entries(statistics.desgloseTipoCompra).map(([tipo, data]) => (
-                            <div key={tipo} className="flex justify-between items-center p-3 border rounded-lg">
-                              <div>
-                                <span className="font-medium">{tipo}</span>
-                                <p className="text-sm text-muted-foreground">{data.cantidad} transacciones</p>
+                          {Object.entries(statistics.desgloseTipoCompra).map(
+                            ([tipo, data]) => (
+                              <div
+                                key={tipo}
+                                className="flex justify-between items-center p-3 border rounded-lg"
+                              >
+                                <div>
+                                  <span className="font-medium">{tipo}</span>
+                                  <p className="text-sm text-muted-foreground">
+                                    {data.cantidad} transacciones
+                                  </p>
+                                </div>
+                                <span className="font-bold text-green-600">
+                                  S/ {data.monto.toFixed(2)}
+                                </span>
                               </div>
-                              <span className="font-bold text-green-600">S/ {data.monto.toFixed(2)}</span>
-                            </div>
-                          ))}
+                            )
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -674,15 +846,26 @@ export default function Caja() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3">
-                          {statistics.topProductos.slice(0, 5).map((producto, index) => (
-                            <div key={producto.productoId} className="flex justify-between items-center p-3 border rounded-lg">
-                              <div>
-                                <p className="font-medium">{producto.descripcion}</p>
-                                <p className="text-sm text-muted-foreground">Cantidad: {producto.cantidad}</p>
+                          {statistics.topProductos
+                            .slice(0, 5)
+                            .map((producto, index) => (
+                              <div
+                                key={producto.productoId}
+                                className="flex justify-between items-center p-3 border rounded-lg"
+                              >
+                                <div>
+                                  <p className="font-medium">
+                                    {producto.descripcion}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Cantidad: {producto.cantidad}
+                                  </p>
+                                </div>
+                                <span className="font-bold text-primary">
+                                  S/ {producto.monto.toFixed(2)}
+                                </span>
                               </div>
-                              <span className="font-bold text-primary">S/ {producto.monto.toFixed(2)}</span>
-                            </div>
-                          ))}
+                            ))}
                         </div>
                       </CardContent>
                     </Card>
@@ -696,12 +879,21 @@ export default function Caja() {
                       <CardContent>
                         <div className="space-y-3">
                           {statistics.ventasPorDia.map((dia, index) => (
-                            <div key={index} className="flex justify-between items-center p-3 border rounded-lg">
+                            <div
+                              key={index}
+                              className="flex justify-between items-center p-3 border rounded-lg"
+                            >
                               <div>
-                                <span className="font-medium">{new Date(dia.fecha).toLocaleDateString()}</span>
-                                <p className="text-sm text-muted-foreground">{dia.cantidad} transacciones</p>
+                                <span className="font-medium">
+                                  {new Date(dia.fecha).toLocaleDateString()}
+                                </span>
+                                <p className="text-sm text-muted-foreground">
+                                  {dia.cantidad} transacciones
+                                </p>
                               </div>
-                              <span className="font-bold text-green-600">S/ {dia.monto.toFixed(2)}</span>
+                              <span className="font-bold text-green-600">
+                                S/ {dia.monto.toFixed(2)}
+                              </span>
                             </div>
                           ))}
                         </div>
@@ -719,7 +911,9 @@ export default function Caja() {
                           <Card>
                             <CardContent className="pt-6">
                               <div className="text-center">
-                                <p className="text-sm text-muted-foreground">Ventas Anuladas</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Ventas Anuladas
+                                </p>
                                 <p className="text-2xl font-bold text-red-600">
                                   {statistics.ventasAnuladas}
                                 </p>
@@ -729,7 +923,9 @@ export default function Caja() {
                           <Card>
                             <CardContent className="pt-6">
                               <div className="text-center">
-                                <p className="text-sm text-muted-foreground">Monto Anulado</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Monto Anulado
+                                </p>
                                 <p className="text-2xl font-bold text-red-600">
                                   S/ {statistics.montoVentasAnuladas.toFixed(2)}
                                 </p>
@@ -761,18 +957,24 @@ export default function Caja() {
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span>Total de Cajas Registradas:</span>
-                      <span className="font-semibold">{Array.isArray(history) ? history.length : 0}</span>
+                      <span className="font-semibold">
+                        {Array.isArray(history) ? history.length : 0}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Cajas Abiertas:</span>
                       <span className="font-semibold text-green-600">
-                        {Array.isArray(history) ? history.filter(c => c.status === 'ABIERTA').length : 0}
+                        {Array.isArray(history)
+                          ? history.filter((c) => c.estado === "ABIERTA").length
+                          : 0}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Cajas Cerradas:</span>
                       <span className="font-semibold text-gray-600">
-                        {Array.isArray(history) ? history.filter(c => c.status === 'CERRADA').length : 0}
+                        {Array.isArray(history)
+                          ? history.filter((c) => c.estado === "CERRADA").length
+                          : 0}
                       </span>
                     </div>
                   </div>
@@ -783,19 +985,30 @@ export default function Caja() {
                     <div className="flex justify-between">
                       <span>Monto Inicial Promedio:</span>
                       <span className="font-semibold">
-                        S/ {Array.isArray(history) && history.length > 0 
-                          ? (history.reduce((sum, c) => sum + (c.initialCash || 0), 0) / history.length).toFixed(2)
-                          : '0.00'
-                        }
+                        S/{" "}
+                        {Array.isArray(history) && history.length > 0
+                          ? (
+                              history.reduce(
+                                (sum, c) => sum + (c.montoInicial || 0),
+                                0
+                              ) / history.length
+                            ).toFixed(2)
+                          : "0.00"}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Monto Final Promedio:</span>
                       <span className="font-semibold">
-                        S/ {Array.isArray(history) && history.filter(c => c.finalCash).length > 0
-                          ? (history.reduce((sum, c) => sum + (c.finalCash || 0), 0) / history.filter(c => c.finalCash).length).toFixed(2)
-                          : '0.00'
-                        }
+                        S/{" "}
+                        {Array.isArray(history) &&
+                        history.filter((c) => c.montoFinal).length > 0
+                          ? (
+                              history.reduce(
+                                (sum, c) => sum + (c.montoFinal || 0),
+                                0
+                              ) / history.filter((c) => c.montoFinal).length
+                            ).toFixed(2)
+                          : "0.00"}
                       </span>
                     </div>
                   </div>

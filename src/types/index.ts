@@ -61,6 +61,7 @@ export interface Product {
 
 // Client type - nombres en español para coincidir con backend
 export interface Client {
+  esCumpleañosHoy: boolean;
   id: number;
   nombres: string;
   apellidos: string;
@@ -163,21 +164,24 @@ export type CashRegisterStatus = 'ABIERTA' | 'CERRADA';
 
 export interface CashRegister {
   id: number;
-  cashier: string;
-  openedAt: string;
-  closedAt?: string;
-  initialCash: number;
-  finalCash?: number;
-  totalSales: number;
-  totalExpenses: number;
-  status: CashRegisterStatus;
-  notes?: string;
-  paymentBreakdown: {
+  cajero: string;
+  fechaApertura: string;
+  fechaCierre?: string;
+  montoInicial: number;
+  montoFinal?: number;
+  totalVentas: number;
+  totalGastos: number;
+  diferencia?: number;
+  estado: CashRegisterStatus;
+  observaciones?: string;
+  desglosePorMetodo: {
     efectivo: number;
     yape: number;
     plin: number;
     tarjeta: number;
   };
+  fechaCreacion?: string;
+  fechaActualizacion?: string;
 }
 
 export interface Expense {

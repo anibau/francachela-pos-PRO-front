@@ -62,12 +62,6 @@ const menuCards = [
   },
 ];
 
-const statsCards = [
-  { label: "Ventas de hoy", value: "S/. 2,450", color: "text-success" },
-  { label: "Tickets procesados", value: "47", color: "text-primary" },
-  { label: "Productos por agotar", value: "12", color: "text-warning" },
-  { label: "Clientes registrados", value: "156", color: "text-muted-foreground" },
-];
 
 export default function Home() {
   return (
@@ -112,20 +106,6 @@ export default function Home() {
             </Link>
           );
         })}
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statsCards.map((stat) => (
-          <Card key={stat.label} className="hover:shadow-md transition-shadow">
-            <CardContent className="pt-6 text-center">
-              <p className={`text-3xl font-bold mb-2 ${stat.color}`}>
-                {stat.value}
-              </p>
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
-            </CardContent>
-          </Card>
-        ))}
       </div>
     </div>
   );

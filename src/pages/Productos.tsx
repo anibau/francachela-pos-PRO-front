@@ -1250,16 +1250,6 @@ export default function Productos() {
               >
                 Actualizar
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  // Exportar movimientos (placeholder)
-                  toast.info('Función de exportación próximamente');
-                }}
-              >
-                Exportar
-              </Button>
             </div>
           </div>
 

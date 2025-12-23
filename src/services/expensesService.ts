@@ -150,12 +150,12 @@ export const expensesService = {
         });
       }
       
-      const queryParams = new URLSearchParams({
-        from: filters.startDate,
-        to: filters.endDate,
-      });
+      const queryParams = new URLSearchParams();
+      if (filters?.startDate) queryParams.append('fechaInicio', filters.startDate);
+      if (filters?.endDate) queryParams.append('fechaFin', filters.endDate);
       
-      const result = await httpClient.get<Expense[]>(`${API_ENDPOINTS.EXPENSES.BY_RANGE}?${queryParams}`);
+      const url = `${API_ENDPOINTS.EXPENSES.BY_RANGE}${queryParams.toString() ? `?${queryParams}` : ''}`;
+      const result = await httpClient.get<Expense[]>(url);
       // Asegurar que siempre retorna un array
       return ensureArray(result, []);
     } catch (error) {

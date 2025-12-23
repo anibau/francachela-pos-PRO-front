@@ -292,17 +292,7 @@ export default function Clientes() {
     }
   };
 
-  // Función para verificar si es cumpleaños
-  const isBirthday = (fechaNacimiento: string | null): boolean => {
-    if (!fechaNacimiento) return false;
-    
-    const today = new Date();
-    const birthday = new Date(fechaNacimiento);
-    
-    return today.getMonth() === birthday.getMonth() && 
-           today.getDate() === birthday.getDate();
-  };
-
+ 
   // Función para enviar mensaje de cumpleaños
   const handleSendBirthdayMessage = async (clienteId: number) => {
     try {
@@ -662,9 +652,9 @@ export default function Clientes() {
                   size="icon" 
                   variant="ghost" 
                   onClick={() => handleSendBirthdayMessage(cliente.id)} 
-                  disabled={!isBirthday(cliente.fechaNacimiento)}
-                  title={isBirthday(cliente.fechaNacimiento) ? "¡Enviar felicitación de cumpleaños!" : "No es cumpleaños hoy"}
-                  className={isBirthday(cliente.fechaNacimiento) ? "text-yellow-600 hover:text-yellow-700" : ""}
+                  disabled={!cliente.esCumpleañosHoy}
+                  title={cliente.esCumpleañosHoy ? "¡Enviar felicitación de cumpleaños!" : "No es cumpleaños hoy"}
+                  className={cliente.esCumpleañosHoy ? "text-yellow-600 hover:text-yellow-700" : ""}
                 >
                   <Gift className="h-4 w-4" />
                 </Button>
