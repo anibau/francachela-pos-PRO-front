@@ -21,6 +21,8 @@ import InventarioStats from "@/components/Dashboard/InventarioStats";
 import ClienteStats from "@/components/Dashboard/ClienteStats";
 import GastosStats from "@/components/Dashboard/GastosStats";
 import VentasStats from '@/components/Dashboard/VentasStats';
+import { GastosStats as GastosStatsNew } from "@/components/Dashboard/GastosStats";
+import { ClientesStats } from "@/components/Dashboard/ClientesStats";
 
 
 export default function Dashboard() {
@@ -40,8 +42,11 @@ export default function Dashboard() {
       {/* Estadísticas de Cliente */}
       <ClienteStats />
 
-      {/* Estadísticas de Gastos */}
-      <GastosStats />
+      {/* Estadísticas de Gastos - REQUERIMIENTO 7c */}
+      <GastosStatsNew />
+
+      {/* Estadísticas de Clientes Top y Cumpleañeros - REQUERIMIENTOS 7d y 7e */}
+      <ClientesStats />
     </div>
   );
 }

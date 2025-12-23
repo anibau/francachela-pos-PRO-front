@@ -1,55 +1,29 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { 
-  DollarSign, 
-  TrendingUp, 
-  ShoppingCart, 
-  Users,
-  Calendar,
-  RefreshCw,
-  Receipt,
-  CreditCard,
-  Building
-} from "lucide-react";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { expensesService } from '@/services/expensesService';
-import { showErrorToast, showLoadingToast, dismissToast } from '@/utils/errorHandler';
+import { TrendingDown, DollarSign, BarChart3, Calendar, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82ca9d'];
-
-interface GastosEstadisticas {
+interface GastosStatsData {
   totalGastos: number;
   totalMonto: number;
   promedioGasto: number;
-  gastosPorCategoria: {
-    [categoria: string]: number;
-  };
-  gastosPorMetodo: {
-    [metodo: string]: number;
-  };
-  topProveedores: Array<{
-    nombre: string;
-    monto: number;
-    cantidad: number;
-  }>;
+  gastosPorCategoria: Record<string, number>;
+  gastosPorMetodo: Record<string, number>;
+  topProveedores: any[];
 }
 
-export default function GastosStats() {
-  const [estadisticas, setEstadisticas] = useState<GastosEstadisticas | null>(null);
+export const GastosStats: React.FC = () => {
+  const [gastosData, setGastosData] = useState<GastosStatsData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
 
-  // Interfaz para manejo consistente de fechas
-  interface DateRange {
-    fechaInicio: string;
-    fechaFin: string;
-  }
-
-  // Función auxiliar para obtener fechas del mes actual
-  const getMonthDates = (): DateRange => {
+  // Función para obtener fechas del mes actual
+  const getMonthDates = () => {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -62,308 +36,307 @@ export default function GastosStats() {
     };
   };
 
-  const [dateRange, setDateRange] = useState<DateRange>(() => {
-    // Inicializar con fechas del mes actual
-    return getMonthDates();
-  });
+  // Cargar datos del mes actual al montar el componente
+  useEffect(() => {
+    const monthDates = getMonthDates();
+    setFechaInicio(monthDates.fechaInicio);
+    setFechaFin(monthDates.fechaFin);
+    loadGastosStats(monthDates.fechaInicio, monthDates.fechaFin);
+  }, []);
 
-  // Función para formatear moneda
-  const formatCurrency = (amount: number) => `S/${amount.toFixed(2)}`;
-
-  // Función para formatear fecha
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-PE', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const loadEstadisticas = useCallback(async () => {
+  const loadGastosStats = async (inicio: string, fin: string) => {
     setIsLoading(true);
-    const loadingToastId = showLoadingToast('Cargando estadísticas de gastos...');
-    
     try {
-      // Formatear fechas con hora para el backend (YYYY-MM-DD HH:mm:ss)
-      const fechaInicio = `${dateRange.fechaInicio} 00:00:00`;
-      const fechaFin = `${dateRange.fechaFin} 23:59:59`;
-      
-      const data = await expensesService.getEstadisticas(fechaInicio, fechaFin);
-      setEstadisticas(data);
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('No hay sesión activa');
+      }
+
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      const response = await fetch(
+        `${API_BASE_URL}/gastos/estadisticas?fechaInicio=${inicio} 00:00:00&fechaFin=${fin} 23:59:59`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Error al cargar estadísticas de gastos');
+      }
+
+      const data = await response.json();
+      setGastosData(data);
     } catch (error) {
-      console.error('Error loading expenses statistics:', error);
-      setEstadisticas(null);
-      showErrorToast(error instanceof Error ? error.message : 'Error al cargar las estadísticas de gastos');
+      console.error('Error loading gastos stats:', error);
+      toast.error('Error al cargar estadísticas de gastos');
+      setGastosData(null);
     } finally {
       setIsLoading(false);
-      dismissToast(loadingToastId);
     }
-  }, [dateRange]);
+  };
 
-  // Cargar estadísticas al montar el componente
-  useEffect(() => {
-    loadEstadisticas();
-  }, [loadEstadisticas]);
+  const aplicarFiltros = () => {
+    if (!fechaInicio || !fechaFin) {
+      toast.error('Selecciona ambas fechas');
+      return;
+    }
+    
+    if (new Date(fechaFin) < new Date(fechaInicio)) {
+      toast.error('La fecha fin debe ser mayor o igual a la fecha inicio');
+      return;
+    }
 
-  // Función para establecer rangos rápidos
-  const setQuickRange = (days: number) => {
+    loadGastosStats(fechaInicio, fechaFin);
+  };
+
+  const setRangoRapido = (dias: number) => {
     const today = new Date();
     const startDate = new Date(today);
-    startDate.setDate(today.getDate() - days + 1);
+    startDate.setDate(today.getDate() - dias + 1);
     
     const formatDateOnly = (date: Date) => date.toISOString().split('T')[0];
     
-    setDateRange({
-      fechaInicio: formatDateOnly(startDate),
-      fechaFin: formatDateOnly(today)
-    });
+    const inicio = formatDateOnly(startDate);
+    const fin = formatDateOnly(today);
+    
+    setFechaInicio(inicio);
+    setFechaFin(fin);
+    loadGastosStats(inicio, fin);
   };
 
-  const resetToCurrentMonth = () => {
-    setDateRange(getMonthDates());
+  const formatCurrency = (amount: number) => {
+    return `S/${amount.toFixed(2)}`;
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Receipt className="h-5 w-5" />
-          Estadísticas de Gastos
-        </CardTitle>
-        
-        {/* Controles de fecha */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
-          <div className="flex gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="fechaInicio" className="text-xs">Fecha Inicio</Label>
-              <Input
-                id="fechaInicio"
-                type="date"
-                value={dateRange.fechaInicio}
-                onChange={(e) => setDateRange(prev => ({ ...prev, fechaInicio: e.target.value }))}
-                className="w-40"
-              />
+    <div className="space-y-6">
+      {/* Filtros de fecha */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Estadísticas de Gastos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* Filtros de rango de fechas */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Fecha Inicio</Label>
+                <Input 
+                  type="date" 
+                  value={fechaInicio}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Fecha Fin</Label>
+                <Input 
+                  type="date" 
+                  value={fechaFin}
+                  onChange={(e) => setFechaFin(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>&nbsp;</Label>
+                <Button 
+                  onClick={aplicarFiltros}
+                  disabled={isLoading || !fechaInicio || !fechaFin}
+                  className="w-full"
+                >
+                  {isLoading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                      Cargando...
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="h-4 w-4 mr-2" />
+                      APLICAR
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="fechaFin" className="text-xs">Fecha Fin</Label>
-              <Input
-                id="fechaFin"
-                type="date"
-                value={dateRange.fechaFin}
-                onChange={(e) => setDateRange(prev => ({ ...prev, fechaFin: e.target.value }))}
-                className="w-40"
-              />
+
+            {/* Botones de rango rápido */}
+            <div className="flex gap-2 flex-wrap">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setRangoRapido(7)}
+                disabled={isLoading}
+              >
+                7 días
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  const monthDates = getMonthDates();
+                  setFechaInicio(monthDates.fechaInicio);
+                  setFechaFin(monthDates.fechaFin);
+                  loadGastosStats(monthDates.fechaInicio, monthDates.fechaFin);
+                }}
+                disabled={isLoading}
+              >
+                Mes actual
+              </Button>
             </div>
-            <Button onClick={loadEstadisticas} size="sm">
-              <Calendar className="h-4 w-4 mr-1" />
-              Aplicar
-            </Button>
           </div>
-          
-          {/* Botones de rango rápido */}
-          <div className="flex gap-1">
-            <Button variant="outline" size="sm" onClick={() => setQuickRange(7)}>7d</Button>
-            <Button variant="outline" size="sm" onClick={() => setQuickRange(30)}>30d</Button>
-            <Button variant="outline" size="sm" onClick={resetToCurrentMonth} title="Mes Actual">Mes</Button>
+        </CardContent>
+      </Card>
+
+      {/* Estadísticas principales */}
+      {gastosData && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Gastos</p>
+                    <p className="text-2xl font-bold text-primary">
+                      {gastosData.totalGastos}
+                    </p>
+                  </div>
+                  <div className="h-8 w-8 bg-primary/10 rounded-full flex items-center justify-center">
+                    <TrendingDown className="h-4 w-4 text-primary" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Monto Total</p>
+                    <p className="text-2xl font-bold text-red-600">
+                      {formatCurrency(gastosData.totalMonto)}
+                    </p>
+                  </div>
+                  <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
+                    <DollarSign className="h-4 w-4 text-red-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Promedio por Gasto</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {formatCurrency(gastosData.promedioGasto)}
+                    </p>
+                  </div>
+                  <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
+                    <BarChart3 className="h-4 w-4 text-orange-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </div>
-      </CardHeader>
 
-      <CardContent className="space-y-6">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-32">
-            <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-            Cargando estadísticas...
-          </div>
-        ) : estadisticas ? (
-          <>
-            {/* Cards de métricas principales */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total Gastos</p>
-                      <p className="text-lg font-bold">{estadisticas.totalGastos || 0}</p>
-                    </div>
-                    <Receipt className="h-4 w-4 text-red-500" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Monto Total</p>
-                      <p className="text-lg font-bold text-red-600">
-                        {formatCurrency(estadisticas.totalMonto || 0)}
-                      </p>
-                    </div>
-                    <DollarSign className="h-4 w-4 text-red-500" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Promedio Gasto</p>
-                      <p className="text-lg font-bold text-orange-600">
-                        {formatCurrency(estadisticas.promedioGasto || 0)}
-                      </p>
-                    </div>
-                    <TrendingUp className="h-4 w-4 text-orange-500" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Gráficos y visualizaciones */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Gráfico de Gastos por Categoría */}
-              {(Object.keys(estadisticas.gastosPorCategoria || {}).length > 0) ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Gastos por Categoría</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <PieChart>
-                        <Pie
-                          data={Object.entries(estadisticas.gastosPorCategoria).map(([categoria, monto]) => ({
-                            categoria,
-                            monto
-                          }))}
-                          dataKey="monto"
-                          nameKey="categoria"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={80}
-                          fill="#8884d8"
-                          label={({ categoria, monto }) => `${categoria}: ${formatCurrency(monto)}`}
-                        >
-                          {Object.entries(estadisticas.gastosPorCategoria).map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Gastos por Categoría</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-center h-[250px] text-muted-foreground">
-                      No hay datos de categorías
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Gráfico de Gastos por Método de Pago */}
-              {(Object.keys(estadisticas.gastosPorMetodo || {}).length > 0) ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Gastos por Método de Pago</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <BarChart data={Object.entries(estadisticas.gastosPorMetodo).map(([metodo, monto]) => ({
-                        metodo,
-                        monto
-                      }))}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="metodo" />
-                        <YAxis tickFormatter={(value) => `S/${value}`} />
-                        <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                        <Bar dataKey="monto" fill="#8884d8" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Gastos por Método de Pago</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-center h-[250px] text-muted-foreground">
-                      No hay datos de métodos de pago
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            {/* Top Proveedores */}
-            {estadisticas.topProveedores && estadisticas.topProveedores.length > 0 ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Building className="h-4 w-4" />
-                    Top Proveedores
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {estadisticas.topProveedores.map((proveedor, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Badge variant="secondary" className="w-8 h-8 rounded-full flex items-center justify-center p-0">
-                            {index + 1}
-                          </Badge>
-                          <div>
-                            <p className="font-medium">{proveedor.nombre}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {proveedor.cantidad} gasto{proveedor.cantidad !== 1 ? 's' : ''}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-red-600">{formatCurrency(proveedor.monto)}</p>
-                        </div>
+          {/* Gastos por categoría */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Gastos por Categoría</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {Object.keys(gastosData.gastosPorCategoria).length > 0 ? (
+                <div className="space-y-3">
+                  {Object.entries(gastosData.gastosPorCategoria).map(([categoria, monto]) => (
+                    <div key={categoria} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline">{categoria}</Badge>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Building className="h-4 w-4" />
-                    Top Proveedores
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-center h-32 text-muted-foreground">
-                    No hay datos de proveedores
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                      <div className="text-right">
+                        <p className="font-semibold">{formatCurrency(monto)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">No hay gastos por categoría</p>
+              )}
+            </CardContent>
+          </Card>
 
-            {/* Información del período */}
-            <div className="text-center text-sm text-muted-foreground">
-              Período: {formatDate(dateRange.fechaInicio)} - {formatDate(dateRange.fechaFin)}
+          {/* Gastos por método de pago */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Gastos por Método de Pago</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {Object.keys(gastosData.gastosPorMetodo).length > 0 ? (
+                <div className="space-y-3">
+                  {Object.entries(gastosData.gastosPorMetodo).map(([metodo, monto]) => (
+                    <div key={metodo} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="secondary">{metodo}</Badge>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">{formatCurrency(monto)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">No hay gastos por método</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Top proveedores */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Proveedores</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {gastosData.topProveedores.length > 0 ? (
+                <div className="space-y-3">
+                  {gastosData.topProveedores.map((proveedor, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="default">#{index + 1}</Badge>
+                        <span className="font-medium">{proveedor.nombre}</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">{formatCurrency(proveedor.monto)}</p>
+                        <p className="text-sm text-muted-foreground">{proveedor.gastos} gastos</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">No hay proveedores registrados</p>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {/* Estado de carga */}
+      {isLoading && !gastosData && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center h-32">
+              <div className="text-center">
+                <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+                <p>Cargando estadísticas de gastos...</p>
+              </div>
             </div>
-          </>
-        ) : (
-          <div className="flex items-center justify-center h-32">
-            <div className="text-center">
-              <Receipt className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-lg font-semibold mb-2">No hay datos disponibles</p>
-              <p className="text-muted-foreground">Selecciona un rango de fechas para ver las estadísticas</p>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
-}
+};
+

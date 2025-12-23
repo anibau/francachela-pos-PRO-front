@@ -10,6 +10,7 @@ import { Users, Star, Plus, Pencil, Trash2, Search, AlertCircle, Check, Calendar
 import { toast } from "sonner";
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from "@/hooks";
 import { clientsService } from '@/services/clientsService';
+import { whatsappService } from '@/services/whatsappService';
 import { validateName, validateDNI, validatePhone, validateBirthday, calculateAge, formatDate } from '@/utils/validators';
 import type { Client } from "@/types";
 
@@ -218,8 +219,19 @@ export default function Clientes() {
         });
         toast.success('Cliente actualizado correctamente');
       } else {
-        await createClientMutation.mutateAsync(clientData as Omit<Client, 'id'>);
+        const newClient = await createClientMutation.mutateAsync(clientData as Omit<Client, 'id'>);
         toast.success('Cliente creado correctamente');
+        
+        // Enviar mensaje de bienvenida por WhatsApp (Requerimiento 7a)
+        try {
+          if (newClient && newClient.id) {
+            await whatsappService.sendWelcomeMessage(newClient.id);
+            toast.success('Mensaje de bienvenida enviado por WhatsApp');
+          }
+        } catch (whatsappError) {
+          console.error('Error sending WhatsApp welcome message:', whatsappError);
+          toast.warning('Cliente creado, pero no se pudo enviar mensaje de WhatsApp');
+        }
       }
       
       setIsDialogOpen(false);
