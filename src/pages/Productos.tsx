@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MoneyInput } from "@/components/ui/money-input";
-import { Package, Plus, Pencil, Trash2, Search, ArrowUpDown, AlertCircle, Check, FileSpreadsheet, RefreshCw, Filter } from "lucide-react";
+import { Package, Plus, Pencil, Trash2, Search, ArrowUpDown, FileSpreadsheet, RefreshCw, Filter, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import { inventoryService } from '@/services/inventoryService';
@@ -18,6 +16,7 @@ import { validateProductName, validateBarcode, validatePrice, validateQuantity }
 import type { Product, InventoryMovement } from "@/types";
 import { ProductCategory, ProductSupplier } from "@/types";
 import { ProductForm } from '../components/productos/ProductForm';
+import { Label } from '@/components/ui/label';
 
 interface ProductValidationErrors {
   productoDescripcion?: string;
@@ -148,7 +147,7 @@ export default function Productos() {
       // Adaptar al response esperado: { movimientos: [], totalMovimientos: number }
       if (data && typeof data === 'object' && 'movimientos' in data) {
         setMovimientosHoy(data.movimientos || []);
-        setTotalMovimientosHoy(data.totalMovimientos || 0);
+        setTotalMovimientosHoy(data.length || 0);
       } else if (Array.isArray(data)) {
         setMovimientosHoy(data);
         setTotalMovimientosHoy(data.length);
@@ -204,19 +203,21 @@ export default function Productos() {
 
     setIsLoadingMovimientosRango(true);
     try {
-      const fechaInicio = `${fechaInicioMovimientos} 00:00:00`;
-      const fechaFin = `${fechaFinMovimientos} 23:59:59`;
+      const startDate = `${fechaInicioMovimientos} 00:00:00`;
+      const endDate = `${fechaFinMovimientos} 23:59:59`;
       
-      const data = await inventoryService.getByDateRange({ fechaInicio, fechaFin });
+      const response = await inventoryService.getByDateRange({ startDate, endDate });
       
-      // Response es array simple según especificación
-      if (Array.isArray(data)) {
-        setMovimientosRango(data);
-      } else {
-        setMovimientosRango([]);
+      // Response es { data: [], total, page, ... }
+      let movements: any[] = [];
+      if (response && typeof response === 'object' && 'data' in response) {
+        movements = (response as any).data || [];
+      } else if (Array.isArray(response)) {
+        movements = response;
       }
       
-      toast.success(`Se encontraron ${data?.length || 0} movimientos en el rango seleccionado`);
+      setMovimientosRango(movements);
+      toast.success(`Se encontraron ${movements.length} movimientos en el rango seleccionado`);
     } catch (error) {
       console.error('Error loading movements by date range:', error);
       setMovimientosRango([]);
@@ -358,20 +359,13 @@ export default function Productos() {
     return baseValid;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isFormValid()) {
-      toast.error('Por favor corrige los errores en el formulario');
-      return;
-    }
-    
+  const handleSubmit = async (formDataToSubmit: any) => {
     try {
       // Preparar datos para envío - si no usa inventario, enviar stock en 0
       const dataToSend = {
-        ...formData,
-        cantidadActual: formData.usaInventario ? formData.cantidadActual : 0,
-        cantidadMinima: formData.usaInventario ? formData.cantidadMinima : 0,
+        ...formDataToSubmit,
+        cantidadActual: formDataToSubmit.usaInventario ? formDataToSubmit.cantidadActual : 0,
+        cantidadMinima: formDataToSubmit.usaInventario ? formDataToSubmit.cantidadMinima : 0,
       };
 
       if (editingProduct) {
@@ -676,284 +670,13 @@ export default function Productos() {
                   Nuevo Producto
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{editingProduct ? 'Editar Producto' : 'Nuevo Producto'}</DialogTitle>
-                  <DialogDescription>
-                    {editingProduct ? 'Actualiza la información del producto' : 'Completa los datos del nuevo producto'}
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nombre *</Label>
-                    <div className="relative">
-                      <Input
-                        id="name"
-                        value={formData.productoDescripcion}
-                        onChange={(e) => {
-                          setFormData({ ...formData, productoDescripcion: e.target.value });
-                          if (editingProduct) setHasChanges(true);
-                          validateField('productoDescripcion', e.target.value);
-                        }}
-                        placeholder="Ej: Cerveza Cristal 355ml"
-                        className={validationErrors.productoDescripcion ? 'border-destructive pr-10' : 'pr-10'}
-                        required
-                      />
-                      {formData.productoDescripcion && !validationErrors.productoDescripcion && (
-                        <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
-                      )}
-                    </div>
-                    {validationErrors.productoDescripcion && (
-                      <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {validationErrors.productoDescripcion}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="barcode">Código de Barras *</Label>
-                    <div className="relative">
-                      <Input
-                        id="barcode"
-                        value={formData.codigoBarra}
-                        onChange={(e) => {
-                          setFormData({ ...formData, codigoBarra: e.target.value });
-                          if (editingProduct) setHasChanges(true);
-                          validateField('codigoBarra', e.target.value);
-                        }}
-                        placeholder="Ej: 7791234567890"
-                        className={validationErrors.codigoBarra ? 'border-destructive pr-10' : 'pr-10'}
-                      />
-                      {formData.codigoBarra && !validationErrors.codigoBarra && (
-                        <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
-                      )}
-                    </div>
-                    {validationErrors.codigoBarra && (
-                      <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {validationErrors.codigoBarra}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Categoría *</Label>
-                    <Select
-                      value={formData.categoria}
-                      onValueChange={(value) => {
-                        setFormData({ ...formData, categoria: value });
-                        if (editingProduct) setHasChanges(true);
-                        validateField('categoria', value);
-                      }}
-                      required
-                    >
-                      <SelectTrigger id="category" className={validationErrors.categoria ? 'border-destructive' : ''}>
-                        <SelectValue placeholder="Seleccionar categoría" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.values(ProductCategory).map((cat) => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {validationErrors.categoria && (
-                      <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {validationErrors.categoria}
-                      </p>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <MoneyInput
-                      id="cost"
-                      label="Costo S/"
-                      value={formData.costo}
-                      onChange={(value) => {
-                        setFormData({ ...formData, costo: value });
-                        if (editingProduct) setHasChanges(true);
-                        validateField('costo', value);
-                      }}
-                      placeholder="0.00"
-                      error={validationErrors.costo}
-                    />
-                    <MoneyInput
-                      id="price"
-                      label="Precio S/"
-                      value={formData.precio}
-                      onChange={(value) => {
-                        setFormData({ ...formData, precio: value });
-                        if (editingProduct) setHasChanges(true);
-                        validateField('precio', value);
-                      }}
-                      placeholder="0.00"
-                      error={validationErrors.precio}
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="stock">Stock *</Label>
-                      <Input
-                        id="stock"
-                        type="number"
-                        value={formData.usaInventario ? (formData.cantidadActual || '') : 0}
-                        onChange={(e) => {
-                          const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
-                          setFormData({ ...formData, cantidadActual: value });
-                          if (editingProduct) setHasChanges(true);
-                          validateField('cantidadActual', value);
-                        }}
-                        placeholder="0"
-                        className={validationErrors.cantidadActual ? 'border-destructive' : ''}
-                        disabled={!formData.usaInventario}
-                      />
-                      {validationErrors.cantidadActual && (
-                        <p className="text-xs text-destructive flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {validationErrors.cantidadActual}
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="minStock">Stock Mínimo *</Label>
-                      <Input
-                        id="minStock"
-                        type="number"
-                        value={formData.usaInventario ? (formData.cantidadMinima || '') : 0}
-                        onChange={(e) => {
-                          const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
-                          setFormData({ ...formData, cantidadMinima: value });
-                          if (editingProduct) setHasChanges(true);
-                          validateField('cantidadMinima', value);
-                        }}
-                        placeholder="0"
-                        className={validationErrors.cantidadMinima ? 'border-destructive' : ''}
-                        disabled={!formData.usaInventario}
-                      />
-                      {validationErrors.cantidadMinima && (
-                        <p className="text-xs text-destructive flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {validationErrors.cantidadMinima}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="supplier">Proveedor *</Label>
-                    <Select
-                      value={formData.proveedor}
-                      onValueChange={(value) => {
-                        setFormData({ ...formData, proveedor: value });
-                        if (editingProduct) setHasChanges(true);
-                        validateField('proveedor', value);
-                      }}
-                      required
-                    >
-                      <SelectTrigger id="supplier" className={validationErrors.proveedor ? 'border-destructive' : ''}>
-                        <SelectValue placeholder="Seleccionar proveedor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.values(ProductSupplier).map((sup) => (
-                          <SelectItem key={sup} value={sup}>
-                            {sup}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {validationErrors.proveedor && (
-                      <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {validationErrors.proveedor}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="image">URL de Imagen (Opcional)</Label>
-                    <Input
-                      id="image"
-                      value={formData.imagen}
-                      onChange={(e) => {
-                        setFormData({ ...formData, imagen: e.target.value });
-                        if (editingProduct) setHasChanges(true);
-                      }}
-                      placeholder="https://ejemplo.com/imagen.jpg"
-                    />
-                  </div>
-                  <MoneyInput
-                    id="wholesalePrice"
-                    label="Precio Mayoreo S/ (Opcional)"
-                    value={formData.precioMayoreo}
-                    onChange={(value) => {
-                      setFormData({ ...formData, precioMayoreo: value });
-                      if (editingProduct) setHasChanges(true);
-                      validateField('precioMayoreo', value);
-                    }}
-                    placeholder="0.00"
-                    error={validationErrors.precioMayoreo}
-                  />
-                  <div className="space-y-2">
-                    <Label htmlFor="pointsValue">Valor en Puntos (Opcional)</Label>
-                    <Input
-                      id="pointsValue"
-                      type="number"
-                      min="0"
-                      value={formData.valorPuntos || ''}
-                      onChange={(e) => {
-                        const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
-                        setFormData({ ...formData, valorPuntos: value });
-                        if (editingProduct) setHasChanges(true);
-                      }}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="showInCatalog">Mostrar en Catálogo</Label>
-                    <Input
-                      id="showInCatalog"
-                      type="checkbox"
-                      checked={formData.mostrar}
-                      onChange={(e) => {
-                        setFormData({ ...formData, mostrar: e.target.checked });
-                        if (editingProduct) setHasChanges(true);
-                      }}
-                      className="w-4 h-4"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="useInventory">Usa Inventario</Label>
-                    <Input
-                      id="useInventory"
-                      type="checkbox"
-                      checked={formData.usaInventario}
-                      onChange={(e) => {
-                        const usaInventario = e.target.checked;
-                        setFormData({ 
-                          ...formData, 
-                          usaInventario,
-                          // Si no usa inventario, resetear stock a 0
-                          cantidadActual: usaInventario ? formData.cantidadActual : 0,
-                          cantidadMinima: usaInventario ? formData.cantidadMinima : 0,
-                        });
-                        if (editingProduct) setHasChanges(true);
-                        // Revalidar campos de stock
-                        validateField('cantidadActual', usaInventario ? formData.cantidadActual : 0);
-                        validateField('cantidadMinima', usaInventario ? formData.cantidadMinima : 0);
-                      }}
-                      className="w-4 h-4"
-                    />
-                  </div>
-                  <DialogFooter>
-                    <Button 
-                      type="submit" 
-                      className="w-full"
-                      disabled={!isFormValid()}
-                    >
-                      {editingProduct ? 'Actualizar' : 'Crear Producto'}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
+              <ProductForm
+                isOpen={isDialogOpen}
+                onClose={() => setIsDialogOpen(false)}
+                editingProduct={editingProduct}
+                onSubmit={handleSubmit}
+                isSubmitting={createProduct.isPending || updateProduct.isPending}
+              />
             </Dialog>
             </div>
           </div>

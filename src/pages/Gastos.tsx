@@ -94,7 +94,7 @@ export default function Gastos() {
     setIsLoadingResumen(true);
     try {
       const { fechaInicio, fechaFin } = getMonthDates();
-      const data = await expensesService.getByDateRange({ fechaInicio, fechaFin });
+      const data = await expensesService.getByDateRange({ startDate: fechaInicio, endDate: fechaFin });
       
       // Adaptar al response esperado: { data: [], total: number }
       if (data && typeof data === 'object' && 'data' in data) {
@@ -126,24 +126,25 @@ export default function Gastos() {
 
     setIsLoadingGastos(true);
     try {
-      const fechaInicio = `${filtroFechaInicio} 00:00:00`;
-      const fechaFin = `${filtroFechaFin} 23:59:59`;
+      const startDate = `${filtroFechaInicio} 00:00:00`;
+      const endDate = `${filtroFechaFin} 23:59:59`;
       
-      const data = await expensesService.getByDateRange({ fechaInicio, fechaFin });
+      const response = await expensesService.getByDateRange({ startDate, endDate });
       
-      // Adaptar al response esperado
-      if (data && typeof data === 'object' && 'data' in data) {
-        setGastosExpenses(data.data || []);
-        setGastosTotal(data.total || 0);
-      } else if (Array.isArray(data)) {
-        setGastosExpenses(data);
-        setGastosTotal(data.length);
-      } else {
-        setGastosExpenses([]);
-        setGastosTotal(0);
+      // Adaptar al response esperado: { data: [], total, page, ... }
+      let expenses: any[] = [];
+      let total = 0;
+      if (response && typeof response === 'object' && 'data' in response) {
+        expenses = (response as any).data || [];
+        total = (response as any).total || 0;
+      } else if (Array.isArray(response)) {
+        expenses = response;
+        total = response.length;
       }
       
-      toast.success('Filtros aplicados correctamente');
+      setGastosExpenses(expenses);
+      setGastosTotal(total);
+      toast.success(`Se encontraron ${expenses.length} gastos en el rango seleccionado`);
     } catch (error) {
       console.error('Error applying date filters:', error);
       setGastosExpenses([]);
