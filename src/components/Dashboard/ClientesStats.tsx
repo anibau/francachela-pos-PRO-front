@@ -8,6 +8,8 @@ import { Users, Star, Gift, Calendar, RefreshCw, ChevronLeft, ChevronRight, User
 import { toast } from "sonner";
 import { dismissToast, showErrorToast, showLoadingToast, showSuccessToast } from '@/utils/errorHandler';
 import { clientsService } from '@/services/clientsService';
+import { API_ENDPOINTS } from '@/config/api';
+import { httpClient } from '@/services/httpClient';
 
 interface HistorialCompra {
   fecha: string;
@@ -121,72 +123,43 @@ export const ClientesStats: React.FC = () => {
   }, []);
 
   const loadTopClientes = async () => {
-    setIsLoadingTop(true);
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('No hay sesión activa');
-      }
+  setIsLoadingTop(true);
+  try {
+    const queryParams = new URLSearchParams();
+    queryParams.append('limit', limitTop.toString());
 
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-      const response = await fetch(
-        `${API_BASE_URL}/clientes/top?limit=${limitTop}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+    const url = `${API_ENDPOINTS.CLIENTS.TOP}?${queryParams.toString()}`;
 
-      if (!response.ok) {
-        throw new Error('Error al cargar top clientes');
-      }
+    const response = await httpClient.get<any[]>(url);
 
-      const data = await response.json();
-      setTopClientes(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Error loading top clientes:', error);
-      toast.error('Error al cargar top clientes');
-      setTopClientes([]);
-    } finally {
-      setIsLoadingTop(false);
-    }
-  };
+    setTopClientes(Array.isArray(response) ? response : []);
+  } catch (error) {
+    console.error('Error loading top clientes:', error);
+    toast.error('Error al cargar top clientes');
+    setTopClientes([]);
+  } finally {
+    setIsLoadingTop(false);
+  }
+};
 
-  const loadClientesCumpleaneros = async () => {
-    setIsLoadingCumpleaneros(true);
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('No hay sesión activa');
-      }
 
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-      const response = await fetch(
-        `${API_BASE_URL}/clientes/cumpleaneros`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+ const loadClientesCumpleaneros = async () => {
+  setIsLoadingCumpleaneros(true);
+  try {
+    const response = await httpClient.get<any[]>(
+      API_ENDPOINTS.CLIENTS.BIRTHDAYS
+    );
 
-      if (!response.ok) {
-        throw new Error('Error al cargar clientes cumpleañeros');
-      }
+    setClientesCumpleaneros(Array.isArray(response) ? response : []);
+  } catch (error) {
+    console.error('Error loading clientes cumpleañeros:', error);
+    toast.error('Error al cargar clientes cumpleañeros');
+    setClientesCumpleaneros([]);
+  } finally {
+    setIsLoadingCumpleaneros(false);
+  }
+};
 
-      const data = await response.json();
-      setClientesCumpleaneros(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Error loading clientes cumpleañeros:', error);
-      toast.error('Error al cargar clientes cumpleañeros');
-      setClientesCumpleaneros([]);
-    } finally {
-      setIsLoadingCumpleaneros(false);
-    }
-  };
 
   const aplicarLimitTop = () => {
     if (limitTop < 1) {

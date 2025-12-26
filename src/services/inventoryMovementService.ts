@@ -1,3 +1,6 @@
+import { API_ENDPOINTS } from "@/config/api";
+import { httpClient } from "./httpClient";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export interface MovimientoEntrada {
@@ -27,73 +30,52 @@ export interface MovimientoVenta {
 export const inventoryMovementService = {
   // Registrar entrada de inventario
   async registrarEntrada(movimiento: MovimientoEntrada): Promise<any> {
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-      throw new Error('No hay sesión activa');
+    try {
+      const response = await httpClient.post<any>(
+        API_ENDPOINTS.INVENTORY_MOVEMENTS.ENTRY,
+        movimiento
+      );
+      return response;
+    } catch (error: any) {
+      console.error('Error registrar entrada inventario:', error);
+      throw new Error(
+        error?.response?.data?.message ||
+        'Error al registrar entrada de inventario'
+      );
     }
-
-    const response = await fetch(`${API_BASE_URL}/movimiento-inventario/entrada`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(movimiento),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || 'Error al registrar entrada de inventario');
-    }
-
-    return response.json();
   },
 
   // Registrar ajuste de inventario
   async registrarAjuste(movimiento: MovimientoAjuste): Promise<any> {
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-      throw new Error('No hay sesión activa');
+    try {
+      const response = await httpClient.post<any>(
+        API_ENDPOINTS.INVENTORY_MOVEMENTS.ADJUSTMENT,
+        movimiento
+      );
+      return response;
+    } catch (error) {
+      console.error('Error registrar ajuste inventario:', error);
+      throw new Error(
+        error?.response?.data?.message ||
+        'Error al registrar ajuste de inventario'
+      );
     }
-
-    const response = await fetch(`${API_BASE_URL}/movimiento-inventario/ajuste`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(movimiento),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || 'Error al registrar ajuste de inventario');
-    }
-
-    return response.json();
   },
 
-  // Registrar venta/salida de inventario
+  // Registrar venta / salida de inventario
   async registrarVenta(movimiento: MovimientoVenta): Promise<any> {
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-      throw new Error('No hay sesión activa');
+    try {
+      const response = await httpClient.post<any>(
+        API_ENDPOINTS.INVENTORY_MOVEMENTS.SALE,
+        movimiento
+      );
+      return response;
+    } catch (error) {
+      console.error('Error registrar venta inventario:', error);
+      throw new Error(
+        error?.response?.data?.message ||
+        'Error al registrar venta de inventario'
+      );
     }
-
-    const response = await fetch(`${API_BASE_URL}/movimiento-inventario/venta`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(movimiento),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || 'Error al registrar venta de inventario');
-    }
-
-    return response.json();
   },
 };

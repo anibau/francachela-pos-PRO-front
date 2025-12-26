@@ -50,6 +50,7 @@ export const API_ENDPOINTS = {
     CANCEL: (id: number) => `/ventas/${id}/anular`,
     RETURN: (id: number) => `/ventas/devolucion/${id}`,
     TODAY: '/ventas/hoy',
+    CORTE: '/ventas/corte',
   },
   
   // Clientes
@@ -146,8 +147,12 @@ export const API_ENDPOINTS = {
   WHATSAPP: {
     SEND: '/whatsapp/send',
     STATUS: '/whatsapp/status',
+    QR: '/whatsapp/qr',
+    RECONNECT: '/whatsapp/reconnect',
     LOGOUT: '/whatsapp/logout',
-    SEND_WELCOME: (idCliente: number) => `/whatsapp/send-welcome/${idCliente}`,
+    SEND_CLIENT_INFO: '/whatsapp/send-client-info',
+    BIRTHDAY: '/whatsapp/birthday',
+    SEND_WELCOME: '/whatsapp/send-welcome/',
   },
   
   // Exportación Excel

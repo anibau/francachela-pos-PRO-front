@@ -18,6 +18,8 @@ import { ProductCategory, ProductSupplier } from "@/types";
 import { ProductForm } from '../components/productos/ProductForm';
 import InventoryMovementDialog from '../components/productos/InventoryMovementDialog';
 import { Label } from '@/components/ui/label';
+import { API_ENDPOINTS } from '@/config/api';
+import { httpClient } from '@/services/httpClient';
 
 interface ProductValidationErrors {
   productoDescripcion?: string;
@@ -511,87 +513,69 @@ export default function Productos() {
   };
 
   const exportProductsToExcel = async () => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        toast.error('No hay sesión activa');
-        return;
+  const toastId = toast.loading('Generando archivo Excel...');
+  try {
+    const blob = await httpClient.get<Blob>(
+      API_ENDPOINTS.EXCEL.PRODUCTS,
+      { responseType: 'blob' }
+    );
+
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `productos_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(downloadUrl);
+
+        toast.success('Productos exportados correctamente', { id: toastId });
+      } catch (error) {
+        console.error('Error exporting products:', error);
+        toast.error('Error al exportar productos', { id: toastId });
       }
-
-      toast.loading('Generando archivo Excel...');
-      
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/excel/export-productos`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-
-      if (!response.ok) throw new Error('Error al exportar productos');
-
-      const blob = await response.blob();
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `productos_${new Date().toISOString().split('T')[0]}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(downloadUrl);
-
-      toast.dismiss();
-      toast.success('Productos exportados correctamente');
-    } catch (error) {
-      toast.dismiss();
-      console.error('Error exporting products:', error);
-      toast.error('Error al exportar productos');
-    }
   };
 
   const exportMovementsToExcel = async () => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        toast.error('No hay sesión activa');
-        return;
+  const toastId = toast.loading('Generando archivo Excel...');
+  try {
+    const today = new Date();
+    const startOfMonth = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      1
+    ).toISOString().split('T')[0];
+
+    const endOfDay = today.toISOString().split('T')[0];
+
+    const queryParams = new URLSearchParams({
+      fechaInicio: startOfMonth,
+      fechaFin: endOfDay,
+      tipoReporte: 'INVENTARIO',
+      incluirDetalles: 'true',
+    });
+
+    const blob = await httpClient.get<Blob>(
+      `${API_ENDPOINTS.EXCEL.INVENTORY}?${queryParams.toString()}`,
+      { responseType: 'blob' }
+    );
+
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `movimientos_inventario_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(downloadUrl);
+
+    toast.success('Movimientos exportados correctamente', { id: toastId });
+      } catch (error) {
+        console.error('Error exporting movements:', error);
+        toast.error('Error al exportar movimientos', { id: toastId });
       }
-
-      const today = new Date();
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-      const endOfDay = today.toISOString().split('T')[0];
-
-      const params = new URLSearchParams({
-        fechaInicio: startOfMonth,
-        fechaFin: endOfDay,
-        tipoReporte: 'INVENTARIO',
-        incluirDetalles: 'true'
-      });
-
-      toast.loading('Generando archivo Excel...');
-      
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/excel/export-inventario?${params}`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-
-      if (!response.ok) throw new Error('Error al exportar movimientos');
-
-      const blob = await response.blob();
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `movimientos_inventario_${new Date().toISOString().split('T')[0]}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(downloadUrl);
-
-      toast.dismiss();
-      toast.success('Movimientos exportados correctamente');
-    } catch (error) {
-      toast.dismiss();
-      console.error('Error exporting movements:', error);
-      toast.error('Error al exportar movimientos');
-    }
   };
+
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64">Cargando productos...</div>;
