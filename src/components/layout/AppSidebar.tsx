@@ -18,7 +18,7 @@ const menuItems = [
   { title: "Inventario", url: "/productos", icon: Package },
   { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Ventas", url: "/ventas", icon: TrendingUp },
-  { title: "Promociones", url: "/promociones", icon: Gift },
+  // { title: "Promociones", url: "/promociones", icon: Gift },
   { title: "Gastos", url: "/gastos", icon: Receipt },
   { title: "Caja", url: "/caja", icon: DollarSign },
 ];

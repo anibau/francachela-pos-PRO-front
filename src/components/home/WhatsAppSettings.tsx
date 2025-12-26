@@ -16,7 +16,7 @@ import {
   WifiOff
 } from "lucide-react";
 import { toast } from "sonner";
-import QRCode from 'qrcode.react';
+import {QRCodeCanvas } from 'qrcode.react';
 import { whatsappService } from '@/services/whatsappService';
 
 interface WhatsAppStatus {
@@ -221,7 +221,7 @@ export default function WhatsAppSettings() {
             {qrData?.qr && (
               <div className="flex justify-center">
                 <div className="p-4 bg-white rounded-lg border">
-                  <QRCode 
+                  <QRCodeCanvas 
                     value={qrData.qr}
                     size={200}
                     level="H"
