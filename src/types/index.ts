@@ -339,3 +339,66 @@ export interface VentasEstadisticasBackend {
   fechaFin: string;
   fechaGeneracion: string;
 }
+
+// Enums para promociones unificadas
+export enum TipoPromocion {
+  SIMPLE = 'SIMPLE',
+  PACK = 'PACK',
+  COMBO = 'COMBO'
+}
+
+export enum TipoDescuento {
+  PORCENTAJE = 'PORCENTAJE',
+  MONTO_FIJO = 'MONTO_FIJO',
+  PRECIO_FIJO = 'PRECIO_FIJO'
+}
+
+// Interfaces para promociones unificadas
+export interface PromocionProducto {
+  id?: number;
+  promocionId?: number;
+  productoId: number;
+  cantidadExacta?: number;
+  cantidadMinima?: number;
+  obligatorio?: boolean;
+  producto?: Product;
+}
+
+export interface UnifiedPromotion {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  tipoPromocion: TipoPromocion;
+  tipoDescuento: TipoDescuento;
+  descuento: string;
+  precioCombo?: string;
+  fechaInicio: string;
+  fechaFin: string;
+  maxUsos: number;
+  usosActuales: number;
+  activo: boolean;
+  puntosExtra?: number;
+  createdAt: string;
+  updatedAt: string;
+  productos: PromocionProducto[];
+}
+
+export interface CreateUnifiedPromotionRequest {
+  nombre: string;
+  descripcion: string;
+  tipoPromocion: TipoPromocion;
+  tipoDescuento: TipoDescuento;
+  descuento: number;
+  precioCombo?: number;
+  fechaInicio: string;
+  fechaFin: string;
+  maxUsos: number;
+  activo: boolean;
+  puntosExtra?: number;
+  productosAplicables: {
+    productoId: number;
+    cantidadExacta?: number;
+    cantidadMinima?: number;
+    obligatorio?: boolean;
+  }[];
+}
