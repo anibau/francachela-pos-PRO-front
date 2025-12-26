@@ -716,167 +716,122 @@ curl -X POST http://localhost:3000/auth/login   -H "Content-Type: application/js
   PATCH: `/clientes/{id}/activate`   (Activar cliente nuevamente)
 ------------------------------------------------------------------------
 
-## 💸 Promociones
+## 💸 Promociones y 💸 Combos UNIFICADOS
+### DONDE tipo de promocion en el sistema unificado es:
+ * SIMPLE: Descuento aplicado a productos individuales
+ * PACK: Descuento por cantidad específica de un producto
+ * COMBO: Precio fijo para conjunto específico de productos
+
+export enum TipoPromocion {
+  SIMPLE = 'SIMPLE',
+  PACK = 'PACK', 
+  COMBO = 'COMBO'
+}
+
+### DONDE Tipos de descuento disponibles en el sistema unificado es:
+
+ * PORCENTAJE: Descuento expresado como porcentaje (ej: 15%)
+ * MONTO_FIJO: Descuento de monto fijo (ej: S/ 5.00)
+ * PRECIO_FIJO: Precio fijo para el combo/pack (ej: S/ 35.00)
+
+export enum TipoDescuento {
+  PORCENTAJE = 'PORCENTAJE',
+  MONTO_FIJO = 'MONTO_FIJO',
+  PRECIO_FIJO = 'PRECIO_FIJO'
+}
+
+
 
 | Método | Endpoint                      | Descripción          |
 | ------ | ----------------------------- | -------------------- |
-| POST   | `/promociones`                 | Crear promoción      |
+| POST   | `/promociones/unificadas`                 | Crear promoción      |
          ### payload example: 
                 {
-                  "nombre": "Descuento de Verano",
-                  "descripcion": "20% de descuento en bebidas",
-                  "tipo": "PORCENTAJE",
-                  "descuento": 20,
-                  "fechaInicio": "2024-01-01",
-                  "fechaFin": "2024-01-31",
+                  "nombre": "Combo x2",
+                  "descripcion": "2 cerveza brahma",
+                  "tipoPromocion": "PACK",
+                  "tipoDescuento": "PRECIO_FIJO",
+                  "descuento": 1,
+                  "precioCombo": 8,
+                  "fechaInicio": "2025-01-01",
+                  "fechaFin": "2026-12-31",
+                  "maxUsos": 1000,
+                  "activo": true,
+                  "puntosExtra": 8,
                   "productosAplicables": [
-                    1,
-                    2,
-                    3
-                  ],
-                  "montoMinimo": 50,
-                  "cantidadMaximaUsos": 100,
-                  "activo": true
-                }         
-| GET    | `/promociones`                 | Listar promociones   |
-        ### payload example: 
-              {
-                  "data": [
-                      {
-                          "id": 5,
-                          "nombre": "Black Friday",
-                          "descripcion": "25% descuento en todo",
-                          "tipo": "PORCENTAJE",
-                          "descuento": "25.00",
-                          "fechaInicio": "2024-11-28",
-                          "fechaFin": "2024-11-28",
-                          "activo": false,
-                          "productosAplicables": [],
-                          "montoMinimo": null,
-                          "cantidadMaximaUsos": null,
-                          "cantidadUsada": 0,
-                          "fechaCreacion": "2025-11-29T15:07:42.660Z",
-                          "fechaActualizacion": "2025-11-29T15:07:42.660Z"
-                      },
-                      {
-                          "id": 4,
-                          "nombre": "Descuento Cumpleañeros",
-                          "descripcion": "S/10 de descuento en tu cumpleaños",
-                          "tipo": "MONTO",
-                          "descuento": "10.00",
-                          "fechaInicio": "2023-12-31",
-                          "fechaFin": "2024-12-30",
-                          "activo": true,
-                          "productosAplicables": [],
-                          "montoMinimo": null,
-                          "cantidadMaximaUsos": null,
-                          "cantidadUsada": 0,
-                          "fechaCreacion": "2025-11-29T15:07:42.654Z",
-                          "fechaActualizacion": "2025-11-29T15:07:42.654Z"
-                      },
-                      {
-                          "id": 3,
-                          "nombre": "Promo Estudiantes",
-                          "descripcion": "15% descuento con carnet universitario",
-                          "tipo": "PORCENTAJE",
-                          "descuento": "15.00",
-                          "fechaInicio": "2024-02-29",
-                          "fechaFin": "2024-07-30",
-                          "activo": true,
-                          "productosAplicables": [],
-                          "montoMinimo": null,
-                          "cantidadMaximaUsos": null,
-                          "cantidadUsada": 0,
-                          "fechaCreacion": "2025-11-29T15:07:42.646Z",
-                          "fechaActualizacion": "2025-11-29T15:07:42.646Z"
-                      },
-                      {
-                          "id": 2,
-                          "nombre": "Happy Hour",
-                          "descripcion": "S/5 de descuento en licores",
-                          "tipo": "MONTO",
-                          "descuento": "5.00",
-                          "fechaInicio": "2023-12-31",
-                          "fechaFin": "2024-12-30",
-                          "activo": true,
-                          "productosAplicables": [],
-                          "montoMinimo": null,
-                          "cantidadMaximaUsos": null,
-                          "cantidadUsada": 0,
-                          "fechaCreacion": "2025-11-29T15:07:42.604Z",
-                          "fechaActualizacion": "2025-11-29T15:07:42.604Z"
-                      },
-                      {
-                          "id": 1,
-                          "nombre": "Descuento Fin de Semana",
-                          "descripcion": "10% de descuento en todas las cervezas",
-                          "tipo": "PORCENTAJE",
-                          "descuento": "10.00",
-                          "fechaInicio": "2023-12-31",
-                          "fechaFin": "2024-12-30",
-                          "activo": true,
-                          "productosAplicables": [],
-                          "montoMinimo": null,
-                          "cantidadMaximaUsos": null,
-                          "cantidadUsada": 0,
-                          "fechaCreacion": "2025-11-29T15:07:42.592Z",
-                          "fechaActualizacion": "2025-11-29T15:07:42.592Z"
-                      }
-                  ],
-                  "total": 5,
-                  "page": 1,
-                  "limit": 10,
-                  "totalPages": 1,
-                  "hasNextPage": false,
-                  "hasPrevPage": false
-              }
-
-| GET    | `/promociones/activas`            | Obtener promoción activas   |
-| GET    | `/promociones/vencidas`            | Obtener promoción vencidas    |
-| GET    | `/promociones/tipo/{tipo}`            | Obtener promoción por tipo   |
-| GET    | `/promociones/{id}`            | Obtener promoción por ID   |
-| PATCH  | `/promociones/{id}`            | Actualizar promoción |
-| DELETE | `/promociones/{id}`            | Eliminar promoción   |
-| PATCH  | `/promociones/{id}/activate`   | Activar              |
-| PATCH  | `/promociones/{id}/desactivar-vencidas` | Desactivar           |
-
-
-------------------------------------------------------------------------
-## 💸 Combos
-
-| Método | Endpoint                  | Descripción      |
-| ------ | ------------------------- | ---------------- |
-| POST   | `/combos`                 | Crear combo      |
-        ### payload example: 
-            {
-              "nombre": "Combo Familiar",
-              "descripcion": "2 hamburguesas + 2 papas + 2 gaseosas",
-              "productos": [
+                    {
+                      "productoId": 1,
+                      "cantidadExacta": 2
+                    }
+                  ]
+                }          
+| GET    | `/promociones/unificadas`                 | Listar promociones unificadas  |
+| GET    | `/promociones/unificadas/activas`         | Listar promociones unificadas activas  |
+        ### RESPONSE example: 
+              [
                 {
-                  "productoId": 1,
-                  "cantidad": 2
-                },
-                {
-                  "productoId": 2,
-                  "cantidad": 2
+                    "id": 1,
+                    "nombre": "Combo x2",
+                    "descripcion": "2 cerveza brahma",
+                    "tipoPromocion": "PACK",
+                    "tipoDescuento": "PRECIO_FIJO",
+                    "descuento": "1.00",
+                    "precioCombo": "8.00",
+                    "fechaInicio": "2024-12-31",
+                    "fechaFin": "2026-12-30",
+                    "maxUsos": 1000,
+                    "usosActuales": 0,
+                    "activo": true,
+                    "puntosExtra": 8,
+                    "createdAt": "2025-12-26T17:22:58.077Z",
+                    "updatedAt": "2025-12-26T17:22:58.077Z",
+                    "productos": [
+                        {
+                            "id": 1,
+                            "promocionId": 1,
+                            "productoId": 1,
+                            "cantidadExacta": 2,
+                            "cantidadMinima": null,
+                            "obligatorio": true,
+                            "producto": {
+                                "id": 1,
+                                "productoDescripcion": "Cerveza brahma 650ml",
+                                "codigoBarra": "7751271001231453",
+                                "imagen": "string",
+                                "costo": "2.50",
+                                "precio": "4.50",
+                                "precioMayoreo": "3.50",
+                                "cantidadActual": 95,
+                                "cantidadMinima": 10,
+                                "proveedor": "Backus",
+                                "categoria": "Bebidas",
+                                "valorPuntos": 5,
+                                "mostrar": true,
+                                "usaInventario": true,
+                                "fechaCreacion": "2025-12-15T23:05:17.466Z",
+                                "fechaActualizacion": "2025-12-16T17:09:44.730Z"
+                            }
+                        }
+                    ]
                 }
-              ],
-              "precioOriginal": 45,
-              "precioCombo": 35,
-              "puntosExtra": 10,
-              "active": true
-            }
+            ]
 
-| GET    | `/combos`                 | Listar combos    |
-| GET    | `/combos/activos`            | Obtener combo  activos  |
-| GET    | `/combos/populares`            | Obtener combo mas populares  |
-| GET    | `/combos/{id}`            | Obtener combo por ID  |
-| PATCH  | `/combos/{id}`            | Actualizar combo por ID  |
-| DELETE | `/combos/{id}`            | Eliminar combo  por ID  |
-| GET    | `/combos/{id}/disponibilidad`| Verificar disponibilidad del combo    |
-| GET    | `/combos/{id}/ahorro`| Calcular ahorro del combo    |
-| PATCH  | `/combos/{id}/activate`   | Activar          |
-| PATCH  | `/combos/{id}/deactivate` | Desactivar       |
+| GET    | `/promociones/unificadas/{id}`            | Obtener promoción unificadas por id   |
+| PATCH  | `/promociones/unificadas/{id}`            | Actualizar promoción |
+| DELETE | `/promociones/unificadas/{id}`            | Eliminar promoción   |
+| PATCH  | `/promociones/unificadas/{id}/activate`   | Activar   promoción unificadas    |
+| PATCH  | `/promociones/unificadas/{id}/deactivate` | Desactivar  promoción unificadas   |
+| POST  | `/promociones/evaluar` | Evaluar promocion para un carrito de compra  |
+          EJEMPLO PAYLOAD: {
+                              "items": [
+                                {
+                                  "productoId": 1,
+                                  "cantidad": 2,
+                                  "precioUnitario": 4.5
+                                }
+                              ],
+                              "montoTotal": 9
+                            }
 
 
 
@@ -1023,8 +978,10 @@ curl -X POST http://localhost:3000/auth/login   -H "Content-Type: application/js
             "message": "¡Gracias por tu compra!",
             "ventaId": 1
           }
-| GET    | `/whatsapp/status`       | Estado del servicio   |
-| POST   | `/whatsapp/logout`       | Cerrar sesión         |
+| GET    | `/whatsapp/status`       | Estado del servicio whatsapp   |
+| GET    | `/whatsapp/qr`       | Obtener codigo QR para conexion   |
+| POST    | `/whatsapp/reconnect`       | Reconectar whatsapp manualmente  |
+| DELETE   | `/whatsapp/logout`       | Cerrar sesión de whatsapp      |
 
 
 ------------------------------------------------------------------------

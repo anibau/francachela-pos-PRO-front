@@ -119,6 +119,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           mostrar: editingProduct.mostrar ?? true,
           usaInventario: editingProduct.usaInventario ?? true,
         });
+        
+        // Validar que el proveedor del producto esté en la lista de proveedores disponibles
+        if (editingProduct.proveedor && !proveedoresDisponibles.includes(editingProduct.proveedor)) {
+          setProveedoresDisponibles(prev => [...prev, editingProduct.proveedor]);
+        }
       } else {
         resetForm();
       }
@@ -153,57 +158,85 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     const errors = { ...validationErrors };
     
     switch (field) {
-      case 'productoDescripcion':
-        const nameError = validateProductName(value);
-        if (nameError) errors.productoDescripcion = nameError;
-        else delete errors.productoDescripcion;
+      case 'productoDescripcion': {
+        const validation = validateProductName(value);
+        if (!validation.isValid) {
+          errors.productoDescripcion = validation.message;
+        } else {
+          delete errors.productoDescripcion;
+        }
         break;
-      case 'codigoBarra':
-        const barcodeError = validateBarcode(value);
-        if (barcodeError) errors.codigoBarra = barcodeError;
-        else delete errors.codigoBarra;
+      }
+      case 'codigoBarra': {
+        const validation = validateBarcode(value, false);
+        if (!validation.isValid) {
+          errors.codigoBarra = validation.message;
+        } else {
+          delete errors.codigoBarra;
+        }
         break;
+      }
       case 'categoria':
         if (!value) errors.categoria = 'La categoría es requerida';
         else delete errors.categoria;
         break;
-      case 'precio':
-        const priceError = validatePrice(value);
-        if (priceError) errors.precio = priceError;
-        else delete errors.precio;
+      case 'precio': {
+        const validation = validatePrice(value, 'El precio', false);
+        if (!validation.isValid) {
+          errors.precio = validation.message;
+        } else {
+          delete errors.precio;
+        }
         break;
-      case 'costo':
-        const costError = validatePrice(value);
-        if (costError) errors.costo = costError;
-        else delete errors.costo;
+      }
+      case 'costo': {
+        const validation = validatePrice(value, 'El costo', true);
+        if (!validation.isValid) {
+          errors.costo = validation.message;
+        } else {
+          delete errors.costo;
+        }
         break;
-      case 'precioMayoreo':
+      }
+      case 'precioMayoreo': {
         if (value > 0) {
-          const wholesaleError = validatePrice(value);
-          if (wholesaleError) errors.precioMayoreo = wholesaleError;
-          else delete errors.precioMayoreo;
+          const validation = validatePrice(value, 'El precio mayoreo', true);
+          if (!validation.isValid) {
+            errors.precioMayoreo = validation.message;
+          } else {
+            delete errors.precioMayoreo;
+          }
         } else {
           delete errors.precioMayoreo;
         }
         break;
-      case 'cantidadActual':
+      }
+      case 'cantidadActual': {
         if (formData.usaInventario) {
-          const stockError = validateQuantity(value);
-          if (stockError) errors.cantidadActual = stockError;
-          else delete errors.cantidadActual;
+          const validation = validateQuantity(value, 'La cantidad actual', true);
+          if (!validation.isValid) {
+            errors.cantidadActual = validation.message;
+          } else {
+            delete errors.cantidadActual;
+          }
         } else {
           delete errors.cantidadActual;
         }
         break;
-      case 'cantidadMinima':
+      }
+      case 'cantidadMinima': {
         if (formData.usaInventario) {
-          const minStockError = validateQuantity(value);
-          if (minStockError) errors.cantidadMinima = minStockError;
-          else delete errors.cantidadMinima;
+          const validation = validateQuantity(value, 'La cantidad mínima', true);
+          if (!validation.isValid) {
+            errors.cantidadMinima = validation.message;
+          } else {
+            delete errors.cantidadMinima;
+          }
         } else {
           delete errors.cantidadMinima;
         }
         break;
+      }
       case 'proveedor':
         if (!value) errors.proveedor = 'El proveedor es requerido';
         else delete errors.proveedor;
@@ -219,6 +252,40 @@ export const ProductForm: React.FC<ProductFormProps> = ({
            formData.categoria &&
            formData.precio > 0 &&
            formData.proveedor;
+  };
+
+  const validateFormComplete = (): boolean => {
+    const errors: ProductValidationErrors = {};
+    
+    // Validar cada campo
+    const nameValidation = validateProductName(formData.productoDescripcion);
+    if (!nameValidation.isValid) errors.productoDescripcion = nameValidation.message;
+    
+    if (!formData.categoria) errors.categoria = 'La categoría es requerida';
+    
+    const priceValidation = validatePrice(formData.precio, 'El precio', false);
+    if (!priceValidation.isValid) errors.precio = priceValidation.message;
+    
+    const costValidation = validatePrice(formData.costo, 'El costo', true);
+    if (!costValidation.isValid) errors.costo = costValidation.message;
+    
+    if (!formData.proveedor) errors.proveedor = 'El proveedor es requerido';
+    
+    if (formData.usaInventario) {
+      const stockValidation = validateQuantity(formData.cantidadActual, 'La cantidad actual', false);
+      if (!stockValidation.isValid) errors.cantidadActual = stockValidation.message;
+      
+      const minStockValidation = validateQuantity(formData.cantidadMinima, 'La cantidad mínima', true);
+      if (!minStockValidation.isValid) errors.cantidadMinima = minStockValidation.message;
+    }
+    
+    if (formData.precioMayoreo > 0) {
+      const wholesaleValidation = validatePrice(formData.precioMayoreo, 'El precio mayoreo', true);
+      if (!wholesaleValidation.isValid) errors.precioMayoreo = wholesaleValidation.message;
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleCategoryChange = (value: string) => {
@@ -280,12 +347,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validar todos los campos antes de enviar
-    Object.keys(formData).forEach(field => {
-      validateField(field, formData[field as keyof typeof formData]);
-    });
+    // Validar todos los campos de forma sincrónica
+    const isValid = validateFormComplete();
     
-    if (isFormValid()) {
+    if (isValid) {
       onSubmit(formData);
     } else {
       toast.error('Por favor corrige los errores en el formulario');
@@ -460,27 +525,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           {/* Stock */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="stock">Stock *</Label>
+              <Label htmlFor="stock">Stock (Solo lectura)</Label>
               <Input
                 id="stock"
                 type="number"
                 value={formData.usaInventario ? (formData.cantidadActual || '') : 0}
-                onChange={(e) => {
-                  const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
-                  setFormData({ ...formData, cantidadActual: value });
-                  if (editingProduct) setHasChanges(true);
-                  validateField('cantidadActual', value);
-                }}
                 placeholder="0"
-                className={validationErrors.cantidadActual ? 'border-destructive' : ''}
-                disabled={!formData.usaInventario}
+                className="bg-muted"
+                disabled={true}
+                readOnly={true}
               />
-              {validationErrors.cantidadActual && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {validationErrors.cantidadActual}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                Para modificar el stock, usa "Registrar Movimiento" en la lista de productos
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="minStock">Stock Mínimo *</Label>
@@ -672,4 +729,3 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     </Dialog>
   );
 };
-

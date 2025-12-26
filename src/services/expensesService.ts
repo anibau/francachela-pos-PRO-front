@@ -136,32 +136,47 @@ export const expensesService = {
   /**
    * Obtener gastos por rango de fechas
    */
-  getByDateRange: async (filters: DateRangeFilter): Promise<Expense[]> => {
+  getByDateRange: async (filters: DateRangeFilter): Promise<any> => {
     try {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();
         
-        const fromDate = new Date(filters.startDate);
-        const toDate = new Date(filters.endDate);
+        const startDate = filters.startDate || (filters as any).fechaInicio;
+        const endDate = filters.endDate || (filters as any).fechaFin;
+        const fromDate = new Date(startDate);
+        const toDate = new Date(endDate);
         
-        return mockExpensesAligned.filter(expense => {
+        const filtered = mockExpensesAligned.filter(expense => {
           const expenseDate = new Date(expense.date);
           return expenseDate >= fromDate && expenseDate <= toDate;
         });
+        
+        // Retornar en formato paginado para consistencia con API
+        return {
+          data: filtered,
+          total: filtered.length,
+          page: 1,
+          limit: filtered.length,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false
+        };
       }
       
       const queryParams = new URLSearchParams();
-      if (filters?.startDate) queryParams.append('fechaInicio', filters.startDate);
-      if (filters?.endDate) queryParams.append('fechaFin', filters.endDate);
+      const startDate = filters.startDate || (filters as any).fechaInicio;
+      const endDate = filters.endDate || (filters as any).fechaFin;
+      if (startDate) queryParams.append('fechaInicio', startDate);
+      if (endDate) queryParams.append('fechaFin', endDate);
       
       const url = `${API_ENDPOINTS.EXPENSES.BY_RANGE}${queryParams.toString() ? `?${queryParams}` : ''}`;
-      const result = await httpClient.get<Expense[]>(url);
-      // Asegurar que siempre retorna un array
-      return ensureArray(result, []);
+      const result = await httpClient.get<any>(url);
+      // El backend ahora retorna { data: [], total, page, ... }
+      return result || { data: [], total: 0, page: 1, limit: 10, totalPages: 0, hasNextPage: false, hasPrevPage: false };
     } catch (error) {
       console.error('Error getting expenses by date range:', error);
-      // Retornar array vacío en lugar de lanzar error
-      return [];
+      // Retornar estructura paginada vacía
+      return { data: [], total: 0, page: 1, limit: 10, totalPages: 0, hasNextPage: false, hasPrevPage: false };
     }
   },
 

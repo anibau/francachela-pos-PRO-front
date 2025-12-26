@@ -11,6 +11,7 @@ import type {
 
 // Interface para la respuesta paginada del backend
 interface PaginatedMovementsResponse {
+  length: number;
   data: InventoryMovement[];
   total: number;
   page: number;
@@ -187,13 +188,16 @@ export const inventoryService = {
           limit: 10,
           totalPages: 0,
           hasNextPage: false,
-          hasPrevPage: false
+          hasPrevPage: false,
+          length: 0
         };
       }
       
       const queryParams = new URLSearchParams();
-      if (filters.startDate) queryParams.append('fechaInicio', filters.startDate);
-      if (filters.endDate) queryParams.append('fechaFin', filters.endDate);
+      const startDate = filters.startDate || (filters as any).fechaInicio;
+      const endDate = filters.endDate || (filters as any).fechaFin;
+      if (startDate) queryParams.append('fechaInicio', startDate);
+      if (endDate) queryParams.append('fechaFin', endDate);
       if (filters.page) queryParams.append('page', filters.page.toString());
       if (filters.limit) queryParams.append('limit', filters.limit.toString());
       
@@ -214,7 +218,8 @@ export const inventoryService = {
         limit: movements.length,
         totalPages: 1,
         hasNextPage: false,
-        hasPrevPage: false
+        hasPrevPage: false,
+        length: movements.length
       };
     } catch (error) {
       console.error('Error getting inventory movements by date range:', error);
@@ -225,7 +230,8 @@ export const inventoryService = {
         limit: 10,
         totalPages: 0,
         hasNextPage: false,
-        hasPrevPage: false
+        hasPrevPage: false,
+        length: 0
       };
     }
   },
@@ -244,7 +250,8 @@ export const inventoryService = {
           limit: 10,
           totalPages: 0,
           hasNextPage: false,
-          hasPrevPage: false
+          hasPrevPage: false,
+          length: 0
         };
       }
       
@@ -268,7 +275,8 @@ export const inventoryService = {
         limit: movements.length,
         totalPages: 1,
         hasNextPage: false,
-        hasPrevPage: false
+        hasPrevPage: false,
+        length: movements.length
       };
     } catch (error) {
       console.error('Error getting inventory movements by type:', error);
@@ -279,7 +287,8 @@ export const inventoryService = {
         limit: 10,
         totalPages: 0,
         hasNextPage: false,
-        hasPrevPage: false
+        hasPrevPage: false,
+        length: 0
       };
     }
   },
