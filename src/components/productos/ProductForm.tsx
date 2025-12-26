@@ -119,11 +119,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           mostrar: editingProduct.mostrar ?? true,
           usaInventario: editingProduct.usaInventario ?? true,
         });
+        
+        // Validar que el proveedor del producto esté en la lista de proveedores disponibles
+        if (editingProduct.proveedor && !proveedoresDisponibles.includes(editingProduct.proveedor)) {
+          setProveedoresDisponibles(prev => [...prev, editingProduct.proveedor]);
+        }
       } else {
         resetForm();
       }
     }
-  }, [isOpen, editingProduct]);
+  }, [isOpen, editingProduct, proveedoresDisponibles]);
 
   const resetForm = () => {
     setFormData({
@@ -520,27 +525,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           {/* Stock */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="stock">Stock *</Label>
+              <Label htmlFor="stock">Stock (Solo lectura)</Label>
               <Input
                 id="stock"
                 type="number"
                 value={formData.usaInventario ? (formData.cantidadActual || '') : 0}
-                onChange={(e) => {
-                  const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
-                  setFormData({ ...formData, cantidadActual: value });
-                  if (editingProduct) setHasChanges(true);
-                  validateField('cantidadActual', value);
-                }}
                 placeholder="0"
-                className={validationErrors.cantidadActual ? 'border-destructive' : ''}
-                disabled={!formData.usaInventario}
+                className="bg-muted"
+                disabled={true}
+                readOnly={true}
               />
-              {validationErrors.cantidadActual && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {validationErrors.cantidadActual}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                Para modificar el stock, usa "Registrar Movimiento" en la lista de productos
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="minStock">Stock Mínimo *</Label>
@@ -732,4 +729,3 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     </Dialog>
   );
 };
-

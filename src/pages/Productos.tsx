@@ -16,6 +16,7 @@ import { validateProductName, validateBarcode, validatePrice, validateQuantity }
 import type { Product, InventoryMovement } from "@/types";
 import { ProductCategory, ProductSupplier } from "@/types";
 import { ProductForm } from '../components/productos/ProductForm';
+import InventoryMovementDialog from '../components/productos/InventoryMovementDialog';
 import { Label } from '@/components/ui/label';
 
 interface ProductValidationErrors {
@@ -87,11 +88,7 @@ export default function Productos() {
     usaInventario: true,
   });
   
-  const [movementData, setMovementData] = useState({
-    type: 'entrada' as 'entrada' | 'salida' | 'ajuste',
-    quantity: 0,
-    notes: '',
-  });
+
 
   // Cargar movimientos de inventario
   useEffect(() => {
@@ -385,40 +382,7 @@ export default function Productos() {
     }
   };
 
-  const handleMovementSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedProduct) return;
-    
-    try {
-      await inventoryService.createMovement({
-        tipo: movementData.type,
-        id: selectedProduct.id,
-        descripcion: movementData.notes || `Movimiento de ${movementData.type}`,
-        cantidad: movementData.quantity,
-        hora: new Date().toISOString(),
-        cajero: 'Usuario', // TODO: obtener del contexto de auth
-      });
-      
-      // Actualizar stock del producto
-      const newStock = movementData.type === 'entrada' 
-        ? selectedProduct.cantidadActual + movementData.quantity
-        : selectedProduct.cantidadActual - movementData.quantity;
-      
-      await productsService.update(selectedProduct.id, { cantidadActual: newStock });
-      
-      toast.success('Movimiento registrado correctamente');
-      setIsMovementDialogOpen(false);
-      resetMovementForm();
-      
-      // Recargar datos
-      refetch();
-      const updatedMovements = await inventoryService.getMovements();
-      setMovimientos(updatedMovements);
-    } catch (error) {
-      toast.error('Error al registrar movimiento');
-    }
-  };
+
 
   const handleDelete = async (id: number) => {
     if (!confirm('¿Estás seguro de eliminar este producto?')) return;
@@ -479,14 +443,7 @@ export default function Productos() {
     });
   };
 
-  const resetMovementForm = () => {
-    setSelectedProduct(null);
-    setMovementData({
-      type: 'entrada',
-      quantity: 0,
-      notes: '',
-    });
-  };
+
 
   // Funciones auxiliares para formateo
   const formatCurrency = (amount: number | string) => {
@@ -1125,57 +1082,15 @@ export default function Productos() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={isMovementDialogOpen} onOpenChange={(open) => {
-        setIsMovementDialogOpen(open);
-        if (!open) resetMovementForm();
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Registrar Movimiento</DialogTitle>
-            <DialogDescription>
-              {selectedProduct?.productoDescripcion}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleMovementSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Tipo de Movimiento</Label>
-              <Select value={movementData.type} onValueChange={(value: 'entrada' | 'salida' | 'ajuste') => setMovementData({ ...movementData, type: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="entrada">Entrada</SelectItem>
-                  <SelectItem value="salida">Salida</SelectItem>
-                  <SelectItem value="ajuste">Ajuste</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Cantidad</Label>
-              <Input
-                id="quantity"
-                type="number"
-                value={movementData.quantity || ''}
-                onChange={(e) => setMovementData({ ...movementData, quantity: e.target.value === '' ? 0 : parseInt(e.target.value) })}
-                required
-                min="1"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notas</Label>
-              <Input
-                id="notes"
-                value={movementData.notes}
-                onChange={(e) => setMovementData({ ...movementData, notes: e.target.value })}
-                placeholder="Descripción del movimiento"
-              />
-            </div>
-            <DialogFooter>
-              <Button type="submit" className="w-full">Registrar Movimiento</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <InventoryMovementDialog
+        isOpen={isMovementDialogOpen}
+        onClose={() => setIsMovementDialogOpen(false)}
+        product={selectedProduct}
+        onSuccess={() => {
+          refetch();
+          toast.success('Inventario actualizado');
+        }}
+      />
     </div>
   );
 }
