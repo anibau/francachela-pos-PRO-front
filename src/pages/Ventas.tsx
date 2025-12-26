@@ -301,7 +301,7 @@ export default function Ventas() {
                 </CardTitle>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   <Badge variant="default" className="text-lg font-bold">
-                    S/ {venta.total.toFixed(2)}
+                    S/ {venta.montoRecibido.toFixed(2)}
                   </Badge>
                   <Badge variant={venta.estado === 'completada' ? 'default' : 'destructive'}>
                     {venta.estado.toUpperCase()}
