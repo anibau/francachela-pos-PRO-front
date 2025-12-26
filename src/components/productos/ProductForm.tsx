@@ -128,7 +128,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         resetForm();
       }
     }
-  }, [isOpen, editingProduct, proveedoresDisponibles]);
+  }, [isOpen, editingProduct]);
 
   const resetForm = () => {
     setFormData({
