@@ -11,6 +11,8 @@ import { DollarSign, Clock, History, Plus, Calendar, TrendingUp, BarChart3, File
 import { toast } from 'sonner';
 import { cashRegisterService } from '@/services/cashRegisterService';
 import type { CashRegister, VentasCorte } from '@/types';
+import { API_ENDPOINTS } from '@/config/api';
+import { httpClient } from '@/services/httpClient';
 
 export default function Caja() {
   const [current, setCurrent] = useState<CashRegister | null>(null);
@@ -137,48 +139,31 @@ export default function Caja() {
   };
 
   const loadStatistics = async () => {
-    if (!dateFrom || !dateTo) {
-      toast.error("Por favor selecciona un rango de fechas");
-      return;
-    }
+  if (!dateFrom || !dateTo) {
+    toast.error("Por favor selecciona un rango de fechas");
+    return;
+  }
 
-    try {
-      // Convertir fechas a formato YYYY-MM-DD
-      const fechaInicio = dateFrom;
-      const fechaFin = dateTo;
+  try {
+    // Fechas en formato YYYY-MM-DD (ya vienen así)
+    const fechaInicio = dateFrom;
+    const fechaFin = dateTo;
 
-      // Llamar al nuevo endpoint de corte de ventas
-      const token = localStorage.getItem("auth_token");
-      if (!token) {
-        toast.error("No hay sesión activa");
-        return;
-      }
+    const queryParams = new URLSearchParams();
+    queryParams.append("fechaInicio", fechaInicio);
+    queryParams.append("fechaFin", fechaFin);
 
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_API_BASE_URL
-        }/ventas/corte?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+    const url = `${API_ENDPOINTS.SALES.CORTE}?${queryParams.toString()}`;
 
-      if (!response.ok) {
-        throw new Error("Error al obtener corte de ventas");
-      }
+    const stats = await httpClient.get<VentasCorte>(url);
 
-      const stats: VentasCorte = await response.json();
-      setStatistics(stats);
-      toast.success("Corte de ventas generado correctamente");
-    } catch (error) {
-      console.error("Error loading statistics:", error);
-      toast.error("Error al generar corte de ventas");
-    }
-  };
+    setStatistics(stats);
+    toast.success("Corte de ventas generado correctamente");
+  } catch (error) {
+    console.error("Error loading statistics:", error);
+    toast.error("Error al generar corte de ventas");
+  }
+};
 
   return (
     <div className="space-y-6 animate-fade-in">

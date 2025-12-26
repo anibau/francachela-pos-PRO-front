@@ -13,6 +13,8 @@ import { salesService } from "@/services/salesService";
 import type { Sale } from "@/types";
 import { showErrorToast, showSuccessToast, showLoadingToast, dismissToast } from "@/utils/errorHandler";
 import VentasPagosDisplay from "@/components/VentasPagosDisplay";
+import { API_ENDPOINTS } from '@/config/api';
+import { httpClient } from '@/services/httpClient';
 
 export default function Ventas() {
   const [ventas, setVentas] = useState<Sale[]>([]);
@@ -93,37 +95,25 @@ export default function Ventas() {
   };
 
   const handleUpdateComment = async () => {
-    if (editingSaleId === null) return;
+  if (editingSaleId === null) return;
 
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        showErrorToast('No hay sesión activa');
-        return;
-      }
+  try {
+    const url = `${API_ENDPOINTS.SALES.BASE}/${editingSaleId}/comentario`;
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/ventas/${editingSaleId}/comentario`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ comentario: editingComment }),
-      });
+    await httpClient.patch(url, {
+      comentario: editingComment,
+    });
 
-      if (!response.ok) {
-        throw new Error('Error al actualizar comentario');
-      }
-
-      showSuccessToast('Comentario actualizado');
-      setIsCommentDialogOpen(false);
-      setEditingSaleId(null);
-      setEditingComment('');
-      loadVentas();
+    showSuccessToast('Comentario actualizado');
+    setIsCommentDialogOpen(false);
+    setEditingSaleId(null);
+    setEditingComment('');
+    loadVentas();
     } catch (error) {
       showErrorToast(error, 'Error al actualizar comentario');
     }
   };
+
 
   const openCommentDialog = (sale: Sale) => {
     setEditingSaleId(sale.id);
@@ -137,100 +127,66 @@ export default function Ventas() {
   };
 
   const exportToExcel = async () => {
-    let loadingToastId: string | number;
-    
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        showErrorToast('No hay sesión activa');
-        return;
-      }
+  let loadingToastId: string | number;
 
-      // Construir parámetros de fecha con formato completo
-      const params = new URLSearchParams();
-      if (dateFilter.startDate) {
-        // Inicio del día: 00:00:00
-        params.append('fechaInicio', `${dateFilter.startDate} 00:00:00`);
-      }
-      if (dateFilter.endDate) {
-        // Fin del día: 23:59:59
-        params.append('fechaFin', `${dateFilter.endDate} 23:59:59`);
-      }
-      params.append('tipoReporte', 'VENTAS');
-      params.append('incluirDetalles', 'true');
+  try {
+    // Construir parámetros de fecha
+    const params = new URLSearchParams();
 
-      // URLs para ambos endpoints
-      const baseUrl = import.meta.env.VITE_API_BASE_URL;
-      const ventasUrl = `${baseUrl}/excel/export-ventas?${params.toString()}`;
-      const ventasPagosUrl = `${baseUrl}/excel/export-venta-pagos?${params.toString()}`;
-      
-      loadingToastId = showLoadingToast('Generando archivos Excel...');
-      
-      // Realizar ambas peticiones simultáneamente
-      const [ventasResponse, ventasPagosResponse] = await Promise.all([
-        fetch(ventasUrl, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }),
-        fetch(ventasPagosUrl, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        })
-      ]);
-
-      // Verificar que ambas respuestas sean exitosas
-      if (!ventasResponse.ok) {
-        throw new Error('Error al exportar ventas');
-      }
-      if (!ventasPagosResponse.ok) {
-        throw new Error('Error al exportar ventas-pagos');
-      }
-
-      // Obtener los blobs de ambas respuestas
-      const [ventasBlob, ventasPagosBlob] = await Promise.all([
-        ventasResponse.blob(),
-        ventasPagosResponse.blob()
-      ]);
-
-      // Generar fecha para nombres de archivos
-      const fechaArchivo = new Date().toISOString().split('T')[0];
-
-      // Descargar primer archivo (ventas)
-      const ventasDownloadUrl = URL.createObjectURL(ventasBlob);
-      const ventasLink = document.createElement('a');
-      ventasLink.href = ventasDownloadUrl;
-      ventasLink.download = `ventas_${fechaArchivo}.xlsx`;
-      document.body.appendChild(ventasLink);
-      ventasLink.click();
-      document.body.removeChild(ventasLink);
-      URL.revokeObjectURL(ventasDownloadUrl);
-
-      // Descargar segundo archivo (venta-pagos) con un pequeño delay
-      setTimeout(() => {
-        const ventasPagosDownloadUrl = URL.createObjectURL(ventasPagosBlob);
-        const ventasPagosLink = document.createElement('a');
-        ventasPagosLink.href = ventasPagosDownloadUrl;
-        ventasPagosLink.download = `venta-pagos_${fechaArchivo}.xlsx`;
-        document.body.appendChild(ventasPagosLink);
-        ventasPagosLink.click();
-        document.body.removeChild(ventasPagosLink);
-        URL.revokeObjectURL(ventasPagosDownloadUrl);
-      }, 500);
-
-      dismissToast(loadingToastId);
-      showSuccessToast('Archivos Excel exportados correctamente (2 archivos descargados)');
-    } catch (error) {
-      if (loadingToastId) {
-        dismissToast(loadingToastId);
-      }
-      console.error('Error exporting sales:', error);
-      showErrorToast(error, 'Error al exportar archivos Excel');
+    if (dateFilter.startDate) {
+      params.append('fechaInicio', `${dateFilter.startDate} 00:00:00`);
     }
+    if (dateFilter.endDate) {
+      params.append('fechaFin', `${dateFilter.endDate} 23:59:59`);
+    }
+
+    params.append('tipoReporte', 'VENTAS');
+    params.append('incluirDetalles', 'true');
+
+    const ventasUrl = `${API_ENDPOINTS.EXCEL.SALES}?${params.toString()}`;
+    const ventasPagosUrl = `${API_ENDPOINTS.EXCEL.SALES_PAYMENTS}?${params.toString()}`;
+
+    loadingToastId = showLoadingToast('Generando archivos Excel...');
+
+    // 🔥 Peticiones simultáneas con httpClient
+    const [ventasBlob, ventasPagosBlob] = await Promise.all([
+      httpClient.get<Blob>(ventasUrl, { responseType: 'blob' }),
+      httpClient.get<Blob>(ventasPagosUrl, { responseType: 'blob' }),
+    ]);
+
+    const fechaArchivo = new Date().toISOString().split('T')[0];
+
+    // 📥 Descargar ventas
+    const ventasDownloadUrl = URL.createObjectURL(ventasBlob);
+    const ventasLink = document.createElement('a');
+    ventasLink.href = ventasDownloadUrl;
+    ventasLink.download = `ventas_${fechaArchivo}.xlsx`;
+    document.body.appendChild(ventasLink);
+    ventasLink.click();
+    document.body.removeChild(ventasLink);
+    URL.revokeObjectURL(ventasDownloadUrl);
+
+    // 📥 Descargar ventas-pagos (delay opcional)
+    setTimeout(() => {
+      const ventasPagosDownloadUrl = URL.createObjectURL(ventasPagosBlob);
+      const ventasPagosLink = document.createElement('a');
+      ventasPagosLink.href = ventasPagosDownloadUrl;
+      ventasPagosLink.download = `venta-pagos_${fechaArchivo}.xlsx`;
+      document.body.appendChild(ventasPagosLink);
+      ventasPagosLink.click();
+      document.body.removeChild(ventasPagosLink);
+      URL.revokeObjectURL(ventasPagosDownloadUrl);
+    }, 500);
+
+    dismissToast(loadingToastId);
+    showSuccessToast('Archivos Excel exportados correctamente (2 archivos descargados)');
+  } catch (error) {
+    if (loadingToastId) dismissToast(loadingToastId);
+    console.error('Error exporting sales:', error);
+    showErrorToast(error, 'Error al exportar archivos Excel');
+  }
   };
+
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64">Cargando ventas...</div>;
