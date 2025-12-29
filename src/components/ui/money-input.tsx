@@ -44,15 +44,20 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
     },
     ref
   ) => {
-    const [stringValue, setStringValue] = useState<string>(String(value.toFixed(2)));
+    const [stringValue, setStringValue] = useState<string>(value === 0 ? '' : value.toFixed(2));
     const isEditingRef = useRef(false);
 
     // Solo sincronizar cuando el padre actualiza y NO estamos editando
     useEffect(() => {
       if (!isEditingRef.current) {
-        setStringValue(String(value.toFixed(2)));
+        setStringValue(value === 0 ? '' : value.toFixed(2));
       }
     }, [value]);
+
+    const handleFocus = () => {
+      isEditingRef.current = true;
+    };
+
 
     const validateAndProcessInput = (input: string): string => {
       // Permitir string vacío
@@ -86,38 +91,45 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
       setStringValue(processed);
       isEditingRef.current = true;
     };
-
-    const handleBlur = () => {
+    const commitValue = () => {
       isEditingRef.current = false;
 
       if (stringValue === '' || stringValue === '.') {
-        setStringValue('0.00');
+        setStringValue('');
         onChange(0);
         onBlurProp?.();
         return;
       }
 
-      // Convertir a número
       let numValue = parseFloat(stringValue);
 
-      // Manejo de NaN
       if (isNaN(numValue)) {
-        setStringValue('0.00');
+        setStringValue('');
         onChange(0);
         onBlurProp?.();
         return;
       }
 
-      // Redondear a 2 decimales
       numValue = Math.round(numValue * 100) / 100;
 
-      // Actualizar el display con formato
       setStringValue(numValue.toFixed(2));
-
-      // Llamar onChange con el valor redondeado
       onChange(numValue);
       onBlurProp?.();
     };
+
+
+    const handleBlur = () => {
+      commitValue();
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();      // evita submits accidentales
+        commitValue();
+        e.currentTarget.blur(); // opcional: saca el foco visualmente
+      }
+    };
+
 
     const isValid = !error && showValidation && stringValue && stringValue !== '.';
     const hasError = !!error;
@@ -136,8 +148,10 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
             type="text"
             inputMode="decimal"
             value={stringValue}
+            onFocus={handleFocus}
             onChange={handleChange}
             onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled}
             required={required}

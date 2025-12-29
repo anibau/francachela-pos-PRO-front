@@ -489,7 +489,6 @@ export default function POS() {
                       setDiscount(value);
                       applyDiscount(value);
                     }}
-                    placeholder="Descuento S/"
                     showValidation={false}
                     className="h-7 text-xs flex-1"
                   />
@@ -502,7 +501,6 @@ export default function POS() {
                       setRecargoExtra(value);
                       handleUpdateRecargoExtra();
                     }}
-                    placeholder="Recargo S/"
                     showValidation={false}
                     className="h-7 text-xs flex-1"
                   />
