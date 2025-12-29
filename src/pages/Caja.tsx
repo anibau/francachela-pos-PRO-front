@@ -20,6 +20,7 @@ export default function Caja() {
   const [summary, setSummary] = useState(null);
   const [statistics, setStatistics] = useState<VentasCorte | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentCashAttempted, setCurrentCashAttempted] = useState(false);
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   // Función para obtener fechas del mes actual
@@ -50,26 +51,18 @@ export default function Caja() {
     observaciones: "",
   });
 
-  const loadData = useCallback(async () => {
+  // Función separada para cargar caja actual (solo se ejecuta una vez)
+  const loadCurrentCash = useCallback(async () => {
+    if (currentCashAttempted) return current;
+    
     try {
-      setIsLoading(true);
-
-      // Los servicios ya retornan datos validados
       const currentData = await cashRegisterService
         .getCurrent()
         .catch(() => null);
-
-      // Cargar historial con filtros de fecha
-      const historyData = await cashRegisterService
-        .getHistory({
-          startDate: dateRange.fechaInicio,
-          endDate: dateRange.fechaFin,
-        })
-        .catch(() => []);
-
+      
       setCurrent(currentData);
-      setHistory(historyData);
-
+      setCurrentCashAttempted(true);
+      
       // Load summary only if there's a current cash register
       if (currentData?.id) {
         try {
@@ -82,17 +75,41 @@ export default function Caja() {
           // No mostrar toast aquí, continuamos sin el resumen
         }
       }
+      
+      return currentData;
+    } catch (error) {
+      console.error("Error loading current cash register:", error);
+      setCurrent(null);
+      setCurrentCashAttempted(true);
+      return null;
+    }
+  }, [currentCashAttempted, current]);
+
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      // Cargar caja actual solo si no se ha intentado antes
+      await loadCurrentCash();
+
+      // Cargar historial con filtros de fecha
+      const historyData = await cashRegisterService
+        .getHistory({
+          startDate: dateRange.fechaInicio,
+          endDate: dateRange.fechaFin,
+        })
+        .catch(() => []);
+
+      setHistory(historyData);
     } catch (error) {
       console.error("Unexpected error loading cash register data:", error);
       toast.error("Error inesperado al cargar datos de caja");
       // Establecer valores por defecto
-      setCurrent(null);
       setHistory([]);
-      setSummary(null);
     } finally {
       setIsLoading(false);
     }
-  }, [dateRange.fechaInicio, dateRange.fechaFin]);
+  }, [dateRange.fechaInicio, dateRange.fechaFin, loadCurrentCash]);
 
   useEffect(() => {
     loadData();
@@ -111,6 +128,9 @@ export default function Caja() {
       toast.success("Caja abierta correctamente");
       setIsOpenDialogOpen(false);
       setOpenData({ montoInicial: 0, observaciones: "" });
+      
+      // Resetear el flag para permitir cargar la nueva caja actual
+      setCurrentCashAttempted(false);
       loadData();
     } catch (error) {
       console.error("Error opening cash register:", error);
@@ -131,6 +151,9 @@ export default function Caja() {
       toast.success("Caja cerrada correctamente");
       setIsCloseDialogOpen(false);
       setCloseData({ montoFinal: 0, observaciones: "" });
+      
+      // Resetear el flag para permitir cargar el estado actualizado
+      setCurrentCashAttempted(false);
       loadData();
     } catch (error) {
       console.error("Error closing cash register:", error);

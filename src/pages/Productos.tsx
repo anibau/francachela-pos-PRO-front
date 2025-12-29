@@ -606,7 +606,13 @@ export default function Productos() {
                 if (!open) resetForm();
             }}>
               <DialogTrigger asChild>
-                <Button className="w-full sm:w-auto">
+                <Button 
+                  className="w-full sm:w-auto"
+                  onClick={() => {
+                    setEditingProduct(null);
+                    setValidationErrors({});
+                  }}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Nuevo Producto
                 </Button>
