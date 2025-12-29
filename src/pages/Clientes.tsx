@@ -13,6 +13,8 @@ import { clientsService } from '@/services/clientsService';
 import { whatsappService } from '@/services/whatsappService';
 import { validateName, validateDNI, validatePhone, validateBirthday, calculateAge, formatDate } from '@/utils/validators';
 import type { Client } from "@/types";
+import { API_ENDPOINTS } from '@/config/api';
+import { httpClient } from '@/services/httpClient';
 
 // Validaciones en tiempo real
 interface ValidationErrors {
@@ -257,75 +259,59 @@ export default function Clientes() {
   };
 
   const handleSendWhatsApp = async (dni: string) => {
-    const toastId = toast.loading('Enviando información por WhatsApp...');
-    try {
-      
-      // Obtener token de autenticación
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('No hay sesión activa');
-      }
+  const toastId = toast.loading('Enviando información por WhatsApp...');
+  try {
+    const url = `${API_ENDPOINTS.WHATSAPP.SEND_CLIENT_INFO}/${dni}`;
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/whatsapp/send-client-info/${dni}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+    await httpClient.post(url);
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
-        }
-        throw new Error('Error al enviar información');
-      }
-
-      toast.success('Información enviada por WhatsApp exitosamente', {
+    toast.success('Información enviada por WhatsApp exitosamente', {
       id: toastId,
     });
+  } catch (error: any) {
+    console.error('Error al enviar WhatsApp:', error);
 
-    } catch (error) {
-      console.error('Error al enviar WhatsApp:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Error al enviar información por WhatsApp';
-      toast.error(errorMessage, { id: toastId  });
-    }
-  };
+    // Manejo específico de sesión expirada
+    const errorMessage =
+      error?.response?.status === 401
+        ? 'Sesión expirada. Por favor, inicia sesión nuevamente.'
+        : error?.response?.data?.message ||
+          error?.message ||
+          'Error al enviar información por WhatsApp';
+
+    toast.error(errorMessage, { id: toastId });
+  }
+};
+
 
  
   // Función para enviar mensaje de cumpleaños
   const handleSendBirthdayMessage = async (clienteId: number) => {
-    try {
-      toast.loading('Enviando mensaje de cumpleaños...');
-      
-      // Obtener token de autenticación
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('No hay sesión activa');
-      }
+  const toastId = toast.loading('Enviando mensaje de cumpleaños...');
+  try {
+    const url = `${API_ENDPOINTS.WHATSAPP.BIRTHDAY}/${clienteId}`;
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/whatsapp/birthday/${clienteId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+    await httpClient.post(url);
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
-        }
-        throw new Error('Error al enviar mensaje de cumpleaños');
-      }
+    toast.success(
+      '¡Mensaje de cumpleaños enviado exitosamente!',
+      { id: toastId }
+    );
+  } catch (error: any) {
+    console.error('Error al enviar mensaje de cumpleaños:', error);
 
-      toast.success('¡Mensaje de cumpleaños enviado exitosamente!');
-    } catch (error) {
-      console.error('Error al enviar mensaje de cumpleaños:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Error al enviar mensaje de cumpleaños';
-      toast.error(errorMessage);
+    let errorMessage = 'Error al enviar mensaje de cumpleaños';
+
+    if (error?.response?.status === 401) {
+      errorMessage = 'Sesión expirada. Por favor, inicia sesión nuevamente.';
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
     }
-  };
+
+    toast.error(errorMessage, { id: toastId });
+  }
+};
+
 
   const openEditDialog = (client: Client) => {
     setEditingClient(client);
@@ -387,46 +373,36 @@ export default function Clientes() {
   });
 
   const exportToExcel = async () => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        toast.error('No hay sesión activa');
-        return;
+  const toastId = toast.loading('Generando archivo Excel...');
+  try {
+    const response = await httpClient.get<Blob>(
+      API_ENDPOINTS.EXCEL.CLIENTS,
+      {
+        responseType: 'blob',
       }
+    );
 
-      const url = `${import.meta.env.VITE_API_BASE_URL}/excel/export-clientes`;
-      
-      toast.loading('Generando archivo Excel...');
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+    const blob = new Blob([response], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
 
-      if (!response.ok) {
-        throw new Error('Error al exportar clientes');
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `clientes_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(downloadUrl);
+
+    toast.success('Clientes exportados correctamente', { id: toastId });
+      } catch (error) {
+        console.error('Error exporting clients:', error);
+        toast.error('Error al exportar clientes', { id: toastId });
       }
-
-      const blob = await response.blob();
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `clientes_${new Date().toISOString().split('T')[0]}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(downloadUrl);
-
-      toast.dismiss();
-      toast.success('Clientes exportados correctamente');
-    } catch (error) {
-      toast.dismiss();
-      console.error('Error exporting clients:', error);
-      toast.error('Error al exportar clientes');
-    }
   };
+
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64">Cargando clientes...</div>;

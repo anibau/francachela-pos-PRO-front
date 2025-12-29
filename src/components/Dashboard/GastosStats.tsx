@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { TrendingDown, DollarSign, BarChart3, Calendar, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { API_ENDPOINTS } from '@/config/api';
+import { httpClient } from '@/services/httpClient';
 
 interface GastosStatsData {
   totalGastos: number;
@@ -45,38 +47,26 @@ export const GastosStats: React.FC = () => {
   }, []);
 
   const loadGastosStats = async (inicio: string, fin: string) => {
-    setIsLoading(true);
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('No hay sesión activa');
-      }
+  setIsLoading(true);
+  try {
+    const queryParams = new URLSearchParams();
+    queryParams.append('fechaInicio', `${inicio} 00:00:00`);
+    queryParams.append('fechaFin', `${fin} 23:59:59`);
 
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-      const response = await fetch(
-        `${API_BASE_URL}/gastos/estadisticas?fechaInicio=${inicio} 00:00:00&fechaFin=${fin} 23:59:59`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+    const url = `${API_ENDPOINTS.EXPENSES.STATISTICS}?${queryParams.toString()}`;
 
-      if (!response.ok) {
-        throw new Error('Error al cargar estadísticas de gastos');
-      }
+    const response = await httpClient.get<any>(url);
 
-      const data = await response.json();
-      setGastosData(data);
-    } catch (error) {
-      console.error('Error loading gastos stats:', error);
-      toast.error('Error al cargar estadísticas de gastos');
-      setGastosData(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    setGastosData(response);
+  } catch (error) {
+    console.error('Error loading gastos stats:', error);
+    toast.error('Error al cargar estadísticas de gastos');
+    setGastosData(null);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const aplicarFiltros = () => {
     if (!fechaInicio || !fechaFin) {

@@ -21,7 +21,7 @@ import { whatsappService } from '@/services/whatsappService';
 
 interface WhatsAppStatus {
   connected: boolean;
-  session?: string;
+  session?: string; 
   phone?: string;
   message?: string;
 }
