@@ -272,7 +272,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     if (!formData.proveedor) errors.proveedor = 'El proveedor es requerido';
     
     if (formData.usaInventario) {
-      const stockValidation = validateQuantity(formData.cantidadActual, 'La cantidad actual', false);
+      // Stock es requerido solo al crear, no al editar
+      const isStockRequired = !editingProduct;
+      const stockValidation = validateQuantity(formData.cantidadActual, 'La cantidad actual', isStockRequired);
       if (!stockValidation.isValid) errors.cantidadActual = stockValidation.message;
       
       const minStockValidation = validateQuantity(formData.cantidadMinima, 'La cantidad mínima', true);
@@ -524,19 +526,39 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           {/* Stock */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="stock">Stock (Solo lectura)</Label>
+              <Label htmlFor="stock">
+                Stock {editingProduct ? '(Solo lectura)' : '*'}
+              </Label>
               <Input
                 id="stock"
                 type="number"
                 value={formData.usaInventario ? (formData.cantidadActual || '') : 0}
+                onChange={!editingProduct ? (e) => {
+                  const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                  setFormData({ ...formData, cantidadActual: value });
+                  validateField('cantidadActual', value);
+                } : undefined}
                 placeholder="0"
-                className="bg-muted"
-                disabled={true}
-                readOnly={true}
+                className={editingProduct ? "bg-muted" : (validationErrors.cantidadActual ? 'border-destructive' : '')}
+                disabled={editingProduct || !formData.usaInventario}
+                readOnly={editingProduct}
+                required={!editingProduct && formData.usaInventario}
               />
-              <p className="text-xs text-muted-foreground">
-                Para modificar el stock, usa "Registrar Movimiento" en la lista de productos
-              </p>
+              {editingProduct ? (
+                <p className="text-xs text-muted-foreground">
+                  Para modificar el stock, usa "Registrar Movimiento" en la lista de productos
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Ingresa la cantidad inicial del producto
+                </p>
+              )}
+              {validationErrors.cantidadActual && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {validationErrors.cantidadActual}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="minStock">Stock Mínimo *</Label>

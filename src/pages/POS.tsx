@@ -98,6 +98,13 @@ export default function POS() {
     handleUpdateRecargoExtra();
   }, [selectedPaymentMethod, currentRecargoExtra]);
 
+  // Sincronizar notas del estado local con el ticket activo
+  useEffect(() => {
+    if (activeTicket) {
+      setNotes(activeTicket.notes || '');
+    }
+  }, [activeTicket?.id, activeTicket?.notes]);
+
   // Filtrar productos localmente (patrón como en Clientes.tsx)
   const filteredProducts = (products || []).filter(producto => {
     if (!producto?.productoDescripcion || !producto?.codigoBarra) return false;
@@ -584,7 +591,13 @@ export default function POS() {
                             step="0.01"
                             value={montoActual || ''}
                             onChange={(e) => setMontoActual(parseFloat(e.target.value) || 0)}
-                            placeholder="Monto"
+                            onFocus={() => {
+                              // Auto-rellenar con monto restante si el campo está vacío
+                              if (montoActual === 0 && getMontoRestante() > 0) {
+                                setMontoActual(getMontoRestante());
+                              }
+                            }}
+                            placeholder={`Monto ${getMontoRestante() > 0 ? `(Restante: S/${getMontoRestante().toFixed(2)})` : ''}`}
                             className="h-7 text-xs flex-1"
                           />
                           <Button 

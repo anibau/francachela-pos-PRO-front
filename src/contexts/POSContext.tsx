@@ -249,8 +249,8 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         0
       );
       const rawTotal = Math.max(0, subtotal - ticket.discount + ticket.recargoExtra);
-      // Redondear a decimales .X0 (4.56 → 4.60)
-      const roundedTotal = Math.ceil(rawTotal * 10) / 10;
+      // Usar redondeo consistente con el payload (no hacia arriba)
+      const roundedTotal = Math.round(rawTotal * 10) / 10;
       return roundMoney(roundedTotal);
     },
     [tickets, activeTicketId]
