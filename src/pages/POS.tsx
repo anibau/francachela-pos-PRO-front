@@ -98,6 +98,18 @@ export default function POS() {
     handleUpdateRecargoExtra();
   }, [selectedPaymentMethod, currentRecargoExtra]);
 
+  // Limpiar descuento, recargo y notas cuando el ticket se vacía
+  useEffect(() => {
+    if (activeTicket && activeTicket.items.length === 0) {
+      // Solo limpiar si hay valores que limpiar
+      if (activeTicket.discount > 0 || activeTicket.recargoExtra > 0 || activeTicket.notes) {
+        applyDiscount(0);
+        applyRecargoExtra(0);
+        setTicketNotes('');
+      }
+    }
+  }, [activeTicket?.items.length, activeTicket?.id]);
+
 
 
   // Filtrar productos localmente (patrón como en Clientes.tsx)
@@ -251,7 +263,8 @@ export default function POS() {
   };
 
   const getMontoRestante = () => {
-    return total - getTotalPagado();
+    // Redondear a 2 decimales para evitar errores de precisión (ej: 0.9000000000004)
+    return Math.round((total - getTotalPagado()) * 100) / 100;
   };
 
   const isPagoCompleto = () => {

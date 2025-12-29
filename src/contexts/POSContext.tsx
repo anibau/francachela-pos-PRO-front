@@ -332,22 +332,43 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           Number.isFinite(value) ? Math.ceil((value as number) * 10) / 10 : 0;
 
         // Construir metodosPageo - siempre como array
-        const metodosPageoArray =
-          metodosPageo && metodosPageo.length > 0
-            ? metodosPageo.map((metodo) => ({
-                monto: round1(metodo.monto),
-                metodoPago: metodo.metodoPago,
-                ...(metodo.referencia && { referencia: metodo.referencia }),
-              }))
-            : [
-                {
-                  monto: round1(total),
-                  metodoPago: paymentMethod,
-                },
-              ];
+        let metodosPageoArray: Array<{
+          monto: number;
+          metodoPago: PaymentMethod;
+          referencia?: string;
+        }>;
+
+        if (metodosPageo && metodosPageo.length > 0) {
+          // Redondear cada monto y asegurar que la suma no tenga errores de precisión
+          metodosPageoArray = metodosPageo.map((metodo) => ({
+            monto: round1(metodo.monto),
+            metodoPago: metodo.metodoPago,
+            ...(metodo.referencia && { referencia: metodo.referencia }),
+          }));
+        } else {
+          // Método de pago único: usar el total redondeado
+          metodosPageoArray = [
+            {
+              monto: total,
+              metodoPago: paymentMethod,
+            },
+          ];
+        }
 
         const recargoExtraRedondeado =
           Math.round((ticket.recargoExtra || 0) * 10) / 10;
+
+        // Calcular el monto total pagado (suma de todos los métodos de pago)
+        // Usar redondeo aritmético para evitar errores de precisión flotante
+        const totalPagado = Math.round(
+          metodosPageoArray.reduce((sum, metodo) => sum + metodo.monto, 0) * 100
+        ) / 100;
+
+        // Si hay montoRecibido, usarlo; si no, usar el total pagado
+        const montoRecibidoFinal =
+          montoRecibido && montoRecibido > 0 
+            ? Math.round(montoRecibido * 100) / 100 
+            : totalPagado;
 
         const saleData = {
           clienteId: ticket.clientId || null,
@@ -360,7 +381,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           metodosPageo: metodosPageoArray,
           comentario: ticket.notes || "",
           tipoCompra: "LOCAL",
-          montoRecibido: montoRecibido || 0,
+          montoRecibido: Math.round(montoRecibidoFinal * 100) / 100,
           puntosUsados: 0,
         };
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { API_ENDPOINTS } from "@/config/api";
 import { httpClient } from "./httpClient";
 

@@ -85,18 +85,6 @@ export const productsService = {
   },
 
   /**
-   * Obtener categorías de productos
-   */
-  getCategories: async (): Promise<string[]> => {
-    try {
-      return await httpClient.get<string[]>(API_ENDPOINTS.PRODUCTS.CATEGORIES);
-    } catch (error) {
-      console.error('Error getting categories:', error);
-      throw new Error(extractErrorMessage(error));
-    }
-  },
-
-  /**
    * Obtener productos con stock bajo
    */
   getLowStock: async (): Promise<Product[]> => {
