@@ -250,7 +250,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
       );
       const rawTotal = Math.max(0, subtotal - ticket.discount + ticket.recargoExtra);
       // Usar redondeo consistente con el payload (no hacia arriba)
-      const roundedTotal = Math.round(rawTotal * 10) / 10;
+      const roundedTotal = Math.ceil(rawTotal * 10) / 10;
       return roundMoney(roundedTotal);
     },
     [tickets, activeTicketId]
@@ -329,7 +329,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         const hasMayoreo = descuentoMayoreo > 0;
 
         const round1 = (value: unknown): number =>
-          Number.isFinite(value) ? Math.round((value as number) * 10) / 10 : 0;
+          Number.isFinite(value) ? Math.ceil((value as number) * 10) / 10 : 0;
 
         // Construir metodosPageo - siempre como array
         const metodosPageoArray =
