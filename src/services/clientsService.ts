@@ -31,8 +31,9 @@ export const clientsService = {
       }
       return normalizeClients(Array.isArray(response) ? response : []);
     } catch (error) {
-      console.error('Error getting clients:', error);
-      throw new Error(extractErrorMessage(error));
+      // Retornar array vacío en lugar de lanzar error (ej: cuando 404 - No se encontraron clientes)
+      console.warn('No clients found or error fetching clients:', extractErrorMessage(error));
+      return [];
     }
   },
 

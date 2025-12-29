@@ -16,7 +16,7 @@
  * roundMoney(9.999) // 10.00
  */
 export const roundMoney = (value: number): number => {
-  return Math.round(value * 100) / 100;
+  return Math.ceil(value * 100) / 100;
 };
 
 /**

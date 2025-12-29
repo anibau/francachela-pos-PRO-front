@@ -18,7 +18,7 @@ import { ProductCategory, ProductSupplier } from "@/types";
 import { ProductForm } from '../components/productos/ProductForm';
 import InventoryMovementDialog from '../components/productos/InventoryMovementDialog';
 import { Label } from '@/components/ui/label';
-import { API_ENDPOINTS } from '@/config/api';
+import { API_ENDPOINTS, API_CONFIG } from '@/config/api';
 import { httpClient } from '@/services/httpClient';
 
 interface ProductValidationErrors {
@@ -146,7 +146,7 @@ export default function Productos() {
       // Adaptar al response esperado: { movimientos: [], totalMovimientos: number }
       if (data && typeof data === 'object' && 'movimientos' in data) {
         setMovimientosHoy(data.movimientos || []);
-        setTotalMovimientosHoy(data.length || 0);
+        setTotalMovimientosHoy((data as any).totalMovimientos || 0);
       } else if (Array.isArray(data)) {
         setMovimientosHoy(data);
         setTotalMovimientosHoy(data.length);
@@ -515,10 +515,18 @@ export default function Productos() {
   const exportProductsToExcel = async () => {
   const toastId = toast.loading('Generando archivo Excel...');
   try {
-    const blob = await httpClient.get<Blob>(
-      API_ENDPOINTS.EXCEL.PRODUCTS,
-      { responseType: 'blob' }
-    );
+    const response = await fetch(`${API_CONFIG.BASE_URL}${API_ENDPOINTS.EXCEL.PRODUCTS}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Error al generar el archivo Excel');
+    }
+    
+    const blob = await response.blob();
 
     const downloadUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -555,10 +563,18 @@ export default function Productos() {
       incluirDetalles: 'true',
     });
 
-    const blob = await httpClient.get<Blob>(
-      `${API_ENDPOINTS.EXCEL.INVENTORY}?${queryParams.toString()}`,
-      { responseType: 'blob' }
-    );
+    const response = await fetch(`${API_CONFIG.BASE_URL}${API_ENDPOINTS.EXCEL.INVENTORY}?${queryParams.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Error al generar el archivo Excel');
+    }
+    
+    const blob = await response.blob();
 
     const downloadUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -606,7 +622,13 @@ export default function Productos() {
                 if (!open) resetForm();
             }}>
               <DialogTrigger asChild>
-                <Button className="w-full sm:w-auto">
+                <Button 
+                  className="w-full sm:w-auto"
+                  onClick={() => {
+                    setEditingProduct(null);
+                    setValidationErrors({});
+                  }}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Nuevo Producto
                 </Button>

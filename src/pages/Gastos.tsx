@@ -210,7 +210,17 @@ export default function Gastos() {
       
       setIsDialogOpen(false);
       resetForm();
+      
+      // Recargar datos principales
       loadData();
+      
+      // Recargar datos del resumen (mes actual)
+      loadResumenData();
+      
+      // Si hay filtros aplicados en la sección GASTOS, recargar esos datos también
+      if (filtroFechaInicio && filtroFechaFin) {
+        loadGastosData();
+      }
     } catch (error) {
       console.error('Error saving expense:', error);
       toast.error('Error al guardar gasto');
@@ -223,7 +233,17 @@ export default function Gastos() {
     try {
       await expensesService.delete(id);
       toast.success('Gasto eliminado correctamente');
+      
+      // Recargar datos principales
       loadData();
+      
+      // Recargar datos del resumen (mes actual)
+      loadResumenData();
+      
+      // Si hay filtros aplicados en la sección GASTOS, recargar esos datos también
+      if (filtroFechaInicio && filtroFechaFin) {
+        loadGastosData();
+      }
     } catch (error) {
       console.error('Error deleting expense:', error);
       toast.error('Error al eliminar gasto');
@@ -510,6 +530,7 @@ export default function Gastos() {
                           <th className="text-left p-2 font-semibold">Categoría</th>
                           <th className="text-left p-2 font-semibold">Método Pago</th>
                           <th className="text-left p-2 font-semibold">Cajero</th>
+                          <th className="text-center p-2 font-semibold">Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -532,6 +553,16 @@ export default function Gastos() {
                             </td>
                             <td className="p-2 text-sm text-muted-foreground">
                               {expense.cajero}
+                            </td>
+                            <td className="p-2 text-center">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(expense.id)}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </td>
                           </tr>
                         ))}
@@ -669,6 +700,7 @@ export default function Gastos() {
                           <th className="text-left p-2 font-semibold">Categoría</th>
                           <th className="text-left p-2 font-semibold">Método Pago</th>
                           <th className="text-left p-2 font-semibold">Cajero</th>
+                          <th className="text-center p-2 font-semibold">Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -691,6 +723,16 @@ export default function Gastos() {
                             </td>
                             <td className="p-2 text-sm text-muted-foreground">
                               {expense.cajero}
+                            </td>
+                            <td className="p-2 text-center">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(expense.id)}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </td>
                           </tr>
                         ))}

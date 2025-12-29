@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { inventoryMovementService, MovimientoEntrada, MovimientoAjuste, MovimientoVenta } from '@/services/inventoryMovementService';
-import { ProductSupplier } from '@/types';
+import { useProductSuppliers } from '@/hooks/useProducts';
 
 interface Product {
   id: number;
@@ -67,6 +67,9 @@ export default function InventoryMovementDialog({
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Obtener proveedores del backend
+  const { data: suppliers = [], isLoading: isLoadingSuppliers } = useProductSuppliers();
 
   // Resetear formulario cuando se abre el diálogo
   useEffect(() => {
@@ -289,12 +292,13 @@ export default function InventoryMovementDialog({
                 <Select
                   value={formData.proveedor}
                   onValueChange={(value) => setFormData({ ...formData, proveedor: value })}
+                  disabled={isLoadingSuppliers}
                 >
                   <SelectTrigger className={errors.proveedor ? 'border-destructive' : ''}>
-                    <SelectValue placeholder="Seleccionar proveedor" />
+                    <SelectValue placeholder={isLoadingSuppliers ? "Cargando proveedores..." : "Seleccionar proveedor"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.values(ProductSupplier).map((supplier) => (
+                    {suppliers.map((supplier) => (
                       <SelectItem key={supplier} value={supplier}>
                         <div className="flex items-center gap-2">
                           <Building className="h-4 w-4" />

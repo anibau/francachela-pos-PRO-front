@@ -372,7 +372,7 @@ export const expensesService = {
   /**
    * Obtener estadísticas de gastos
    */
-  getStatistics: async (filters?: DateRangeFilter): Promise<any> => {
+  getStatistics: async (filters?: DateRangeFilter) => {
     try {
       if (API_CONFIG.USE_MOCKS) {
         await simulateDelay();

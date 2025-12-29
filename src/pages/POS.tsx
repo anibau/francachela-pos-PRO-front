@@ -29,9 +29,8 @@ export default function POS() {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(PAYMENT_METHODS.EFECTIVO);
-  const [notes, setNotes] = useState('');
-  const [discount, setDiscount] = useState(0);
-  const [recargoExtra, setRecargoExtra] = useState(0);
+
+  // Los descuentos y recargos ahora se manejan directamente en el ticket activo
   const [montoRecibido, setMontoRecibido] = useState<number | undefined>();
   const [showChangeCalculator, setShowChangeCalculator] = useState(false);
   
@@ -71,6 +70,11 @@ export default function POS() {
     completeSale,
   } = usePOS();
 
+  // Obtener valores del ticket activo
+  const activeTicket = getActiveTicket();
+  const currentDiscount = activeTicket?.discount || 0;
+  const currentRecargoExtra = activeTicket?.recargoExtra || 0;
+
   // Manejar errores de carga
   useEffect(() => {
     if (productsError) {
@@ -92,7 +96,21 @@ export default function POS() {
   // Actualizar recargo automáticamente cuando cambie el método de pago
   useEffect(() => {
     handleUpdateRecargoExtra();
-  }, [selectedPaymentMethod, recargoExtra]);
+  }, [selectedPaymentMethod, currentRecargoExtra]);
+
+  // Limpiar descuento, recargo y notas cuando el ticket se vacía
+  useEffect(() => {
+    if (activeTicket && activeTicket.items.length === 0) {
+      // Solo limpiar si hay valores que limpiar
+      if (activeTicket.discount > 0 || activeTicket.recargoExtra > 0 || activeTicket.notes) {
+        applyDiscount(0);
+        applyRecargoExtra(0);
+        setTicketNotes('');
+      }
+    }
+  }, [activeTicket?.items.length, activeTicket?.id]);
+
+
 
   // Filtrar productos localmente (patrón como en Clientes.tsx)
   const filteredProducts = (products || []).filter(producto => {
@@ -125,13 +143,18 @@ export default function POS() {
     currentPage * PRODUCTS_PER_PAGE
   );
 
-  const activeTicket = getActiveTicket();
   const rawTotal = getTicketTotal();
   // Redondear total a decimales .X0 (4.56 → 4.60)
   const total = Math.ceil(rawTotal * 10) / 10;
   const pointsEarned = activeTicket ? calculateTotalPoints(activeTicket.items) : 0;
 
   const handleAddProduct = (product: Product) => {
+    // Validar que hay un ticket activo seleccionado
+    if (!activeTicket) {
+      toast.error('Selecciona un ticket antes de agregar productos');
+      return;
+    }
+
     addItem(product, false);
     toast({
       title: 'Producto agregado',
@@ -173,25 +196,18 @@ export default function POS() {
     });
   };
 
-  const handleUpdateNotes = () => {
-    setTicketNotes(notes);
-  };
 
-  const handleUpdateDiscount = () => {
-    applyDiscount(discount);
-  };
 
   const handleUpdateRecargoExtra = () => {
     // Calcular recargo automático si el método de pago es TARJETA
-    let recargoFinal = recargoExtra;
+    let recargoFinal = currentRecargoExtra;
     
     if (selectedPaymentMethod === PAYMENT_METHODS.TARJETA) {
-      const activeTicket = getActiveTicket();
       if (activeTicket) {
         const subtotal = activeTicket.items.reduce((sum, item) => sum + item.subtotal, 0);
         const total = subtotal - activeTicket.discount;
         const recargoAutomatico = total * 0.0005; // 0.05% del total
-        recargoFinal = recargoExtra + recargoAutomatico;
+        recargoFinal = currentRecargoExtra + recargoAutomatico;
       }
     }
     
@@ -247,7 +263,8 @@ export default function POS() {
   };
 
   const getMontoRestante = () => {
-    return total - getTotalPagado();
+    // Redondear a 2 decimales para evitar errores de precisión (ej: 0.9000000000004)
+    return Math.round((total - getTotalPagado()) * 100) / 100;
   };
 
   const isPagoCompleto = () => {
@@ -314,9 +331,7 @@ export default function POS() {
     });
     
     setIsPaymentOpen(false);
-    setNotes('');
-    setDiscount(0);
-    setRecargoExtra(0);
+
     setMontoRecibido(undefined);
     setSelectedPaymentMethod(PAYMENT_METHODS.EFECTIVO);
   };
@@ -484,9 +499,8 @@ export default function POS() {
 
                   <label htmlFor="" className='text-xs'> Descuento </label>
                   <MoneyInput
-                    value={discount}
+                    value={currentDiscount}
                     onChange={(value) => {
-                      setDiscount(value);
                       applyDiscount(value);
                     }}
                     showValidation={false}
@@ -496,10 +510,9 @@ export default function POS() {
                   <div>
                   <label htmlFor="" className='text-xs'> Recargo Extra </label>                 
                   <MoneyInput
-                    value={recargoExtra}
+                    value={currentRecargoExtra}
                     onChange={(value) => {
-                      setRecargoExtra(value);
-                      handleUpdateRecargoExtra();
+                      applyRecargoExtra(value);
                     }}
                     showValidation={false}
                     className="h-7 text-xs flex-1"
@@ -508,9 +521,8 @@ export default function POS() {
                   <div className="flex-1">
                     <label htmlFor="" className='text-xs'>Notas </label>
                     <Input
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      onBlur={handleUpdateNotes}
+                      value={activeTicket?.notes || ''}
+                      onChange={(e) => setTicketNotes(e.target.value)}
                       placeholder="Notas..."
                       className="h-7 text-xs"
                     />
@@ -590,7 +602,13 @@ export default function POS() {
                             step="0.01"
                             value={montoActual || ''}
                             onChange={(e) => setMontoActual(parseFloat(e.target.value) || 0)}
-                            placeholder="Monto"
+                            onFocus={() => {
+                              // Auto-rellenar con monto restante si el campo está vacío
+                              if (montoActual === 0 && getMontoRestante() > 0) {
+                                setMontoActual(getMontoRestante());
+                              }
+                            }}
+                            placeholder={`Monto ${getMontoRestante() > 0 ? `(Restante: S/${getMontoRestante().toFixed(2)})` : ''}`}
                             className="h-7 text-xs flex-1"
                           />
                           <Button 
@@ -704,7 +722,7 @@ export default function POS() {
           </div>
         </div>
 
-        <ScrollArea className="flex-1 min-h-0">
+        <ScrollArea className="flex-1 min-h-0 max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)] lg:max-h-[calc(100vh-8rem)]">
           <div className="space-y-1.5 pr-2">
             {displayProducts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
