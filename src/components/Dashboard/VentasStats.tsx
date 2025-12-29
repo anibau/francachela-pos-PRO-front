@@ -301,7 +301,7 @@ export default function VentasStats() {
                           cx="50%"
                           cy="50%"
                           outerRadius={80}
-                          label={({ metodo, percent }) => `${metodo} ${(percent * 100).toFixed(0)}%`}
+                          label={({ metodo, percent }) => `${metodo} ${((Number(percent) || 0) * 100).toFixed(0)}%`}
                         >
                           {Object.entries(estadisticas.ventasPorMetodo).map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

@@ -29,7 +29,7 @@ export default function POS() {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(PAYMENT_METHODS.EFECTIVO);
-  const [notes, setNotes] = useState('');
+
   // Los descuentos y recargos ahora se manejan directamente en el ticket activo
   const [montoRecibido, setMontoRecibido] = useState<number | undefined>();
   const [showChangeCalculator, setShowChangeCalculator] = useState(false);
@@ -98,12 +98,7 @@ export default function POS() {
     handleUpdateRecargoExtra();
   }, [selectedPaymentMethod, currentRecargoExtra]);
 
-  // Sincronizar notas del estado local con el ticket activo
-  useEffect(() => {
-    if (activeTicket) {
-      setNotes(activeTicket.notes || '');
-    }
-  }, [activeTicket?.id, activeTicket?.notes]);
+
 
   // Filtrar productos localmente (patrón como en Clientes.tsx)
   const filteredProducts = (products || []).filter(producto => {
@@ -142,6 +137,12 @@ export default function POS() {
   const pointsEarned = activeTicket ? calculateTotalPoints(activeTicket.items) : 0;
 
   const handleAddProduct = (product: Product) => {
+    // Validar que hay un ticket activo seleccionado
+    if (!activeTicket) {
+      toast.error('Selecciona un ticket antes de agregar productos');
+      return;
+    }
+
     addItem(product, false);
     toast({
       title: 'Producto agregado',
@@ -183,9 +184,7 @@ export default function POS() {
     });
   };
 
-  const handleUpdateNotes = () => {
-    setTicketNotes(notes);
-  };
+
 
   const handleUpdateRecargoExtra = () => {
     // Calcular recargo automático si el método de pago es TARJETA
@@ -319,7 +318,7 @@ export default function POS() {
     });
     
     setIsPaymentOpen(false);
-    setNotes('');
+
     setMontoRecibido(undefined);
     setSelectedPaymentMethod(PAYMENT_METHODS.EFECTIVO);
   };
@@ -509,9 +508,8 @@ export default function POS() {
                   <div className="flex-1">
                     <label htmlFor="" className='text-xs'>Notas </label>
                     <Input
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      onBlur={handleUpdateNotes}
+                      value={activeTicket?.notes || ''}
+                      onChange={(e) => setTicketNotes(e.target.value)}
                       placeholder="Notas..."
                       className="h-7 text-xs"
                     />
@@ -711,7 +709,7 @@ export default function POS() {
           </div>
         </div>
 
-        <ScrollArea className="flex-1 min-h-0">
+        <ScrollArea className="flex-1 min-h-0 max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)] lg:max-h-[calc(100vh-8rem)]">
           <div className="space-y-1.5 pr-2">
             {displayProducts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
