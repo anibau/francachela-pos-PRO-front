@@ -152,7 +152,7 @@ export const API_ENDPOINTS = {
     LOGOUT: '/whatsapp/logout',
     SEND_CLIENT_INFO: '/whatsapp/send-client-info',
     BIRTHDAY: '/whatsapp/birthday',
-    SEND_WELCOME: '/whatsapp/send-welcome/',
+    SEND_WELCOME: '/whatsapp/send-welcome',
   },
   
   // Exportación Excel

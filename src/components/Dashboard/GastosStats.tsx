@@ -166,6 +166,14 @@ export const GastosStats: React.FC = () => {
               <Button 
                 variant="outline" 
                 size="sm" 
+                onClick={() => setRangoRapido(30)}
+                disabled={isLoading}
+              >
+                30d
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
                 onClick={() => {
                   const monthDates = getMonthDates();
                   setFechaInicio(monthDates.fechaInicio);
@@ -329,4 +337,3 @@ export const GastosStats: React.FC = () => {
     </div>
   );
 };
-
