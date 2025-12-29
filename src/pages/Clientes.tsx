@@ -408,6 +408,9 @@ export default function Clientes() {
     return <div className="flex items-center justify-center h-64">Cargando clientes...</div>;
   }
 
+  // Mostrar mensaje cuando no hay clientes (después de que termine de cargar)
+  const hasNoClients = !isLoading && (!clientes || clientes.length === 0);
+
   return (
     <div className="space-y-6 animate-fade-in p-4 lg:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -601,10 +604,184 @@ export default function Clientes() {
         />
       </div>
 
-      <div className="grid gap-4">
-        {filteredClientes
-          .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-          .map((cliente) => (
+      {hasNoClients ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <Users className="h-16 w-16 text-muted-foreground mb-4 opacity-50" />
+          <h2 className="text-2xl font-semibold text-muted-foreground mb-2">No hay clientes</h2>
+          <p className="text-muted-foreground mb-6">Comienza creando tu primer cliente</p>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Crear Primer Cliente
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}</DialogTitle>
+                <DialogDescription>
+                  {editingClient ? 'Actualiza la información del cliente' : 'Completa los datos del nuevo cliente'}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">Nombres *</Label>
+                <Input
+                  id="firstName"
+                  value={formData.firstName}
+                  onChange={(e) => handleInputChange('firstName', e.target.value)}
+                  placeholder="Juan Carlos"
+                  className={validationErrors.firstName ? 'border-destructive' : ''}
+                  required
+                />
+                {validationErrors.firstName && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {validationErrors.firstName}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Apellidos *</Label>
+                <Input
+                  id="lastName"
+                  value={formData.lastName}
+                  onChange={(e) => handleInputChange('lastName', e.target.value)}
+                  placeholder="Pérez García"
+                  className={validationErrors.lastName ? 'border-destructive' : ''}
+                  required
+                />
+                {validationErrors.lastName && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {validationErrors.lastName}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dni">DNI o CE *</Label>
+                <div className="relative">
+                  <Input
+                    id="dni"
+                    value={formData.dni}
+                    onChange={(e) => handleInputChange('dni', e.target.value.replace(/\D/g, ''))}
+                    maxLength={10}
+                    placeholder="DNI: 12345678 o CE: 1234567890"
+                    className={validationErrors.dni ? 'border-destructive pr-10' : 'pr-10'}
+                    required
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {dniValidating && (
+                      <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    )}
+                    {!dniValidating && dniAvailable === true && ((/^\d{8}$/.test(formData.dni)) || (/^\d{1,10}$/.test(formData.dni))) && (
+                      <Check className="h-4 w-4 text-green-500" />
+                    )}
+                    {!dniValidating && dniAvailable === false && (
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                </div>
+                {validationErrors.dni && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {validationErrors.dni}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Teléfono *</Label>
+                <div className="flex gap-2">
+                  <div className="flex items-center px-3 border rounded-md bg-muted text-muted-foreground">
+                    +51
+                  </div>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value.replace(/\D/g, ''))}
+                    placeholder="987654321"
+                    maxLength={9}
+                    className={validationErrors.phone ? 'border-destructive' : ''}
+                    required
+                  />
+                </div>
+                {validationErrors.phone && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {validationErrors.phone}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">Dirección Delivery (Opcional)</Label>
+                <Input
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="birthday">Fecha de Nacimiento *</Label>
+                <div className="relative">
+                  <Input
+                    id="birthday"
+                    type="date"
+                    value={formData.birthday}
+                    onChange={(e) => {
+                      setFormData({ ...formData, birthday: e.target.value });
+                      validateField('birthday', e.target.value);
+                    }}
+                    className={validationErrors.birthday ? 'border-destructive pr-10' : 'pr-10'}
+                    required
+                  />
+                  {formData.birthday && !validationErrors.birthday && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                      <Check className="h-4 w-4 text-green-500" />
+                      <span className="text-xs text-muted-foreground">
+                        {calculateAge(formData.birthday)} años
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {validationErrors.birthday && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {validationErrors.birthday}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="points">Puntos Acumulados (Opcional)</Label>
+                <Input
+                  id="points"
+                  type="number"
+                  min="0"
+                  value={formData.points === 0 ? '' : formData.points}
+                  onChange={(e) => setFormData({ ...formData, points: e.target.value === '' ? 0 : parseInt(e.target.value) })}
+                  placeholder="0"
+                />
+              </div>
+              <DialogFooter>
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={!isFormValid() || dniValidating}
+                >
+                  {editingClient ? 'Actualizar' : 'Crear Cliente'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+          </Dialog>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {filteredClientes
+            .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+            .map((cliente) => (
           <Card key={cliente.id} className="hover:shadow-lg transition-all">
             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
               <CardTitle className="flex items-center gap-3 text-lg">
@@ -675,8 +852,9 @@ export default function Clientes() {
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {filteredClientes.length > ITEMS_PER_PAGE && (
         <Pagination>

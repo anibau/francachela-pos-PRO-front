@@ -445,7 +445,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     ))}
                     <SelectItem value="CREATE_NEW">
                       <div className="flex items-center gap-2">
-                        <Plus className="h-4 w-4" />
                         ➕ Crear nueva categoría
                       </div>
                     </SelectItem>
@@ -587,7 +586,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     ))}
                     <SelectItem value="CREATE_NEW">
                       <div className="flex items-center gap-2">
-                        <Plus className="h-4 w-4" />
                         ➕ Crear nuevo proveedor
                       </div>
                     </SelectItem>

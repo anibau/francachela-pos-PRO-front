@@ -129,7 +129,6 @@ export default function POS() {
     currentPage * PRODUCTS_PER_PAGE
   );
 
-  const activeTicket = getActiveTicket();
   const rawTotal = getTicketTotal();
   // Redondear total a decimales .X0 (4.56 → 4.60)
   const total = Math.ceil(rawTotal * 10) / 10;
