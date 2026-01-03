@@ -34,7 +34,6 @@ export default function Clientes() {
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [dniValidating, setDniValidating] = useState(false);
   const [dniAvailable, setDniAvailable] = useState<boolean | null>(null);
-  const [hasChanges, setHasChanges] = useState(false); // Nuevo: rastrear cambios
   const ITEMS_PER_PAGE = 10;
 
   // Usar los nuevos hooks
@@ -163,13 +162,14 @@ export default function Clientes() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Detectar si hay cambios cuando estamos editando
-    if (editingClient) {
-      setHasChanges(true);
-    }
-    
     validateField(field, value);
+  };
+
+  // Detectar cambios comparando con datos originales
+  const hasRealChanges = () => {
+    if (!editingClient) return true; // Si estamos creando, siempre hay cambios potenciales
+    
+    return JSON.stringify(formData) !== JSON.stringify(originalFormData);
   };
 
   const isFormValid = () => {
@@ -187,9 +187,9 @@ export default function Clientes() {
       (dniAvailable === true || editingClient !== null)
     );
 
-    // Si estamos editando, permitir submit si hay cambios válidos
+    // Si estamos editando, permitir submit SOLO si hay cambios reales y validación OK
     if (editingClient) {
-      return baseValid && hasChanges;
+      return baseValid && hasRealChanges();
     }
 
     // Si estamos creando, validar todo normalmente
@@ -318,7 +318,6 @@ export default function Clientes() {
     setEditingClient(client);
     setDniAvailable(true); // El DNI actual es válido
     setValidationErrors({});
-    setHasChanges(false); // Inicializar sin cambios
     
     const clientFormData = {
       firstName: client.nombres,
@@ -339,7 +338,6 @@ export default function Clientes() {
     setEditingClient(null);
     setValidationErrors({});
     setDniAvailable(null);
-    setHasChanges(false);
     setFormData({
       firstName: '',
       lastName: '',
