@@ -8,7 +8,7 @@ import { useProducts, useClients, productKeys, clientKeys } from '@/hooks';
 import type { Product, Client, PaymentMethod } from '@/types';
 import { PAYMENT_METHODS, PAYMENT_METHOD_OPTIONS } from '@/constants/paymentMethods';
 import { usePOS } from '@/contexts/POSContext';
-import { roundMoney } from '@/utils/moneyUtils';
+import { roundMoney, roundToNearestDime } from '@/utils/moneyUtils';
 import { Search, Plus, Minus, Trash2, User, FileText, DollarSign, X, ShoppingCart, Send, Calculator, ChevronDown, ChevronUp } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -144,8 +144,7 @@ export default function POS() {
   );
 
   const rawTotal = getTicketTotal();
-  // Redondear total a decimales .X0 (4.56 → 4.60)
-  const total = Math.ceil(rawTotal * 10) / 10;
+  const total = rawTotal; // Ya está redondeado correctamente en getTicketTotal
   const pointsEarned = activeTicket ? calculateTotalPoints(activeTicket.items) : 0;
 
   const handleAddProduct = (product: Product) => {
@@ -259,12 +258,14 @@ export default function POS() {
   };
 
   const getTotalPagado = () => {
-    return metodosPageo.reduce((sum, metodo) => sum + metodo.monto, 0);
+    return roundToNearestDime(
+      metodosPageo.reduce((sum, metodo) => sum + metodo.monto, 0)
+    );
   };
 
   const getMontoRestante = () => {
-    // Redondear a 2 decimales para evitar errores de precisión (ej: 0.9000000000004)
-    return Math.round((total - getTotalPagado()) * 100) / 100;
+    // Calcular lo que falta considerando el redondeo a décimas
+    return roundToNearestDime(total - getTotalPagado());
   };
 
   const isPagoCompleto = () => {

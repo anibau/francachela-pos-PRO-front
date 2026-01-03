@@ -12,11 +12,33 @@
  * 
  * @example
  * roundMoney(12.125) // 12.13
- * roundMoney(0.5) // 0.50
+ * roundMoney(4.834) // 4.83
  * roundMoney(9.999) // 10.00
  */
 export const roundMoney = (value: number): number => {
-  return Math.ceil(value * 100) / 100;
+  return Math.round(value * 100) / 100;
+};
+
+/**
+ * Redondea a la décima más cercana HACIA ARRIBA
+ * En Perú no existen monedas menores a 0.10 soles
+ * Se usa para calcular el total final a pagar
+ * 
+ * @param value - Número a redondear
+ * @returns Número redondeado a décima hacia arriba
+ * 
+ * @example
+ * roundToNearestDime(4.83) // 4.90
+ * roundToNearestDime(4.81) // 4.90
+ * roundToNearestDime(4.80) // 4.80
+ * roundToNearestDime(5.0) // 5.00
+ * roundToNearestDime(5.05) // 5.10
+ */
+export const roundToNearestDime = (value: number): number => {
+  // Primero redondear a 2 decimales
+  const rounded = roundMoney(value);
+  // Luego redondear a décima hacia arriba
+  return Math.ceil(rounded * 10) / 10;
 };
 
 /**
