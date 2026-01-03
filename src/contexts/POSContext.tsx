@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback } from "react";
 import type { PaymentMethod, SaleItem, Product, Client } from "@/types";
 import { salesService } from "@/services/salesService";
 import { clientsService } from "@/services/clientsService";
-import { roundMoney } from "@/utils/moneyUtils";
+import { roundMoney, roundToNearestDime } from "@/utils/moneyUtils";
 import { toast } from "sonner";
 
 // Interfaz extendida para items en el ticket del POS
@@ -95,7 +95,8 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         prev.map((ticket) => {
           if (ticket.id !== activeTicketId) return ticket;
 
-          const precio = isWholesale ? product.precioMayoreo : product.precio;
+          // Asegurar que el precio está redondeado a 2 decimales
+          const precio = roundMoney(isWholesale ? product.precioMayoreo : product.precio);
 
           // Buscar si existe el item con mismo producto y tipo de precio
           const existingItemIndex = ticket.items.findIndex(
@@ -112,7 +113,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
             updatedItems[existingItemIndex] = {
               ...existingItem,
               cantidad: nuevaCantidad,
-              subtotal: nuevaCantidad * existingItem.precio,
+              subtotal: roundMoney(nuevaCantidad * existingItem.precio),
             };
 
             return {
@@ -160,7 +161,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           updatedItems[itemIndex] = {
             ...item,
             cantidad: nuevaCantidad,
-            subtotal: item.precio * nuevaCantidad,
+            subtotal: roundMoney(item.precio * nuevaCantidad),
           };
 
           return {
@@ -249,9 +250,9 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         0
       );
       const rawTotal = Math.max(0, subtotal - ticket.discount + ticket.recargoExtra);
-      // Usar redondeo consistente con el payload (no hacia arriba)
-      const roundedTotal = Math.ceil(rawTotal * 10) / 10;
-      return roundMoney(roundedTotal);
+      // Redondear a décima hacia arriba (4.83 → 4.90)
+      // En Perú no existen monedas menores a 0.10 soles
+      return roundToNearestDime(rawTotal);
     },
     [tickets, activeTicketId]
   );
@@ -282,13 +283,14 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           (sum, item) => sum + item.subtotal,
           0
         );
-        const total = Math.max(
+        // Calcular total redondeado a décima hacia arriba
+        const totalRedondeado = roundToNearestDime(Math.max(
           0,
           subtotal - ticket.discount + ticket.recargoExtra
-        );
+        ));
 
         // Calcular puntos (1 punto por cada sol gastado)
-        const puntosOtorgados = Math.floor(total);
+        const puntosOtorgados = Math.floor(totalRedondeado);
 
         // Log para debugging
         console.log("[POSContext] Ticket actual:", {
@@ -308,7 +310,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
             const producto = products.find((p) => p.id === item.productId);
             if (producto && producto.precio && producto.precioMayoreo) {
               // El descuento por mayoreo se calcula como: precio_normal - precio_mayoreo
-              descuentoPorItem = producto.precio - producto.precioMayoreo;
+              descuentoPorItem = roundMoney(producto.precio - producto.precioMayoreo);
             }
           }
 
@@ -328,9 +330,6 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         // Solo enviar descuento manual si no hay mayoreo
         const hasMayoreo = descuentoMayoreo > 0;
 
-        const round1 = (value: unknown): number =>
-          Number.isFinite(value) ? Math.ceil((value as number) * 10) / 10 : 0;
-
         // Construir metodosPageo - siempre como array
         let metodosPageoArray: Array<{
           monto: number;
@@ -339,9 +338,9 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         }>;
 
         if (metodosPageo && metodosPageo.length > 0) {
-          // Redondear cada monto y asegurar que la suma no tenga errores de precisión
+          // Redondear cada monto usando roundMoney y sincronizar con total
           metodosPageoArray = metodosPageo.map((metodo) => ({
-            monto: round1(metodo.monto),
+            monto: roundToNearestDime(metodo.monto),
             metodoPago: metodo.metodoPago,
             ...(metodo.referencia && { referencia: metodo.referencia }),
           }));
@@ -349,25 +348,24 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           // Método de pago único: usar el total redondeado
           metodosPageoArray = [
             {
-              monto: total,
+              monto: totalRedondeado,
               metodoPago: paymentMethod,
             },
           ];
         }
 
-        const recargoExtraRedondeado =
-          Math.round((ticket.recargoExtra || 0) * 10) / 10;
+        const recargoExtraRedondeado = roundToNearestDime(ticket.recargoExtra || 0);
 
         // Calcular el monto total pagado (suma de todos los métodos de pago)
-        // Usar redondeo aritmético para evitar errores de precisión flotante
-        const totalPagado = Math.round(
-          metodosPageoArray.reduce((sum, metodo) => sum + metodo.monto, 0) * 100
-        ) / 100;
+        // Debe coincidir exactamente con totalRedondeado
+        const totalPagado = roundToNearestDime(
+          metodosPageoArray.reduce((sum, metodo) => sum + metodo.monto, 0)
+        );
 
         // Si hay montoRecibido, usarlo; si no, usar el total pagado
         const montoRecibidoFinal =
           montoRecibido && montoRecibido > 0 
-            ? Math.round(montoRecibido * 100) / 100 
+            ? roundToNearestDime(montoRecibido)
             : totalPagado;
 
         const saleData = {
@@ -376,13 +374,15 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           // Solo incluir descuento si es descuento manual Y no hay mayoreo
           // Para evitar duplicación (descuento manual + descuento en precioUnitario)
           ...(ticket.discount > 0 &&
-            !hasMayoreo && { descuento: ticket.discount }),
+            !hasMayoreo && { descuento: roundMoney(ticket.discount) }),
           recargoExtra: recargoExtraRedondeado || 0,
           metodosPageo: metodosPageoArray,
           comentario: ticket.notes || "",
           tipoCompra: "LOCAL",
-          montoRecibido: Math.round(montoRecibidoFinal * 100) / 100,
+          montoRecibido: montoRecibidoFinal,
           puntosUsados: 0,
+          // El total debe coincidir exactamente con la suma de metodosPageo
+          //total: totalRedondeado,
         };
 
         console.log("[POSContext] Payload de venta:", saleData);
