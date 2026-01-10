@@ -590,3 +590,101 @@ export interface EntradasListResponse {
     totalEntradas: number;
   };
 }
+
+// ===== INTERFACES PARA LAS 6 TAREAS CRÍTICAS =====
+
+// Tarea 1: Interface para endpoint GET /corte
+export interface CorteResponse {
+  periodo: {
+    fechaInicio: string;
+    fechaFin: string;
+  };
+  ventas: {
+    cantidad: number;
+    totalBruto: number;
+    totalCobrado: number;
+    ajustesRedondeo: number;
+    desglosePorMetodo: {
+      [metodo: string]: number;
+    };
+  };
+  entradas: {
+    cantidad: number;
+    total: number;
+    porCategoria: {
+      [categoria: string]: number;
+    };
+  };
+  gastos: {
+    cantidad: number;
+    total: number;
+    porCategoria: {
+      [categoria: string]: number;
+    };
+  };
+  rentabilidad: {
+    ingresosTotales: number;
+    gastosTotales: number;
+    utilidadNeta: number;
+    margenUtilidad: number;
+  };
+}
+
+// Tarea 2: Interface para exportación Excel
+export interface CorteExportResponse {
+  success: boolean;
+  message: string;
+  filename: string;
+  downloadUrl?: string;
+}
+
+// Tarea 3: Interface para estadísticas de corte en Dashboard
+export interface CorteEstadisticas {
+  ingresosTotales: number;
+  gastosTotales: number;
+  utilidadNeta: number;
+  cantidadVentas: number;
+  promedioVenta: number;
+  fechaInicio?: string;
+  fechaFin?: string;
+  fechaGeneracion?: string;
+}
+
+// Tarea 6: Interface para evaluación de puntos
+export interface PuntosEvaluacionRequest {
+  clienteId?: number;
+  clienteDni?: string;
+  puntosAUsar: number;
+  montoVenta: number;
+}
+
+export interface PuntosEvaluacionResponse {
+  success: boolean;
+  descuentoAplicado: number;
+  puntosUsados: number;
+  puntosRestantes: number;
+  montoFinal: number;
+  message: string;
+}
+
+// Tarea 4: Interface para categorías reutilizables
+export interface CategoriaOption {
+  id?: number;
+  nombre: string;
+  descripcion?: string;
+  activo?: boolean;
+}
+
+export interface CategoriasResponse {
+  categorias: CategoriaOption[];
+  total: number;
+}
+
+// Tarea 5: Interface para validación de stock
+export interface StockValidationResponse {
+  disponible: boolean;
+  stockActual: number;
+  stockMinimo: number;
+  usaInventario: boolean;
+  message: string;
+}

@@ -21,6 +21,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/hooks/use-toast';
 import { calculateTotalPoints, calculateProductPoints } from '@/utils/pointsCalculator';
+import { pointsService } from '@/services/pointsService';
 
 export default function POS() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,6 +47,9 @@ export default function POS() {
   }>>([]);
   const [montoActual, setMontoActual] = useState<number>(0);
   const [referenciaActual, setReferenciaActual] = useState<string>('');
+  
+  // TAREA 6: Estado para puntos a usar
+  const [puntosAUsar, setPuntosAUsar] = useState<number>(0);
   
   const PRODUCTS_PER_PAGE = 9;
 
@@ -357,8 +361,41 @@ export default function POS() {
       return;
     }
 
-    // Generar preview de la venta
-    await previewSale();
+    // TAREA 6: Evaluar puntos antes del preview si hay cliente y puntos a usar
+    if (activeTicket.clientId && puntosAUsar > 0) {
+      try {
+        const pointsEvaluation = await pointsService.evaluate({
+          clienteId: activeTicket.clientId,
+          puntosAUsar: puntosAUsar
+        });
+
+        if (!pointsEvaluation.esValido) {
+          toast({
+            title: 'Error con puntos',
+            description: pointsEvaluation.mensaje || 'Puntos insuficientes',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        // Mostrar información de puntos válidos
+        toast({
+          title: 'Puntos aplicados',
+          description: `Descuento: S/ ${pointsEvaluation.descuentoAplicado.toFixed(2)}`,
+        });
+      } catch (error) {
+        console.error('Error evaluating points:', error);
+        toast({
+          title: 'Error',
+          description: 'Error al evaluar puntos',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    // Generar preview de la venta con puntos evaluados
+    await previewSale(puntosAUsar > 0 ? puntosAUsar : undefined);
     setIsPreviewDialogOpen(true);
   };
 
@@ -400,6 +437,9 @@ export default function POS() {
     setIsPaymentOpen(false);
     setIsPreviewDialogOpen(false);
     
+    // TAREA 6: Limpiar puntos a usar
+    setPuntosAUsar(0);
+    
     // Limpiar preview
     clearPreview();
     
@@ -418,6 +458,9 @@ export default function POS() {
 
     setMontoRecibido(undefined);
     setSelectedPaymentMethod(PAYMENT_METHODS.EFECTIVO);
+    
+    // TAREA 6: Limpiar puntos cuando se cierra el dialog
+    setPuntosAUsar(0);
   };
 
   // Función legacy para compatibilidad (ahora redirige al preview)
@@ -558,11 +601,11 @@ export default function POS() {
                           </div>
                         </div>
                         <div className="flex items-center gap-0.5">
-                          <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => updateItemQuantity(itemIndex, -1)}>
+                          <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => updateItemQuantity(itemIndex, -1, product)}>
                             <Minus className="h-3 w-3" />
                           </Button>
                           <span className="w-5 text-center text-sm font-medium">{item.cantidad}</span>
-                          <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => updateItemQuantity(itemIndex, 1)}>
+                          <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => updateItemQuantity(itemIndex, 1, product)}>
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
@@ -769,10 +812,28 @@ export default function POS() {
 
                     {/* Client info */}
                     {activeTicket?.clientName && (
-                      <div className="flex items-center gap-2 p-2 bg-primary/5 rounded text-xs">
-                        <User className="h-3 w-3 text-primary" />
-                        <span className="font-medium">{activeTicket.clientName}</span>
-                        <span className="text-muted-foreground">+{pointsEarned} pts</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 p-2 bg-primary/5 rounded text-xs">
+                          <User className="h-3 w-3 text-primary" />
+                          <span className="font-medium">{activeTicket.clientName}</span>
+                          <span className="text-muted-foreground">+{pointsEarned} pts</span>
+                        </div>
+                        
+                        {/* TAREA 6: Input para puntos a usar */}
+                        <div className="space-y-1">
+                          <Label className="text-xs">Puntos a usar (opcional)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={puntosAUsar || ''}
+                            onChange={(e) => setPuntosAUsar(parseInt(e.target.value) || 0)}
+                            placeholder="0"
+                            className="h-7 text-xs"
+                          />
+                          <p className="text-[10px] text-muted-foreground">
+                            Cliente disponible: {clients.find(c => c.id === activeTicket.clientId)?.puntosAcumulados || 0} pts
+                          </p>
+                        </div>
                       </div>
                     )}
 

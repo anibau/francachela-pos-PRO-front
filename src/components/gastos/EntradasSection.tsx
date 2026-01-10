@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,8 @@ import { useEntradas } from '@/hooks/useEntradas';
 import type { CreateEntradaRequest } from '@/types';
 import { format, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import CategoriesSelector from '@/components/ui/CategoriesSelector';
+import { toast } from 'sonner';
 
 const CATEGORIAS_ENTRADAS = [
   'DONACION',
@@ -57,6 +59,29 @@ export function EntradasSection() {
     fecha: format(new Date(), 'yyyy-MM-dd'),
     observaciones: ''
   });
+
+  // TAREA 4: Función para validar fecha (no permitir fechas futuras)
+  const validateDate = useCallback((dateString: string) => {
+    const selectedDate = new Date(dateString);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Permitir hasta el final del día actual
+    
+    if (selectedDate > today) {
+      toast.error('No se pueden seleccionar fechas futuras');
+      return false;
+    }
+    return true;
+  }, []);
+
+  // Función para manejar cambio de fecha con validación
+  const handleDateChange = useCallback((dateString: string) => {
+    if (validateDate(dateString)) {
+      setFormData(prev => ({ ...prev, fecha: dateString }));
+    } else {
+      // Revertir a la fecha actual si es inválida
+      setFormData(prev => ({ ...prev, fecha: format(new Date(), 'yyyy-MM-dd') }));
+    }
+  }, [validateDate]);
 
   // Calcular fechas según filtro
   const calcularFechas = (filtro: string) => {
@@ -164,9 +189,17 @@ export function EntradasSection() {
             type="number"
             step="0.01"
             min="0"
-            value={formData.monto}
-            onChange={(e) => setFormData(prev => ({ ...prev, monto: parseFloat(e.target.value) || 0 }))}
+            value={formData.monto === 0 ? '' : formData.monto.toString()}
+            onChange={(e) => {
+              const value = e.target.value;
+              setFormData(prev => ({ 
+                ...prev, 
+                monto: value === '' ? 0 : parseFloat(value) || 0 
+              }));
+            }}
+            placeholder="0.00"
             required
+            autoComplete="off"
           />
         </div>
         <div>
@@ -175,29 +208,24 @@ export function EntradasSection() {
             id="fecha"
             type="date"
             value={formData.fecha}
-            onChange={(e) => setFormData(prev => ({ ...prev, fecha: e.target.value }))}
+            onChange={(e) => handleDateChange(e.target.value)}
+            max={format(new Date(), 'yyyy-MM-dd')} // TAREA 4: Máximo hasta hoy
             required
+            autoComplete="off"
           />
         </div>
       </div>
 
       <div>
-        <Label htmlFor="categoria">Categoría</Label>
-        <Select
+        <Label>Categoría</Label>
+        {/* TAREA 4: Usar CategoriesSelector reutilizable */}
+        <CategoriesSelector
           value={formData.categoria}
           onValueChange={(value) => setFormData(prev => ({ ...prev, categoria: value }))}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Seleccionar categoría" />
-          </SelectTrigger>
-          <SelectContent>
-            {CATEGORIAS_ENTRADAS.map(categoria => (
-              <SelectItem key={categoria} value={categoria}>
-                {categoria.replace('_', ' ')}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          placeholder="Seleccionar categoría de entrada..."
+          allowCreate={true}
+          endpoint="/entradas/categorias" // Endpoint específico para categorías de entradas
+        />
       </div>
 
       <div>
@@ -208,6 +236,7 @@ export function EntradasSection() {
           onChange={(e) => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
           placeholder="Descripción de la entrada"
           required
+          autoComplete="off"
         />
       </div>
 
@@ -215,10 +244,11 @@ export function EntradasSection() {
         <Label htmlFor="observaciones">Observaciones</Label>
         <Textarea
           id="observaciones"
-          value={formData.observaciones}
+          value={formData.observaciones || ''}
           onChange={(e) => setFormData(prev => ({ ...prev, observaciones: e.target.value }))}
           placeholder="Observaciones adicionales (opcional)"
           rows={3}
+          autoComplete="off"
         />
       </div>
 

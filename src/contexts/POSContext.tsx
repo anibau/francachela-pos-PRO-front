@@ -45,7 +45,7 @@ interface POSContextType {
   switchTicket: (id: string) => void;
   closeTicket: (id: string) => void;
   addItem: (product: Product, isWholesale?: boolean) => void;
-  updateItemQuantity: (itemIndex: number, delta: number) => void;
+  updateItemQuantity: (itemIndex: number, delta: number, product?: Product) => void;
   removeItem: (itemIndex: number) => void;
   setTicketClient: (clientId?: number, clientName?: string) => void;
   setTicketNotes: (notes: string) => void;
@@ -120,6 +120,16 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
 
   const addItem = useCallback(
     (product: Product, isWholesale: boolean = false) => {
+      // TAREA 5: Validaciones de stock antes de agregar
+      if (product.usaInventario) {
+        if (product.cantidadActual <= 0) {
+          toast.error("Stock insuficiente", {
+            description: `El producto "${product.productoDescripcion}" no tiene stock disponible.`
+          });
+          return;
+        }
+      }
+
       setTickets((prev) =>
         prev.map((ticket) => {
           if (ticket.id !== activeTicketId) return ticket;
@@ -134,11 +144,19 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           );
 
           if (existingItemIndex !== -1) {
+            // TAREA 5: Validar stock antes de aumentar cantidad
+            const existingItem = ticket.items[existingItemIndex];
+            const nuevaCantidad = existingItem.cantidad + 1;
+            
+            if (product.usaInventario && nuevaCantidad > product.cantidadActual) {
+              toast.error("Stock insuficiente", {
+                description: `Solo hay ${product.cantidadActual} unidades disponibles de "${product.productoDescripcion}".`
+              });
+              return ticket; // No modificar el ticket
+            }
+
             // Actualizar cantidad
             const updatedItems = [...ticket.items];
-            const existingItem = updatedItems[existingItemIndex];
-            const nuevaCantidad = existingItem.cantidad + 1;
-
             updatedItems[existingItemIndex] = {
               ...existingItem,
               cantidad: nuevaCantidad,
@@ -178,7 +196,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateItemQuantity = useCallback(
-    (itemIndex: number, delta: number) => {
+    (itemIndex: number, delta: number, product?: Product) => {
       setTickets((prev) =>
         prev.map((ticket) => {
           if (ticket.id !== activeTicketId) return ticket;
@@ -186,6 +204,16 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           const updatedItems = [...ticket.items];
           const item = updatedItems[itemIndex];
           const nuevaCantidad = Math.max(1, item.cantidad + delta);
+
+          // TAREA 5: Validar stock al aumentar cantidad
+          if (delta > 0 && product && product.usaInventario) {
+            if (nuevaCantidad > product.cantidadActual) {
+              toast.error("Stock insuficiente", {
+                description: `Solo hay ${product.cantidadActual} unidades disponibles de "${product.productoDescripcion}".`
+              });
+              return ticket; // No modificar el ticket
+            }
+          }
 
           updatedItems[itemIndex] = {
             ...item,

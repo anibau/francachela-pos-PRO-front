@@ -101,6 +101,13 @@ export const API_ENDPOINTS = {
     BY_RANGE: '/caja/rango',
     ESTADO: '/caja/estado',
   },
+
+  // Corte (Tareas 1, 2, 3)
+  CORTE: {
+    BASE: '/corte',
+    EXPORT: '/corte/export',
+    STATISTICS: '/corte/estadisticas',
+  },
   
   // Gastos
   EXPENSES: {
@@ -164,6 +171,11 @@ export const API_ENDPOINTS = {
     SEND_CLIENT_INFO: '/whatsapp/send-client-info',
     BIRTHDAY: '/whatsapp/birthday',
     SEND_WELCOME: '/whatsapp/send-welcome',
+  },
+
+  // Puntos (Tarea 6)
+  POINTS: {
+    EVALUATE: '/puntos/evaluar',
   },
   
   // Exportación Excel
