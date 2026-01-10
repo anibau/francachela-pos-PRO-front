@@ -386,6 +386,96 @@ export interface VentasEstadisticasBackend {
   fechaGeneracion: string;
 }
 
+// Interfaces para estadísticas de gastos (Requerimiento 4)
+export interface GastosEstadisticas {
+  totalGastos: number;
+  totalMonto: number;
+  promedioGasto: number;
+  gastosPorCategoria: {
+    [categoria: string]: number;
+  };
+  gastosPorMetodo: {
+    [metodo: string]: number;
+  };
+  topProveedores: Array<{
+    id: number;
+    nombre: string;
+    totalGastos: number;
+    montoTotal: number;
+  }>;
+  fechaInicio?: string;
+  fechaFin?: string;
+  fechaGeneracion?: string;
+}
+
+// Interfaces para clientes top (Requerimiento 5)
+export interface ClienteTop {
+  id: number;
+  nombres: string;
+  apellidos: string;
+  dni: string;
+  fechaNacimiento: string;
+  telefono: string;
+  fechaRegistro: string;
+  puntosAcumulados: number;
+  historialCompras: Array<{
+    fecha: string;
+    monto: number;
+    ventaId: number;
+    puntosGanados: number;
+  }>;
+  historialCanjes: Array<{
+    fecha: string;
+    ventaId: number;
+    descripcion: string;
+    puntosUsados: number;
+  }>;
+  codigoCorto: string;
+  direccion: string;
+  activo: boolean;
+  fechaCreacion: string;
+  fechaActualizacion: string;
+}
+
+export interface TopClientesResponse {
+  clientes: ClienteTop[];
+  total: number;
+  limit: number;
+}
+
+// Interfaces para clientes cumpleañeros (Requerimiento 6)
+export interface ClientesCumpleanosResponse {
+  clientes: ClienteTop[];
+  pagination: {
+    page: number;
+    pages: number;
+    total: number;
+    limit: number;
+  };
+}
+
+// Interfaces para estadísticas por DNI (Requerimiento 7)
+export interface ClienteEstadisticasByDNI {
+  cliente: ClienteTop;
+  estadisticas: {
+    totalCompras: number;
+    montoTotalGastado: number;
+    promedioCompra: number;
+    puntosGanados: number;
+    puntosUsados: number;
+    ultimaCompra?: string;
+    frecuenciaCompras: string; // 'ALTA', 'MEDIA', 'BAJA'
+  };
+}
+
+// Interfaces para WhatsApp (Requerimiento 2)
+export interface WhatsAppWelcomeResponse {
+  success: boolean;
+  message: string;
+  clienteId: number;
+  fechaEnvio: string;
+}
+
 // Enums para promociones unificadas
 export enum TipoPromocion {
   SIMPLE = 'SIMPLE',

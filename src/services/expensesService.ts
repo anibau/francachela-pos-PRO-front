@@ -4,7 +4,7 @@ import { httpClient, simulateDelay } from './httpClient';
 import { mockExpensesAligned, mockExpenseCategories } from './mockDataAligned';
 import { ensureArray } from '@/utils/apiValidators';
 import { extractErrorMessage } from '@/utils/errorHandler';
-import type { Expense } from '@/types';
+import type { Expense, GastosEstadisticas } from '@/types';
 import type { 
   ExpenseCreateRequest,
   PaginationParams,
@@ -430,7 +430,7 @@ export const expensesService = {
    * @param fechaInicio - Fecha de inicio en formato YYYY-MM-DD HH:mm:ss
    * @param fechaFin - Fecha de fin en formato YYYY-MM-DD HH:mm:ss
    */
-  getEstadisticas: async (fechaInicio: string, fechaFin: string): Promise<any> => {
+  getEstadisticas: async (fechaInicio: string, fechaFin: string): Promise<GastosEstadisticas> => {
     try {
       // URLSearchParams maneja el encoding automáticamente
       const params = new URLSearchParams({
@@ -439,7 +439,7 @@ export const expensesService = {
       });
 
       const url = `${API_ENDPOINTS.EXPENSES.STATISTICS}?${params.toString()}`;
-      const response = await httpClient.get<any>(url);
+      const response = await httpClient.get<GastosEstadisticas>(url);
       
       return response;
     } catch (error) {

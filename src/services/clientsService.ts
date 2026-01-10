@@ -1,6 +1,6 @@
 import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
 import { httpClient, simulateDelay } from './httpClient';
-import type { Client } from '@/types';
+import type { Client, ClienteTop, ClientesCumpleanosResponse, TopClientesResponse, ClienteEstadisticasByDNI } from '@/types';
 import type { ClienteQueryParams, PaginatedResponse } from '@/types/backend';
 import { normalizeClient, normalizeClients } from '@/utils/dataTransform';
 import { extractErrorMessage } from '@/utils/errorHandler';
@@ -91,18 +91,53 @@ export const clientsService = {
   },
 
   /**
-   * Obtener clientes con más puntos
+   * Obtener clientes con más puntos (Requerimiento 5)
    */
-  getTopClients: async (limit: number = 10): Promise<Client[]> => {
+  getTopClients: async (limit: number = 10): Promise<TopClientesResponse> => {
     try {
       const queryParams = new URLSearchParams({ limit: limit.toString() });
-      const response = await httpClient.get<PaginatedResponse<Client> | Client[]>(`${API_ENDPOINTS.CLIENTS.TOP}?${queryParams}`);
-      if (response && typeof response === 'object' && 'data' in response) {
-        return normalizeClients((response as PaginatedResponse<Client>).data);
-      }
-      return normalizeClients(Array.isArray(response) ? response : []);
+      const response = await httpClient.get<ClienteTop[]>(`${API_ENDPOINTS.CLIENTS.TOP}?${queryParams}`);
+      
+      // Adaptar respuesta al formato esperado
+      const clientes = Array.isArray(response) ? response : [];
+      return {
+        clientes,
+        total: clientes.length,
+        limit
+      };
     } catch (error) {
       console.error('Error getting top clients:', error);
+      throw new Error(extractErrorMessage(error));
+    }
+  },
+
+  /**
+   * Obtener clientes cumpleañeros (Requerimiento 6)
+   */
+  getCumpleaneros: async (page: number = 1, limit: number = 10): Promise<ClientesCumpleanosResponse> => {
+    try {
+      const queryParams = new URLSearchParams({ 
+        page: page.toString(),
+        limit: limit.toString()
+      });
+      const response = await httpClient.get<ClienteTop[]>(`${API_ENDPOINTS.CLIENTS.BIRTHDAYS}?${queryParams}`);
+      
+      // Adaptar respuesta al formato esperado con paginación
+      const clientes = Array.isArray(response) ? response : [];
+      const total = clientes.length;
+      const pages = Math.ceil(total / limit);
+      
+      return {
+        clientes,
+        pagination: {
+          page,
+          pages,
+          total,
+          limit
+        }
+      };
+    } catch (error) {
+      console.error('Error getting birthday clients:', error);
       throw new Error(extractErrorMessage(error));
     }
   },
@@ -121,11 +156,11 @@ export const clientsService = {
   },
 
   /**
-   * Obtener estadísticas de un cliente específico por DNI
+   * Obtener estadísticas de un cliente específico por DNI (Requerimiento 7)
    */
-  getEstadisticas: async (dni: string): Promise<any> => {
+  getEstadisticas: async (dni: string): Promise<ClienteEstadisticasByDNI> => {
     try {
-      const response = await httpClient.get<any>(API_ENDPOINTS.CLIENTS.STATISTICS(dni));
+      const response = await httpClient.get<ClienteEstadisticasByDNI>(API_ENDPOINTS.CLIENTS.STATISTICS(dni));
       return response;
     } catch (error) {
       console.error('Error getting client statistics:', error);

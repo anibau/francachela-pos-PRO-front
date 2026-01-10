@@ -6,21 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { TrendingDown, DollarSign, BarChart3, Calendar, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { API_ENDPOINTS } from '@/config/api';
-import { httpClient } from '@/services/httpClient';
-
-interface GastosStatsData {
-  totalGastos: number;
-  totalMonto: number;
-  promedioGasto: number;
-  gastosPorCategoria: Record<string, number>;
-  gastosPorMetodo: Record<string, number>;
-  topProveedores: any[];
-}
+import { useGastos } from '@/hooks/useGastos';
+import type { GastosEstadisticas } from '@/types';
 
 export const GastosStats: React.FC = () => {
-  const [gastosData, setGastosData] = useState<GastosStatsData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const { estadisticas, loading, fetchEstadisticas } = useGastos();
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
 
@@ -47,25 +37,10 @@ export const GastosStats: React.FC = () => {
   }, []);
 
   const loadGastosStats = async (inicio: string, fin: string) => {
-  setIsLoading(true);
-  try {
-    const queryParams = new URLSearchParams();
-    queryParams.append('fechaInicio', `${inicio} 00:00:00`);
-    queryParams.append('fechaFin', `${fin} 23:59:59`);
-
-    const url = `${API_ENDPOINTS.EXPENSES.STATISTICS}?${queryParams.toString()}`;
-
-    const response = await httpClient.get<any>(url);
-
-    setGastosData(response);
-  } catch (error) {
-    console.error('Error loading gastos stats:', error);
-    toast.error('Error al cargar estadísticas de gastos');
-    setGastosData(null);
-  } finally {
-    setIsLoading(false);
-  }
-};
+    const fechaInicioFormatted = `${inicio} 00:00:00`;
+    const fechaFinFormatted = `${fin} 23:59:59`;
+    await fetchEstadisticas(fechaInicioFormatted, fechaFinFormatted);
+  };
 
 
   const aplicarFiltros = () => {
@@ -135,10 +110,10 @@ export const GastosStats: React.FC = () => {
                 <Label>&nbsp;</Label>
                 <Button 
                   onClick={aplicarFiltros}
-                  disabled={isLoading || !fechaInicio || !fechaFin}
+                  disabled={loading || !fechaInicio || !fechaFin}
                   className="w-full"
                 >
-                  {isLoading ? (
+                  {loading ? (
                     <>
                       <RefreshCw className="h-4 w-4 animate-spin mr-2" />
                       Cargando...
@@ -159,7 +134,7 @@ export const GastosStats: React.FC = () => {
                 variant="outline" 
                 size="sm" 
                 onClick={() => setRangoRapido(7)}
-                disabled={isLoading}
+                disabled={loading}
               >
                 7 días
               </Button>
@@ -167,7 +142,7 @@ export const GastosStats: React.FC = () => {
                 variant="outline" 
                 size="sm" 
                 onClick={() => setRangoRapido(30)}
-                disabled={isLoading}
+                disabled={loading}
               >
                 30d
               </Button>
@@ -180,7 +155,7 @@ export const GastosStats: React.FC = () => {
                   setFechaFin(monthDates.fechaFin);
                   loadGastosStats(monthDates.fechaInicio, monthDates.fechaFin);
                 }}
-                disabled={isLoading}
+                disabled={loading}
               >
                 Mes actual
               </Button>
@@ -190,7 +165,7 @@ export const GastosStats: React.FC = () => {
       </Card>
 
       {/* Estadísticas principales */}
-      {gastosData && (
+      {estadisticas && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card>
@@ -199,7 +174,7 @@ export const GastosStats: React.FC = () => {
                   <div>
                     <p className="text-sm text-muted-foreground">Total Gastos</p>
                     <p className="text-2xl font-bold text-primary">
-                      {gastosData.totalGastos}
+                      {estadisticas.totalGastos}
                     </p>
                   </div>
                   <div className="h-8 w-8 bg-primary/10 rounded-full flex items-center justify-center">
@@ -215,7 +190,7 @@ export const GastosStats: React.FC = () => {
                   <div>
                     <p className="text-sm text-muted-foreground">Monto Total</p>
                     <p className="text-2xl font-bold text-red-600">
-                      {formatCurrency(gastosData.totalMonto)}
+                      {formatCurrency(estadisticas.totalMonto)}
                     </p>
                   </div>
                   <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
@@ -231,7 +206,7 @@ export const GastosStats: React.FC = () => {
                   <div>
                     <p className="text-sm text-muted-foreground">Promedio por Gasto</p>
                     <p className="text-2xl font-bold text-orange-600">
-                      {formatCurrency(gastosData.promedioGasto)}
+                      {formatCurrency(estadisticas.promedioGasto)}
                     </p>
                   </div>
                   <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
@@ -248,9 +223,9 @@ export const GastosStats: React.FC = () => {
               <CardTitle>Gastos por Categoría</CardTitle>
             </CardHeader>
             <CardContent>
-              {Object.keys(gastosData.gastosPorCategoria).length > 0 ? (
+              {Object.keys(estadisticas.gastosPorCategoria).length > 0 ? (
                 <div className="space-y-3">
-                  {Object.entries(gastosData.gastosPorCategoria).map(([categoria, monto]) => (
+                  {Object.entries(estadisticas.gastosPorCategoria).map(([categoria, monto]) => (
                     <div key={categoria} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                       <div className="flex items-center gap-3">
                         <Badge variant="outline">{categoria}</Badge>
@@ -273,9 +248,9 @@ export const GastosStats: React.FC = () => {
               <CardTitle>Gastos por Método de Pago</CardTitle>
             </CardHeader>
             <CardContent>
-              {Object.keys(gastosData.gastosPorMetodo).length > 0 ? (
+              {Object.keys(estadisticas.gastosPorMetodo).length > 0 ? (
                 <div className="space-y-3">
-                  {Object.entries(gastosData.gastosPorMetodo).map(([metodo, monto]) => (
+                  {Object.entries(estadisticas.gastosPorMetodo).map(([metodo, monto]) => (
                     <div key={metodo} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                       <div className="flex items-center gap-3">
                         <Badge variant="secondary">{metodo}</Badge>
@@ -298,17 +273,17 @@ export const GastosStats: React.FC = () => {
               <CardTitle>Top Proveedores</CardTitle>
             </CardHeader>
             <CardContent>
-              {gastosData.topProveedores.length > 0 ? (
+              {estadisticas.topProveedores.length > 0 ? (
                 <div className="space-y-3">
-                  {gastosData.topProveedores.map((proveedor, index) => (
+                  {estadisticas.topProveedores.map((proveedor, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                       <div className="flex items-center gap-3">
                         <Badge variant="default">#{index + 1}</Badge>
                         <span className="font-medium">{proveedor.nombre}</span>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold">{formatCurrency(proveedor.monto)}</p>
-                        <p className="text-sm text-muted-foreground">{proveedor.gastos} gastos</p>
+                        <p className="font-semibold">{formatCurrency(proveedor.montoTotal)}</p>
+                        <p className="text-sm text-muted-foreground">{proveedor.totalGastos} gastos</p>
                       </div>
                     </div>
                   ))}
@@ -322,7 +297,7 @@ export const GastosStats: React.FC = () => {
       )}
 
       {/* Estado de carga */}
-      {isLoading && !gastosData && (
+      {loading && !estadisticas && (
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-center h-32">
