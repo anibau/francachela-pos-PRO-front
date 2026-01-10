@@ -19,6 +19,7 @@ interface CategoriesSelectorProps {
   placeholder?: string;
   allowCreate?: boolean;
   endpoint?: string; // Endpoint personalizado para obtener categorías
+  filterField?: string; // DEFECTO 2: Campo para filtrar categorías desde el endpoint
   disabled?: boolean;
   className?: string;
 }
@@ -29,6 +30,7 @@ export default function CategoriesSelector({
   placeholder = "Seleccionar categoría...",
   allowCreate = true,
   endpoint,
+  filterField, // DEFECTO 2: Campo para filtrar categorías
   disabled = false,
   className
 }: CategoriesSelectorProps) {
@@ -46,16 +48,38 @@ export default function CategoriesSelector({
     try {
       // Usar endpoint personalizado o el de gastos por defecto
       const url = endpoint || API_ENDPOINTS.EXPENSES.CATEGORIES;
-      const response = await httpClient.get<CategoriasResponse>(url);
+      const response = await httpClient.get<any>(url);
       
-      // Manejar diferentes formatos de respuesta
-      if (Array.isArray(response)) {
-        setCategories(response);
-      } else if (response.categorias) {
-        setCategories(response.categorias);
+      let categoriesData: CategoriaOption[] = [];
+      
+      // DEFECTO 2: Si hay filterField, filtrar categorías desde el endpoint
+      if (filterField && response) {
+        // Extraer categorías únicas del campo especificado
+        const items = Array.isArray(response) ? response : (response.data || response.entradas || []);
+        const uniqueCategories = [...new Set(
+          items
+            .map((item: any) => item[filterField])
+            .filter((cat: string) => cat && cat.trim() !== '')
+        )];
+        
+        // Convertir a formato CategoriaOption
+        categoriesData = uniqueCategories.map((cat: string) => ({
+          nombre: cat,
+          descripcion: `Categoría: ${cat}`,
+          activo: true
+        }));
       } else {
-        setCategories([]);
+        // Manejar diferentes formatos de respuesta tradicionales
+        if (Array.isArray(response)) {
+          categoriesData = response;
+        } else if (response.categorias) {
+          categoriesData = response.categorias;
+        } else {
+          categoriesData = [];
+        }
       }
+      
+      setCategories(categoriesData);
     } catch (error) {
       console.error('Error loading categories:', error);
       toast.error('Error al cargar categorías');
@@ -68,7 +92,7 @@ export default function CategoriesSelector({
   // Cargar categorías al montar el componente
   useEffect(() => {
     loadCategories();
-  }, [endpoint]);
+  }, [endpoint, filterField]); // DEFECTO 2: Recargar cuando cambie filterField
 
   // Función para crear nueva categoría
   const createCategory = async () => {

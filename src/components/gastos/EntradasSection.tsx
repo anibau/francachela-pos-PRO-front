@@ -179,100 +179,129 @@ export function EntradasSection() {
     }
   };
 
-  const FormularioEntrada = ({ isEdit = false }: { isEdit?: boolean }) => (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+  // DEFECTO 1: Memoizar FormularioEntrada para evitar re-renders y pérdida de foco
+  const FormularioEntrada = useCallback(({ isEdit = false }: { isEdit?: boolean }) => {
+    // Handlers memoizados para evitar re-renders
+    const handleMontoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setFormData(prev => ({ 
+        ...prev, 
+        monto: value === '' ? 0 : parseFloat(value) || 0 
+      }));
+    }, []);
+
+    const handleDescripcionChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+      setFormData(prev => ({ ...prev, descripcion: e.target.value }));
+    }, []);
+
+    const handleObservacionesChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setFormData(prev => ({ ...prev, observaciones: e.target.value }));
+    }, []);
+
+    const handleCategoriaChange = useCallback((value: string) => {
+      setFormData(prev => ({ ...prev, categoria: value }));
+    }, []);
+
+    const handleCancel = useCallback(() => {
+      if (isEdit) {
+        setIsEditDialogOpen(false);
+        setEditingEntrada(null);
+      } else {
+        setIsCreateDialogOpen(false);
+      }
+      resetForm();
+    }, [isEdit]);
+
+    return (
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="monto">Monto (S/)</Label>
+            <Input
+              id="monto"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.monto === 0 ? '' : formData.monto.toString()}
+              onChange={handleMontoChange}
+              placeholder="0.00"
+              required
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <Label htmlFor="fecha">Fecha</Label>
+            <Input
+              id="fecha"
+              type="date"
+              value={formData.fecha}
+              onChange={(e) => handleDateChange(e.target.value)}
+              max={format(new Date(), 'yyyy-MM-dd')} // TAREA 4: Máximo hasta hoy
+              required
+              autoComplete="off"
+            />
+          </div>
+        </div>
+
         <div>
-          <Label htmlFor="monto">Monto (S/)</Label>
+          <Label>Categoría</Label>
+          {/* DEFECTO 2: Usar GET /entradas para filtrar categorías existentes */}
+          <CategoriesSelector
+            value={formData.categoria}
+            onValueChange={handleCategoriaChange}
+            placeholder="Seleccionar categoría de entrada..."
+            allowCreate={true}
+            endpoint="/entradas" // DEFECTO 2: Usar endpoint correcto
+            filterField="categoria" // DEFECTO 2: Campo para filtrar categorías
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="descripcion">Descripción</Label>
           <Input
-            id="monto"
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.monto === 0 ? '' : formData.monto.toString()}
-            onChange={(e) => {
-              const value = e.target.value;
-              setFormData(prev => ({ 
-                ...prev, 
-                monto: value === '' ? 0 : parseFloat(value) || 0 
-              }));
-            }}
-            placeholder="0.00"
+            id="descripcion"
+            value={formData.descripcion}
+            onChange={handleDescripcionChange}
+            placeholder="Descripción de la entrada"
             required
             autoComplete="off"
           />
         </div>
+
         <div>
-          <Label htmlFor="fecha">Fecha</Label>
-          <Input
-            id="fecha"
-            type="date"
-            value={formData.fecha}
-            onChange={(e) => handleDateChange(e.target.value)}
-            max={format(new Date(), 'yyyy-MM-dd')} // TAREA 4: Máximo hasta hoy
-            required
+          <Label htmlFor="observaciones">Observaciones</Label>
+          <Textarea
+            id="observaciones"
+            value={formData.observaciones || ''}
+            onChange={handleObservacionesChange}
+            placeholder="Observaciones adicionales (opcional)"
+            rows={3}
             autoComplete="off"
           />
         </div>
-      </div>
 
-      <div>
-        <Label>Categoría</Label>
-        {/* TAREA 4: Usar CategoriesSelector reutilizable */}
-        <CategoriesSelector
-          value={formData.categoria}
-          onValueChange={(value) => setFormData(prev => ({ ...prev, categoria: value }))}
-          placeholder="Seleccionar categoría de entrada..."
-          allowCreate={true}
-          endpoint="/entradas/categorias" // Endpoint específico para categorías de entradas
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="descripcion">Descripción</Label>
-        <Input
-          id="descripcion"
-          value={formData.descripcion}
-          onChange={(e) => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
-          placeholder="Descripción de la entrada"
-          required
-          autoComplete="off"
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="observaciones">Observaciones</Label>
-        <Textarea
-          id="observaciones"
-          value={formData.observaciones || ''}
-          onChange={(e) => setFormData(prev => ({ ...prev, observaciones: e.target.value }))}
-          placeholder="Observaciones adicionales (opcional)"
-          rows={3}
-          autoComplete="off"
-        />
-      </div>
-
-      <div className="flex justify-end space-x-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            if (isEdit) {
-              setIsEditDialogOpen(false);
-              setEditingEntrada(null);
-            } else {
-              setIsCreateDialogOpen(false);
-            }
-          }}
-        >
-          Cancelar
-        </Button>
-        <Button type="submit">
-          {isEdit ? 'Actualizar' : 'Crear'} Entrada
-        </Button>
-      </div>
-    </form>
-  );
+        <div className="flex justify-end space-x-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCancel}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {isEdit ? 'Actualizando...' : 'Creando...'}
+              </>
+            ) : (
+              isEdit ? 'Actualizar' : 'Crear'
+            )} Entrada
+          </Button>
+        </div>
+      </form>
+    );
+  }, [formData, loading, handleDateChange, handleSubmit, resetForm]);
 
   return (
     <div className="space-y-6">

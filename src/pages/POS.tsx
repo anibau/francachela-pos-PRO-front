@@ -48,8 +48,9 @@ export default function POS() {
   const [montoActual, setMontoActual] = useState<number>(0);
   const [referenciaActual, setReferenciaActual] = useState<string>('');
   
-  // TAREA 6: Estado para puntos a usar
+  // DEFECTO 3: Estados para puntos a usar y evaluación
   const [puntosAUsar, setPuntosAUsar] = useState<number>(0);
+  const [pointsEvaluation, setPointsEvaluation] = useState<any>(null);
   
   const PRODUCTS_PER_PAGE = 9;
 
@@ -350,7 +351,52 @@ export default function POS() {
     window.open(whatsappUrl, '_blank');
   }; */
 
-  // ETAPA 7: Función para mostrar preview de venta
+  // DEFECTO 3: Función para evaluar puntos/promociones
+  const handleEvaluatePoints = async () => {
+    if (!activeTicket?.clientId || !puntosAUsar || puntosAUsar <= 0) {
+      toast({
+        title: 'Error',
+        description: 'Selecciona un cliente e ingresa puntos válidos',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const evaluation = await pointsService.evaluate({
+        clienteId: activeTicket.clientId,
+        puntosAUsar: puntosAUsar
+      });
+
+      if (!evaluation.esValido) {
+        toast({
+          title: 'Puntos inválidos',
+          description: evaluation.mensaje || 'Puntos insuficientes',
+          variant: 'destructive',
+        });
+        setPointsEvaluation(null);
+        return;
+      }
+
+      // Guardar evaluación para mostrar en UI
+      setPointsEvaluation(evaluation);
+      
+      toast({
+        title: 'Puntos evaluados',
+        description: `Descuento aplicado: S/ ${evaluation.descuentoAplicado.toFixed(2)}`,
+      });
+    } catch (error) {
+      console.error('Error evaluating points:', error);
+      toast({
+        title: 'Error',
+        description: 'Error al evaluar puntos',
+        variant: 'destructive',
+      });
+      setPointsEvaluation(null);
+    }
+  };
+
+  // DEFECTO 4: Función para abrir dialog de pago (Botón "Pagar")
   const handleShowPreview = async () => {
     if (!activeTicket || activeTicket.items.length === 0) {
       toast({
@@ -361,45 +407,11 @@ export default function POS() {
       return;
     }
 
-    // TAREA 6: Evaluar puntos antes del preview si hay cliente y puntos a usar
-    if (activeTicket.clientId && puntosAUsar > 0) {
-      try {
-        const pointsEvaluation = await pointsService.evaluate({
-          clienteId: activeTicket.clientId,
-          puntosAUsar: puntosAUsar
-        });
-
-        if (!pointsEvaluation.esValido) {
-          toast({
-            title: 'Error con puntos',
-            description: pointsEvaluation.mensaje || 'Puntos insuficientes',
-            variant: 'destructive',
-          });
-          return;
-        }
-
-        // Mostrar información de puntos válidos
-        toast({
-          title: 'Puntos aplicados',
-          description: `Descuento: S/ ${pointsEvaluation.descuentoAplicado.toFixed(2)}`,
-        });
-      } catch (error) {
-        console.error('Error evaluating points:', error);
-        toast({
-          title: 'Error',
-          description: 'Error al evaluar puntos',
-          variant: 'destructive',
-        });
-        return;
-      }
-    }
-
-    // Generar preview de la venta con puntos evaluados
-    await previewSale(puntosAUsar > 0 ? puntosAUsar : undefined);
-    setIsPreviewDialogOpen(true);
+    // DEFECTO 4: Solo abrir dialog de pago, el preview se ejecuta en "Confirmar"
+    setIsPaymentOpen(true);
   };
 
-  // ETAPA 8: Función para confirmar venta después del preview
+  // DEFECTO 4: Función para confirmar venta con flujo completo
   const handleConfirmSale = async () => {
     if (!activeTicket || activeTicket.items.length === 0) {
       toast({
@@ -410,57 +422,94 @@ export default function POS() {
       return;
     }
 
-    // Verificar si se están usando múltiples métodos de pago
-    if (metodosPageo.length > 0) {
-      // Validar que el pago esté completo
-      if (!isPagoCompleto()) {
-        toast({
-          title: 'Error',
-          description: `Falta pagar S/ ${getMontoRestante().toFixed(2)}`,
-          variant: 'destructive',
+    try {
+      // DEFECTO 4 - ETAPA A: Ejecutar preview primero (validación final)
+      toast({
+        title: 'Validando venta...',
+        description: 'Ejecutando validación final contra el backend',
+      });
+
+      // Evaluar puntos si hay cliente y puntos a usar
+      if (activeTicket.clientId && puntosAUsar > 0 && !pointsEvaluation) {
+        const evaluation = await pointsService.evaluate({
+          clienteId: activeTicket.clientId,
+          puntosAUsar: puntosAUsar
         });
-        return;
+
+        if (!evaluation.esValido) {
+          toast({
+            title: 'Error con puntos',
+            description: evaluation.mensaje || 'Puntos insuficientes',
+            variant: 'destructive',
+          });
+          return;
+        }
+        setPointsEvaluation(evaluation);
       }
 
-      // Usar múltiples métodos de pago
-      const metodoPrincipal = metodosPageo[0]?.metodoPago || selectedPaymentMethod;
-      await completeSale(metodoPrincipal, 'Sistema', getTotalPagado(), metodosPageo, products, refetchProducts, refetchClients);
-    } else {
-      // Usar método de pago único (comportamiento original)
-      await completeSale(selectedPaymentMethod, 'Sistema', montoRecibido, undefined, products, refetchProducts, refetchClients);
+      // Ejecutar preview de la venta
+      await previewSale(puntosAUsar > 0 ? puntosAUsar : undefined);
+      
+      // DEFECTO 4 - ETAPA B: Validar métodos de pago
+      if (metodosPageo.length > 0) {
+        // Validar que el pago esté completo
+        if (!isPagoCompleto()) {
+          toast({
+            title: 'Error',
+            description: `Falta pagar S/ ${getMontoRestante().toFixed(2)}`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+
+      // DEFECTO 4 - ETAPA C: Confirmar venta
+      toast({
+        title: 'Procesando venta...',
+        description: 'Confirmando venta en el backend',
+      });
+
+      if (metodosPageo.length > 0) {
+        // Usar múltiples métodos de pago
+        const metodoPrincipal = metodosPageo[0]?.metodoPago || selectedPaymentMethod;
+        await completeSale(metodoPrincipal, 'Sistema', getTotalPagado(), metodosPageo, products, refetchProducts, refetchClients);
+      } else {
+        // Usar método de pago único
+        await completeSale(selectedPaymentMethod, 'Sistema', montoRecibido, undefined, products, refetchProducts, refetchClients);
+      }
+
+      // DEFECTO 4 - ETAPA D: Finalización y limpieza completa
+      const currentClientId = activeTicket.clientId;
+      const finalTotal = metodosPageo.length > 0 ? getTotalPagado() : total;
+      
+      // Limpiar todos los estados
+      setMetodosPageo([]);
+      setMontoActual(0);
+      setReferenciaActual('');
+      setIsPaymentOpen(false);
+      setIsPreviewDialogOpen(false);
+      setPuntosAUsar(0);
+      setPointsEvaluation(null);
+      setMontoRecibido(undefined);
+      setSelectedPaymentMethod(PAYMENT_METHODS.EFECTIVO);
+      
+      // Limpiar preview
+      clearPreview();
+      
+      // Mensaje de éxito final
+      toast({
+        title: '✅ Venta completada exitosamente',
+        description: `Total cobrado: S/ ${finalTotal.toFixed(2)} | Puntos: ${pointsEarned}`,
+      });
+
+    } catch (error) {
+      console.error('Error in sale confirmation:', error);
+      toast({
+        title: 'Error en la venta',
+        description: 'Error al procesar la venta. Intenta nuevamente.',
+        variant: 'destructive',
+      });
     }
-
-    // Limpiar estados de múltiples métodos de pago
-    setMetodosPageo([]);
-    setMontoActual(0);
-    setReferenciaActual('');
-    setIsPaymentOpen(false);
-    setIsPreviewDialogOpen(false);
-    
-    // TAREA 6: Limpiar puntos a usar
-    setPuntosAUsar(0);
-    
-    // Limpiar preview
-    clearPreview();
-    
-    // Guardar referencia al cliente antes de completar la venta
-    const currentClientId = activeTicket.clientId;
-    
-    // Obtener el cliente actualizado para obtener los puntos actualizados
-    const client = clients.find(c => c.id === currentClientId);
-    
-    toast({
-      title: 'Venta completada',
-      description: `Total: S/ ${total.toFixed(2)} | Puntos: ${pointsEarned}`,
-    });
-    
-    setIsPaymentOpen(false);
-
-    setMontoRecibido(undefined);
-    setSelectedPaymentMethod(PAYMENT_METHODS.EFECTIVO);
-    
-    // TAREA 6: Limpiar puntos cuando se cierra el dialog
-    setPuntosAUsar(0);
   };
 
   // Función legacy para compatibilidad (ahora redirige al preview)
@@ -819,20 +868,47 @@ export default function POS() {
                           <span className="text-muted-foreground">+{pointsEarned} pts</span>
                         </div>
                         
-                        {/* TAREA 6: Input para puntos a usar */}
-                        <div className="space-y-1">
+                        {/* DEFECTO 3: Input para puntos a usar */}
+                        <div className="space-y-2">
                           <Label className="text-xs">Puntos a usar (opcional)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={puntosAUsar || ''}
-                            onChange={(e) => setPuntosAUsar(parseInt(e.target.value) || 0)}
-                            placeholder="0"
-                            className="h-7 text-xs"
-                          />
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              min="0"
+                              max={clients.find(c => c.id === activeTicket.clientId)?.puntosAcumulados || 0}
+                              value={puntosAUsar || ''}
+                              onChange={(e) => setPuntosAUsar(parseInt(e.target.value) || 0)}
+                              placeholder="0"
+                              className="h-7 text-xs flex-1"
+                            />
+                            {/* DEFECTO 3: Botón para evaluar puntos/promociones */}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs px-2"
+                              onClick={handleEvaluatePoints}
+                              disabled={!puntosAUsar || puntosAUsar <= 0}
+                            >
+                              Evaluar
+                            </Button>
+                          </div>
                           <p className="text-[10px] text-muted-foreground">
                             Cliente disponible: {clients.find(c => c.id === activeTicket.clientId)?.puntosAcumulados || 0} pts
                           </p>
+                          
+                          {/* DEFECTO 3: Mostrar resultado de evaluación de puntos */}
+                          {pointsEvaluation && (
+                            <div className="p-2 bg-green-50 border border-green-200 rounded text-xs">
+                              <div className="flex justify-between items-center">
+                                <span className="text-green-700 font-medium">Descuento aplicado:</span>
+                                <span className="text-green-800 font-bold">-S/ {pointsEvaluation.descuentoAplicado.toFixed(2)}</span>
+                              </div>
+                              {pointsEvaluation.mensaje && (
+                                <p className="text-green-600 text-[10px] mt-1">{pointsEvaluation.mensaje}</p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
