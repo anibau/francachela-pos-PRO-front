@@ -49,7 +49,7 @@ export function useEntradas() {
       // Reset pagination cuando se filtra por rango
       setPagination({
         page: 1,
-        totalPages: 1,
+        pages: 1,
         total: response.length,
         limit: response.length
       });

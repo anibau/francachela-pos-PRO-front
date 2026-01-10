@@ -1,6 +1,6 @@
-import { httpClient } from '@/lib/httpClient';
+import { httpClient } from './httpClient';
 import { API_ENDPOINTS } from '@/config/api';
-import { extractErrorMessage } from '@/lib/utils';
+import { extractErrorMessage } from '@/utils/errorHandler';
 import type { 
   Entrada, 
   CreateEntradaRequest, 

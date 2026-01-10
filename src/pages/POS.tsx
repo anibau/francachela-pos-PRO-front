@@ -209,7 +209,7 @@ export default function POS() {
 
     // Verificar si el producto ya está en el ticket para validar cantidad total
     const existingItem = activeTicket.items.find(item => item.productId === product.id);
-    const currentQuantityInTicket = existingItem ? existingItem.quantity : 0;
+    const currentQuantityInTicket = existingItem ? existingItem.cantidad : 0;
     
     if (product.usaInventario && (currentQuantityInTicket + 1) > product.cantidadActual) {
       toast({
@@ -920,7 +920,7 @@ export default function POS() {
           </div>
         )}
       </div>
-    </div>
+    
 
     {/* Dialog obligatorio para verificar caja abierta */}
     <Dialog open={isCashRegisterDialogOpen} onOpenChange={() => {}}>
@@ -986,34 +986,34 @@ export default function POS() {
                   <span>Subtotal:</span>
                   <span>S/ {salePreview.subtotal?.toFixed(2)}</span>
                 </div>
-                {salePreview.descuento > 0 && (
+                {(salePreview.descuentoPuntos > 0 || salePreview.descuentoPromos > 0) && (
                   <div className="flex justify-between text-red-600">
                     <span>Descuento:</span>
-                    <span>-S/ {salePreview.descuento?.toFixed(2)}</span>
+                    <span>-S/ {(salePreview.descuentoPuntos?.toFixed(2)|| salePreview.descuentoPromos?.toFixed(2))}</span>
                   </div>
                 )}
-                {salePreview.recargo > 0 && (
+                {salePreview.ajusteRedondeo > 0 && (
                   <div className="flex justify-between text-blue-600">
                     <span>Recargo:</span>
-                    <span>+S/ {salePreview.recargo?.toFixed(2)}</span>
+                    <span>+S/ {salePreview.ajusteRedondeo?.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-bold border-t pt-2">
                   <span>Total:</span>
                   <span>S/ {salePreview.total?.toFixed(2)}</span>
                 </div>
-                {salePreview.puntosGanados > 0 && (
+                {salePreview.puntosOtorgados > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Puntos a ganar:</span>
-                    <span>{salePreview.puntosGanados} pts</span>
+                    <span>{salePreview.puntosOtorgados} pts</span>
                   </div>
                 )}
               </div>
               
-              {salePreview.advertencias && salePreview.advertencias.length > 0 && (
+              {salePreview.validaciones.mensajes && salePreview.validaciones.mensajes.length > 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
                   <div className="text-sm font-medium text-yellow-800 mb-1">Advertencias:</div>
-                  {salePreview.advertencias.map((advertencia, index) => (
+                  {salePreview.validaciones.mensajes.map((advertencia, index) => (
                     <div key={index} className="text-xs text-yellow-700">• {advertencia}</div>
                   ))}
                 </div>
@@ -1044,5 +1044,6 @@ export default function POS() {
         </div>
       </DialogContent>
     </Dialog>
+    </div>
   );
 }
