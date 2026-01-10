@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { entradasService } from '@/services/entradasService';
-import type { Entrada, CreateEntradaRequest, EntradasEstadisticas } from '@/types';
+import type { Entrada, CreateEntradaRequest, EntradasEstadisticas, EntradasListResponse } from '@/types';
 import { toast } from 'sonner';
 
 export function useEntradas() {
@@ -10,10 +10,11 @@ export function useEntradas() {
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
-    totalPages: 1,
+    pages: 1,
     total: 0,
     limit: 10
   });
+  const [resumen, setResumen] = useState<{ totalMonto: number; totalEntradas: number } | null>(null);
 
   // Obtener entradas con paginación
   const fetchEntradas = useCallback(async (page: number = 1, limit: number = 10) => {
@@ -23,11 +24,12 @@ export function useEntradas() {
       const response = await entradasService.getAll(page, limit);
       setEntradas(response.entradas);
       setPagination({
-        page: response.page,
-        totalPages: response.totalPages,
-        total: response.total,
-        limit
+        page: response.pagination.page,
+        pages: response.pagination.pages,
+        total: response.pagination.total,
+        limit: response.pagination.limit
       });
+      setResumen(response.resumen);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al cargar entradas';
       setError(errorMessage);
@@ -126,6 +128,7 @@ export function useEntradas() {
   return {
     entradas,
     estadisticas,
+    resumen,
     loading,
     error,
     pagination,

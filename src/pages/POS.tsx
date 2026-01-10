@@ -9,7 +9,7 @@ import type { Product, Client, PaymentMethod } from '@/types';
 import { PAYMENT_METHODS, PAYMENT_METHOD_OPTIONS } from '@/constants/paymentMethods';
 import { usePOS } from '@/contexts/POSContext';
 import { roundMoney, roundToNearestDime } from '@/utils/moneyUtils';
-import { Search, Plus, Minus, Trash2, User, FileText, DollarSign, X, ShoppingCart, Send, Calculator, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, User, FileText, DollarSign, X, ShoppingCart, Send, Calculator, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,6 +29,10 @@ export default function POS() {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(PAYMENT_METHODS.EFECTIVO);
+  
+  // Estados para flujo POS profesional
+  const [isCashRegisterDialogOpen, setIsCashRegisterDialogOpen] = useState(false);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
 
   // Los descuentos y recargos ahora se manejan directamente en el ticket activo
   const [montoRecibido, setMontoRecibido] = useState<number | undefined>();
@@ -68,6 +72,14 @@ export default function POS() {
     getActiveTicket,
     getTicketTotal,
     completeSale,
+    // Nuevos métodos para flujo profesional
+    cashRegisterState,
+    salePreview,
+    isLoadingPreview,
+    isLoadingCashState,
+    checkCashRegisterState,
+    previewSale,
+    clearPreview,
   } = usePOS();
 
   // Obtener valores del ticket activo
@@ -85,6 +97,29 @@ export default function POS() {
       });
     }
   }, [productsError]);
+
+  // ETAPA 1-2: Verificar estado de caja al cargar el POS
+  useEffect(() => {
+    const initializePOS = async () => {
+      await checkCashRegisterState();
+      
+      // Si no hay caja abierta, mostrar modal obligatorio
+      if (cashRegisterState && !cashRegisterState.abierta) {
+        setIsCashRegisterDialogOpen(true);
+      }
+    };
+
+    initializePOS();
+  }, [checkCashRegisterState]);
+
+  // Reaccionar a cambios en el estado de la caja
+  useEffect(() => {
+    if (cashRegisterState && !cashRegisterState.abierta) {
+      setIsCashRegisterDialogOpen(true);
+    } else if (cashRegisterState && cashRegisterState.abierta) {
+      setIsCashRegisterDialogOpen(false);
+    }
+  }, [cashRegisterState]);
 
   // Resetear montoRecibido cuando se cierra el diálogo de pago
   useEffect(() => {
@@ -150,7 +185,34 @@ export default function POS() {
   const handleAddProduct = (product: Product) => {
     // Validar que hay un ticket activo seleccionado
     if (!activeTicket) {
-      toast.error('Selecciona un ticket antes de agregar productos');
+      toast({
+        title: 'Error',
+        description: 'Selecciona un ticket antes de agregar productos',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // ETAPA 3: Validar stock disponible
+    if (product.usaInventario && product.cantidadActual <= 0) {
+      toast({
+        title: 'Stock insuficiente',
+        description: `No hay stock disponible para ${product.productoDescripcion}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Verificar si el producto ya está en el ticket para validar cantidad total
+    const existingItem = activeTicket.items.find(item => item.productId === product.id);
+    const currentQuantityInTicket = existingItem ? existingItem.quantity : 0;
+    
+    if (product.usaInventario && (currentQuantityInTicket + 1) > product.cantidadActual) {
+      toast({
+        title: 'Stock insuficiente',
+        description: `Solo hay ${product.cantidadActual} unidades disponibles de ${product.productoDescripcion}`,
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -284,7 +346,24 @@ export default function POS() {
     window.open(whatsappUrl, '_blank');
   }; */
 
-  const handleCheckout = async () => {
+  // ETAPA 7: Función para mostrar preview de venta
+  const handleShowPreview = async () => {
+    if (!activeTicket || activeTicket.items.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'No hay productos en el ticket',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Generar preview de la venta
+    await previewSale();
+    setIsPreviewDialogOpen(true);
+  };
+
+  // ETAPA 8: Función para confirmar venta después del preview
+  const handleConfirmSale = async () => {
     if (!activeTicket || activeTicket.items.length === 0) {
       toast({
         title: 'Error',
@@ -319,6 +398,10 @@ export default function POS() {
     setMontoActual(0);
     setReferenciaActual('');
     setIsPaymentOpen(false);
+    setIsPreviewDialogOpen(false);
+    
+    // Limpiar preview
+    clearPreview();
     
     // Guardar referencia al cliente antes de completar la venta
     const currentClientId = activeTicket.clientId;
@@ -335,6 +418,11 @@ export default function POS() {
 
     setMontoRecibido(undefined);
     setSelectedPaymentMethod(PAYMENT_METHODS.EFECTIVO);
+  };
+
+  // Función legacy para compatibilidad (ahora redirige al preview)
+  const handleCheckout = async () => {
+    await handleShowPreview();
   };
 
   return (
@@ -772,5 +860,128 @@ export default function POS() {
         )}
       </div>
     </div>
+
+    {/* Dialog obligatorio para verificar caja abierta */}
+    <Dialog open={isCashRegisterDialogOpen} onOpenChange={() => {}}>
+      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-500" />
+            Caja Cerrada
+          </DialogTitle>
+          <DialogDescription>
+            No hay una caja abierta. Debes abrir una caja antes de realizar ventas.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="text-sm text-muted-foreground">
+            {isLoadingCashState ? (
+              'Verificando estado de caja...'
+            ) : (
+              'Para continuar con las ventas, necesitas abrir una caja desde el módulo de Caja.'
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              className="flex-1"
+              onClick={() => window.location.href = '/caja'}
+            >
+              Ir a Caja
+            </Button>
+            <Button 
+              className="flex-1"
+              onClick={checkCashRegisterState}
+              disabled={isLoadingCashState}
+            >
+              {isLoadingCashState ? 'Verificando...' : 'Verificar Estado'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* Dialog de preview de venta */}
+    <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Preview de Venta
+          </DialogTitle>
+          <DialogDescription>
+            Revisa los detalles antes de confirmar la venta
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          {isLoadingPreview ? (
+            <div className="text-center py-4">
+              <div className="text-sm text-muted-foreground">Validando venta...</div>
+            </div>
+          ) : salePreview ? (
+            <div className="space-y-3">
+              <div className="text-sm">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>S/ {salePreview.subtotal?.toFixed(2)}</span>
+                </div>
+                {salePreview.descuento > 0 && (
+                  <div className="flex justify-between text-red-600">
+                    <span>Descuento:</span>
+                    <span>-S/ {salePreview.descuento?.toFixed(2)}</span>
+                  </div>
+                )}
+                {salePreview.recargo > 0 && (
+                  <div className="flex justify-between text-blue-600">
+                    <span>Recargo:</span>
+                    <span>+S/ {salePreview.recargo?.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold border-t pt-2">
+                  <span>Total:</span>
+                  <span>S/ {salePreview.total?.toFixed(2)}</span>
+                </div>
+                {salePreview.puntosGanados > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Puntos a ganar:</span>
+                    <span>{salePreview.puntosGanados} pts</span>
+                  </div>
+                )}
+              </div>
+              
+              {salePreview.advertencias && salePreview.advertencias.length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                  <div className="text-sm font-medium text-yellow-800 mb-1">Advertencias:</div>
+                  {salePreview.advertencias.map((advertencia, index) => (
+                    <div key={index} className="text-xs text-yellow-700">• {advertencia}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <div className="text-sm text-muted-foreground">Error al generar preview</div>
+            </div>
+          )}
+          
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              className="flex-1"
+              onClick={() => setIsPreviewDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              className="flex-1"
+              onClick={handleConfirmSale}
+              disabled={isLoadingPreview || !salePreview}
+            >
+              Confirmar Venta
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

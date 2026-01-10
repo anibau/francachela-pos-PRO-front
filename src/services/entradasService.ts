@@ -4,7 +4,8 @@ import { extractErrorMessage } from '@/lib/utils';
 import type { 
   Entrada, 
   CreateEntradaRequest, 
-  EntradasEstadisticas 
+  EntradasEstadisticas,
+  EntradasListResponse 
 } from '@/types';
 
 export const entradasService = {
@@ -27,12 +28,7 @@ export const entradasService = {
   /**
    * Obtener entradas con paginación
    */
-  getAll: async (page: number = 1, limit: number = 10): Promise<{
-    entradas: Entrada[];
-    total: number;
-    page: number;
-    totalPages: number;
-  }> => {
+  getAll: async (page: number = 1, limit: number = 10): Promise<EntradasListResponse> => {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -40,12 +36,7 @@ export const entradasService = {
       });
 
       const url = `${API_ENDPOINTS.ENTRADAS.BASE}?${params.toString()}`;
-      const response = await httpClient.get<{
-        entradas: Entrada[];
-        total: number;
-        page: number;
-        totalPages: number;
-      }>(url);
+      const response = await httpClient.get<EntradasListResponse>(url);
       
       return response;
     } catch (error) {

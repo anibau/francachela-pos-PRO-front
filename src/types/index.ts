@@ -470,12 +470,33 @@ export interface CreateEntradaRequest {
 }
 
 export interface EntradasEstadisticas {
-  totalEntradas: number;
-  totalMonto: number;
-  promedioEntrada: number;
-  entradasPorCategoria: {
+  resumen: {
+    totalEntradas: number;
+    totalMonto: number;
+    promedioMonto: number;
+  };
+  porCategoria: {
     [categoria: string]: number;
   };
-  fechaInicio: string;
-  fechaFin: string;
+  porMes: {
+    [mes: string]: number;
+  };
+  periodo: {
+    inicio: string;
+    fin: string;
+  };
+}
+
+export interface EntradasListResponse {
+  entradas: Entrada[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+  resumen: {
+    totalMonto: number;
+    totalEntradas: number;
+  };
 }

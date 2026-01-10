@@ -31,6 +31,7 @@ export function EntradasSection() {
   const {
     entradas,
     estadisticas,
+    resumen,
     loading,
     pagination,
     fetchEntradas,
@@ -282,7 +283,7 @@ export function EntradasSection() {
       </div>
 
       {/* Estadísticas */}
-      {estadisticas && (
+      {estadisticas?.resumen && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -290,7 +291,7 @@ export function EntradasSection() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{estadisticas.totalEntradas}</div>
+              <div className="text-2xl font-bold">{estadisticas.resumen.totalEntradas}</div>
             </CardContent>
           </Card>
 
@@ -300,7 +301,7 @@ export function EntradasSection() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">S/ {estadisticas.totalMonto.toFixed(2)}</div>
+              <div className="text-2xl font-bold">S/ {estadisticas.resumen.totalMonto.toFixed(2)}</div>
             </CardContent>
           </Card>
 
@@ -310,7 +311,7 @@ export function EntradasSection() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">S/ {estadisticas.promedioEntrada.toFixed(2)}</div>
+              <div className="text-2xl font-bold">S/ {estadisticas.resumen.promedioMonto.toFixed(2)}</div>
             </CardContent>
           </Card>
         </div>
@@ -382,6 +383,42 @@ export function EntradasSection() {
           )}
         </CardContent>
       </Card>
+
+      {/* Paginación Dinámica */}
+      {pagination.total > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Mostrando {((pagination.page - 1) * pagination.limit) + 1} a{' '}
+                {Math.min(pagination.page * pagination.limit, pagination.total)} de{' '}
+                {pagination.total} entradas
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fetchEntradas(pagination.page - 1, pagination.limit)}
+                  disabled={pagination.page <= 1 || loading}
+                >
+                  Anterior
+                </Button>
+                <div className="text-sm">
+                  Página {pagination.page} de {pagination.pages}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fetchEntradas(pagination.page + 1, pagination.limit)}
+                  disabled={pagination.page >= pagination.pages || loading}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Modal de edición */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
