@@ -51,6 +51,7 @@ export const API_ENDPOINTS = {
     RETURN: (id: number) => `/ventas/devolucion/${id}`,
     TODAY: '/ventas/hoy',
     CORTE: '/ventas/corte',
+    PREVIEW: '/ventas/preview',
   },
   
   // Clientes
@@ -98,6 +99,7 @@ export const API_ENDPOINTS = {
     STATISTICS: '/caja/estadisticas',
     BY_ID: (id: number) => `/caja/${id}`,
     BY_RANGE: '/caja/rango',
+    ESTADO: '/caja/estado',
   },
   
   // Gastos
@@ -111,6 +113,15 @@ export const API_ENDPOINTS = {
     BY_RANGE: '/gastos/rango',
     BY_CATEGORY: (categoria: string) => `/gastos/categoria/${categoria}`,
     BY_CASHIER: (cajero: string) => `/gastos/cajero/${cajero}`,
+  },
+  
+  // Entradas
+  ENTRADAS: {
+    BASE: '/entradas',
+    BY_ID: (id: number) => `/entradas/${id}`,
+    BY_RANGE: '/entradas/rango',
+    TOTAL_RANGE: '/entradas/total-rango',
+    STATISTICS: '/entradas/estadisticas',
   },
   
   // Delivery

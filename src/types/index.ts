@@ -132,6 +132,52 @@ export interface Sale {
   fechaActualizacion?: string;
 }
 
+// Tipos para el flujo de preview de ventas
+export interface SalePreviewRequest {
+  items: {
+    productoId: number;
+    cantidad: number;
+  }[];
+  clienteId?: number;
+  puntosAUsar?: number;
+  montoRecibido?: number;
+}
+
+export interface SalePreviewResponse {
+  subtotal: number;
+  descuentoPromos: number;
+  descuentoPuntos: number;
+  ajusteRedondeo: number;
+  total: number;
+  totalCobrado: number;
+  vuelto: number;
+  puntosOtorgados: number;
+  detalleItems: {
+    productoId: number;
+    nombre: string;
+    precio: number;
+    cantidad: number;
+    subtotal: number;
+  }[];
+  validaciones: {
+    stockSuficiente: boolean;
+    puntosValidos: boolean;
+    mensajes: string[];
+  };
+}
+
+// Tipos para estado de caja
+export interface CashRegisterState {
+  abierta: boolean;
+  cajaId?: number;
+  usuario?: string;
+  fechaApertura?: string;
+  montoInicial?: number;
+  totalVentas?: number;
+  totalGastos?: number;
+  montoEsperado?: number;
+}
+
 export interface Promotion {
   id: number;
   name: string;
@@ -401,4 +447,35 @@ export interface CreateUnifiedPromotionRequest {
     cantidadMinima?: number;
     obligatorio?: boolean;
   }[];
+}
+
+// Tipos para ENTRADAS
+export interface Entrada {
+  id: number;
+  monto: number;
+  descripcion: string;
+  categoria: string;
+  fecha: string;
+  observaciones?: string;
+  fechaCreacion: string;
+  fechaActualizacion: string;
+}
+
+export interface CreateEntradaRequest {
+  monto: number;
+  descripcion: string;
+  categoria: string;
+  fecha: string;
+  observaciones?: string;
+}
+
+export interface EntradasEstadisticas {
+  totalEntradas: number;
+  totalMonto: number;
+  promedioEntrada: number;
+  entradasPorCategoria: {
+    [categoria: string]: number;
+  };
+  fechaInicio: string;
+  fechaFin: string;
 }

@@ -83,6 +83,23 @@ export const salesService = {
   },
 
   /**
+   * Previsualizar venta sin persistir datos
+   * Permite validar precios, stock y puntos antes de confirmar la venta
+   */
+  preview: async (previewData: import('@/types').SalePreviewRequest): Promise<import('@/types').SalePreviewResponse> => {
+    try {
+      const response = await httpClient.post<import('@/types').SalePreviewResponse>(
+        API_ENDPOINTS.SALES.PREVIEW,
+        previewData
+      );
+      return response;
+    } catch (error) {
+      console.error('Error previewing sale:', error);
+      throw new Error(extractErrorMessage(error));
+    }
+  },
+
+  /**
    * Obtener estadísticas de ventas con filtros de fecha
    * @param fechaInicio - Fecha de inicio en formato YYYY-MM-DD HH:mm:ss
    * @param fechaFin - Fecha de fin en formato YYYY-MM-DD HH:mm:ss

@@ -1,7 +1,16 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
-import type { PaymentMethod, SaleItem, Product, Client } from "@/types";
+import type { 
+  PaymentMethod, 
+  SaleItem, 
+  Product, 
+  Client, 
+  SalePreviewRequest, 
+  SalePreviewResponse,
+  CashRegisterState 
+} from "@/types";
 import { salesService } from "@/services/salesService";
 import { clientsService } from "@/services/clientsService";
+import { cashRegisterService } from "@/services/cashRegisterService";
 import { roundMoney, roundToNearestDime } from "@/utils/moneyUtils";
 import { toast } from "sonner";
 
@@ -25,6 +34,13 @@ interface Ticket {
 interface POSContextType {
   tickets: Ticket[];
   activeTicketId: string;
+  // Estados para flujo profesional
+  cashRegisterState: CashRegisterState | null;
+  salePreview: SalePreviewResponse | null;
+  isLoadingPreview: boolean;
+  isLoadingCashState: boolean;
+  
+  // Métodos existentes
   createTicket: () => void;
   switchTicket: (id: string) => void;
   closeTicket: (id: string) => void;
@@ -37,6 +53,13 @@ interface POSContextType {
   applyRecargoExtra: (recargoExtra: number) => void;
   getActiveTicket: () => Ticket | undefined;
   getTicketTotal: (ticketId?: string) => number;
+  
+  // Nuevos métodos para flujo profesional
+  checkCashRegisterState: () => Promise<void>;
+  previewSale: (puntosAUsar?: number, montoRecibido?: number) => Promise<void>;
+  clearPreview: () => void;
+  
+  // Método de venta refactorizado
   completeSale: (
     paymentMethod: PaymentMethod,
     cashierName: string,
@@ -60,6 +83,12 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
   ]);
   const [activeTicketId, setActiveTicketId] = useState("1");
   const [ticketCounter, setTicketCounter] = useState(1); // Contador único para evitar duplicaciones
+  
+  // Estados para flujo profesional
+  const [cashRegisterState, setCashRegisterState] = useState<CashRegisterState | null>(null);
+  const [salePreview, setSalePreview] = useState<SalePreviewResponse | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [isLoadingCashState, setIsLoadingCashState] = useState(false);
 
   const createTicket = useCallback(() => {
     const newId = String(ticketCounter + 1);
@@ -257,6 +286,56 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
     [tickets, activeTicketId]
   );
 
+  // Método para verificar estado de caja
+  const checkCashRegisterState = useCallback(async () => {
+    setIsLoadingCashState(true);
+    try {
+      const state = await cashRegisterService.getEstado();
+      setCashRegisterState(state);
+    } catch (error) {
+      console.error('Error checking cash register state:', error);
+      toast.error('Error al verificar estado de caja');
+    } finally {
+      setIsLoadingCashState(false);
+    }
+  }, []);
+
+  // Método para previsualizar venta
+  const previewSale = useCallback(async (puntosAUsar?: number, montoRecibido?: number) => {
+    const ticket = getActiveTicket();
+    
+    if (!ticket || ticket.items.length === 0) {
+      toast.error("No hay productos en el ticket");
+      return;
+    }
+
+    setIsLoadingPreview(true);
+    try {
+      const previewRequest: SalePreviewRequest = {
+        items: ticket.items.map(item => ({
+          productoId: item.productId,
+          cantidad: item.cantidad
+        })),
+        clienteId: ticket.clientId,
+        puntosAUsar,
+        montoRecibido
+      };
+
+      const preview = await salesService.preview(previewRequest);
+      setSalePreview(preview);
+    } catch (error) {
+      console.error('Error previewing sale:', error);
+      toast.error('Error al previsualizar venta');
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  }, [getActiveTicket]);
+
+  // Método para limpiar preview
+  const clearPreview = useCallback(() => {
+    setSalePreview(null);
+  }, []);
+
   const completeSale = useCallback(
     async (
       paymentMethod: PaymentMethod,
@@ -433,6 +512,12 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
       value={{
         tickets,
         activeTicketId,
+        // Estados para flujo profesional
+        cashRegisterState,
+        salePreview,
+        isLoadingPreview,
+        isLoadingCashState,
+        // Métodos existentes
         createTicket,
         switchTicket,
         closeTicket,
@@ -445,6 +530,10 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         applyRecargoExtra,
         getActiveTicket,
         getTicketTotal,
+        // Nuevos métodos para flujo profesional
+        checkCashRegisterState,
+        previewSale,
+        clearPreview,
         completeSale,
       }}
     >

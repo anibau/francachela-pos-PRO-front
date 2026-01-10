@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Receipt, Plus, Search, Calendar, DollarSign, TrendingUp, Filter, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { expensesService } from '@/services/expensesService';
+import { EntradasSection } from '@/components/gastos/EntradasSection';
 import type { Expense } from '@/types';
 
 // Categorías de gastos según el backend
@@ -433,9 +434,10 @@ export default function Gastos() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Resumen</TabsTrigger>
           <TabsTrigger value="expenses">Gastos</TabsTrigger>
+          <TabsTrigger value="entradas">Entradas</TabsTrigger>
           <TabsTrigger value="analytics">Análisis</TabsTrigger>
         </TabsList>
 
@@ -759,6 +761,10 @@ export default function Gastos() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="entradas" className="space-y-4">
+          <EntradasSection />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">
