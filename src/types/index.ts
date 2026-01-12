@@ -140,6 +140,8 @@ export interface SalePreviewRequest {
   }[];
   clienteId?: number;
   puntosAUsar?: number;
+  descuento?: number;
+  recargoExtra?: number;
   montoRecibido?: number;
 }
 
@@ -165,6 +167,12 @@ export interface SalePreviewResponse {
     mensajes: string[];
   };
 }
+
+// Helper para validar preview response
+export const isPreviewValid = (preview: SalePreviewResponse | null): boolean => {
+  if (!preview) return false;
+  return preview.validaciones.stockSuficiente && preview.validaciones.puntosValidos;
+};
 
 // Tipos para estado de caja
 export interface CashRegisterState {
@@ -650,22 +658,8 @@ export interface CorteEstadisticas {
   fechaGeneracion?: string;
 }
 
-// Tarea 6: Interface para evaluación de puntos
-export interface PuntosEvaluacionRequest {
-  clienteId?: number;
-  clienteDni?: string;
-  puntosAUsar: number;
-  montoVenta: number;
-}
-
-export interface PuntosEvaluacionResponse {
-  success: boolean;
-  descuentoAplicado: number;
-  puntosUsados: number;
-  puntosRestantes: number;
-  montoFinal: number;
-  message: string;
-}
+// Interface obsoleta - usar PointsEvaluationResponse de pointsService.ts
+// Eliminada para evitar conflictos
 
 // Tarea 4: Interface para categorías reutilizables
 export interface CategoriaOption {

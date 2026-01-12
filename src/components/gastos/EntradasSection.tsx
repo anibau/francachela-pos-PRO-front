@@ -164,6 +164,18 @@ export function EntradasSection() {
     setIsEditDialogOpen(true);
   };
 
+  // Función para resetear el formulario
+  const resetForm = useCallback(() => {
+    setFormData({
+      monto: 0,
+      descripcion: '',
+      categoria: '',
+      fecha: format(new Date(), 'yyyy-MM-dd'),
+      observaciones: ''
+    });
+    setEditingEntrada(null);
+  }, []);
+
   // Eliminar entrada
   const handleDelete = async (id: number) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar esta entrada?')) {

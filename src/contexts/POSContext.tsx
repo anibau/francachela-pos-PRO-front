@@ -12,6 +12,7 @@ import { salesService } from "@/services/salesService";
 import { clientsService } from "@/services/clientsService";
 import { cashRegisterService } from "@/services/cashRegisterService";
 import { roundMoney, roundToNearestDime } from "@/utils/moneyUtils";
+import { calculateTicketTotal } from "@/utils/calculateTicketTotal";
 import { toast } from "sonner";
 
 // Interfaz extendida para items en el ticket del POS
@@ -52,11 +53,11 @@ interface POSContextType {
   applyDiscount: (discount: number) => void;
   applyRecargoExtra: (recargoExtra: number) => void;
   getActiveTicket: () => Ticket | undefined;
-  getTicketTotal: (ticketId?: string) => number;
+  // getTicketTotal: (ticketId?: string) => number;
   
   // Nuevos métodos para flujo profesional
   checkCashRegisterState: () => Promise<void>;
-  previewSale: (puntosAUsar?: number, montoRecibido?: number) => Promise<void>;
+  previewSale: (puntosAUsar?: number, montoRecibido?: number, descuento?: number, recargoExtra?: number) => Promise<SalePreviewResponse | null>;
   clearPreview: () => void;
   
   // Método de venta refactorizado
@@ -297,23 +298,6 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
     [activeTicketId]
   );
 
-  const getTicketTotal = useCallback(
-    (ticketId?: string) => {
-      const ticket = tickets.find((t) => t.id === (ticketId || activeTicketId));
-      if (!ticket) return 0;
-
-      const subtotal = ticket.items.reduce(
-        (sum, item) => sum + item.subtotal,
-        0
-      );
-      const rawTotal = Math.max(0, subtotal - ticket.discount + ticket.recargoExtra);
-      // Redondear a décima hacia arriba (4.83 → 4.90)
-      // En Perú no existen monedas menores a 0.10 soles
-      return roundToNearestDime(rawTotal);
-    },
-    [tickets, activeTicketId]
-  );
-
   // Método para verificar estado de caja
   const checkCashRegisterState = useCallback(async () => {
     setIsLoadingCashState(true);
@@ -328,13 +312,13 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Método para previsualizar venta
-  const previewSale = useCallback(async (puntosAUsar?: number, montoRecibido?: number) => {
+  // Método para previsualizar venta - RETORNA el preview para usar inmediatamente
+  const previewSale = useCallback(async (puntosAUsar?: number, montoRecibido?: number, descuento?: number, recargoExtra?: number): Promise<SalePreviewResponse | null> => {
     const ticket = getActiveTicket();
     
     if (!ticket || ticket.items.length === 0) {
       toast.error("No hay productos en el ticket");
-      return;
+      return null;
     }
 
     setIsLoadingPreview(true);
@@ -345,15 +329,19 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           cantidad: item.cantidad
         })),
         clienteId: ticket.clientId,
-        puntosAUsar,
-        montoRecibido
+        puntosAUsar: puntosAUsar,
+        descuento: descuento,
+        recargoExtra: recargoExtra,
+        montoRecibido: montoRecibido
       };
 
       const preview = await salesService.preview(previewRequest);
       setSalePreview(preview);
+      return preview; // ✅ RETORNAR la respuesta
     } catch (error) {
       console.error('Error previewing sale:', error);
       toast.error('Error al previsualizar venta');
+      return null;
     } finally {
       setIsLoadingPreview(false);
     }
@@ -376,7 +364,8 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
       }>,
       products?: Product[],
       refetchProducts?: () => void,
-      refetchClients?: () => void
+      refetchClients?: () => void,
+      puntosUsados: number = 0
     ) => {
       const ticket = getActiveTicket();
 
@@ -386,15 +375,14 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const subtotal = ticket.items.reduce(
-          (sum, item) => sum + item.subtotal,
-          0
+        // 🎯 USAR EL MOTOR ÚNICO DE CÁLCULO
+        const puntosDescuento = puntosUsados > 0 ? (puntosUsados * 0.1) : 0;
+        const totalRedondeado = calculateTicketTotal(
+          ticket.items,
+          ticket.discount,
+          ticket.recargoExtra,
+          puntosDescuento
         );
-        // Calcular total redondeado a décima hacia arriba
-        const totalRedondeado = roundToNearestDime(Math.max(
-          0,
-          subtotal - ticket.discount + ticket.recargoExtra
-        ));
 
         // Calcular puntos (1 punto por cada sol gastado)
         const puntosOtorgados = Math.floor(totalRedondeado);
@@ -447,7 +435,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         if (metodosPageo && metodosPageo.length > 0) {
           // Redondear cada monto usando roundMoney y sincronizar con total
           metodosPageoArray = metodosPageo.map((metodo) => ({
-            monto: roundToNearestDime(metodo.monto),
+            monto: metodo.monto,
             metodoPago: metodo.metodoPago,
             ...(metodo.referencia && { referencia: metodo.referencia }),
           }));
@@ -487,7 +475,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           comentario: ticket.notes || "",
           tipoCompra: "LOCAL",
           montoRecibido: montoRecibidoFinal,
-          puntosUsados: 0,
+          puntosUsados: puntosUsados,  // ✅ Usar el valor pasado como parámetro
           // El total debe coincidir exactamente con la suma de metodosPageo
           //total: totalRedondeado,
         };
@@ -557,7 +545,6 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         applyDiscount,
         applyRecargoExtra,
         getActiveTicket,
-        getTicketTotal,
         // Nuevos métodos para flujo profesional
         checkCashRegisterState,
         previewSale,

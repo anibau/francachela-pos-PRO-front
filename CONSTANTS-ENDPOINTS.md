@@ -405,8 +405,10 @@ curl -X POST http://localhost:3000/auth/login   -H "Content-Type: application/js
             }
           ],
           "clienteId": 5,
-          "puntosAUsar": 30,
-          "montoRecibido": 35
+          "puntosAUsar": 30,   // CAMPO "puntosAceptados" DE LA RESPONSE  POST /puntos/evaluar
+          "descuento": 0,    //OPCIONAL SI APLICA POR PANEL PRINCIPAL
+          "recargoExtra": 0,  //OPCIONAL SI APLICA POR PANEL PRINCIPAL
+          "montoRecibido": 35  //REQUERIDO : TOTAL DEL PANEL PRINCIPAL
         }
       ### Response: 
           {

@@ -61,7 +61,7 @@ export const salesService = {
    */
   create: async (saleData: any): Promise<Sale> => {
     try {
-      const sale = await httpClient.post<Sale>(API_ENDPOINTS.SALES.BASE, saleData);
+      const sale = await httpClient.post<Sale>(API_ENDPOINTS.SALES.BASE, saleData, { timeout: 30000 });
       return normalizeSale(sale);
     } catch (error) {
       console.error('Error creating sale:', error);

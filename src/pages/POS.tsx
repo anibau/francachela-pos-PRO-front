@@ -9,6 +9,7 @@ import type { Product, Client, PaymentMethod } from '@/types';
 import { PAYMENT_METHODS, PAYMENT_METHOD_OPTIONS } from '@/constants/paymentMethods';
 import { usePOS } from '@/contexts/POSContext';
 import { roundMoney, roundToNearestDime } from '@/utils/moneyUtils';
+import { calculateTicketTotal } from '@/utils/calculateTicketTotal';
 import { Search, Plus, Minus, Trash2, User, FileText, DollarSign, X, ShoppingCart, Send, Calculator, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -75,7 +76,6 @@ export default function POS() {
     applyDiscount,
     applyRecargoExtra,
     getActiveTicket,
-    getTicketTotal,
     completeSale,
     // Nuevos métodos para flujo profesional
     cashRegisterState,
@@ -151,7 +151,6 @@ export default function POS() {
   }, [activeTicket?.items.length, activeTicket?.id]);
 
 
-
   // Filtrar productos localmente (patrón como en Clientes.tsx)
   const filteredProducts = (products || []).filter(producto => {
     if (!producto?.productoDescripcion || !producto?.codigoBarra) return false;
@@ -183,9 +182,18 @@ export default function POS() {
     currentPage * PRODUCTS_PER_PAGE
   );
 
-  const rawTotal = getTicketTotal();
-  const total = rawTotal; // Ya está redondeado correctamente en getTicketTotal
+  // 🎯 MOTOR ÚNICO DE CÁLCULO - Total del ticket con todos los factores
+  // Fórmula: subtotal - descuento + recargo - descuentoPuntos
+  const pointsDiscount = pointsEvaluation?.descuento || 0;
+  const total = calculateTicketTotal(
+    activeTicket?.items || [],
+    currentDiscount,
+    currentRecargoExtra,
+    pointsDiscount
+  );
+  
   const pointsEarned = activeTicket ? calculateTotalPoints(activeTicket.items) : 0;
+
 
   const handleAddProduct = (product: Product) => {
     // Validar que hay un ticket activo seleccionado
@@ -291,10 +299,12 @@ export default function POS() {
       return;
     }
 
+    // Usar montoRecibido (del preview) como el monto total a cubrir, no el total calculado
+    const totalParaPago = montoRecibido || total;
     const totalPagado = metodosPageo.reduce((sum, metodo) => sum + metodo.monto, 0);
-    const montoRestante = total - totalPagado;
+    const montoRestante = totalParaPago - totalPagado;
 
-    if (montoActual > montoRestante) {
+    if (montoActual > montoRestante + 0.01) { // Pequeña tolerancia por redondeo
       toast({
         title: 'Error',
         description: `El monto no puede ser mayor al restante: S/ ${montoRestante.toFixed(2)}`,
@@ -331,8 +341,9 @@ export default function POS() {
   };
 
   const getMontoRestante = () => {
-    // Calcular lo que falta considerando el redondeo a décimas
-    return roundToNearestDime(total - getTotalPagado());
+    // Usar montoRecibido del preview como el monto total a cubrir
+    const totalParaPago = montoRecibido || total;
+    return roundToNearestDime(totalParaPago - getTotalPagado());
   };
 
   const isPagoCompleto = () => {
@@ -363,27 +374,36 @@ export default function POS() {
     }
 
     try {
+      // Construir items con estructura correcta para el backend
+      const itemsForEvaluation = activeTicket.items.map(item => ({
+        productoId: item.productId,
+        cantidad: item.cantidad
+      }));
+
       const evaluation = await pointsService.evaluate({
         clienteId: activeTicket.clientId,
-        puntosAUsar: puntosAUsar
+        items: itemsForEvaluation,
+        puntosSolicitados: puntosAUsar
       });
 
-      if (!evaluation.esValido) {
+      // Validar: si se aceptaron menos puntos de los solicitados, mostrar warning
+      const esValido = evaluation.puntosAceptados === puntosAUsar;
+      console.log('Evaluación de puntos:', evaluation);
+      console.log('Es válido:', esValido);
+      if (!esValido) {
         toast({
-          title: 'Puntos inválidos',
-          description: evaluation.mensaje || 'Puntos insuficientes',
-          variant: 'destructive',
+          title: 'Puntos ajustados',
+          description: `Solicitados: ${puntosAUsar}, Aceptados: ${evaluation.puntosAceptados}. ${evaluation.mensaje}`,
+          variant: 'default',
         });
-        setPointsEvaluation(null);
-        return;
       }
 
       // Guardar evaluación para mostrar en UI
       setPointsEvaluation(evaluation);
       
       toast({
-        title: 'Puntos evaluados',
-        description: `Descuento aplicado: S/ ${evaluation.descuentoAplicado.toFixed(2)}`,
+        title: '✅ Puntos evaluados',
+        description: `Descuento: S/ ${evaluation.descuento.toFixed(2)} (${evaluation.puntosAceptados} pts)`,
       });
     } catch (error) {
       console.error('Error evaluating points:', error);
@@ -396,7 +416,7 @@ export default function POS() {
     }
   };
 
-  // DEFECTO 4: Función para abrir dialog de pago (Botón "Pagar")
+  // DEFECTO 4: Función para abrir dialog de pago y ejecutar preview (Botón "Pagar")
   const handleShowPreview = async () => {
     if (!activeTicket || activeTicket.items.length === 0) {
       toast({
@@ -407,11 +427,66 @@ export default function POS() {
       return;
     }
 
-    // DEFECTO 4: Solo abrir dialog de pago, el preview se ejecuta en "Confirmar"
-    setIsPaymentOpen(true);
+    try {
+      // ETAPA A: Ejecutar PREVIEW DE LA VENTA (validación final del backend)
+      toast({
+        title: 'Validando venta...',
+        description: 'Ejecutando validación final contra el backend',
+      });
+
+      // Usar puntosAceptados si ya fue evaluado, sino usar puntosAUsar
+      const puntosParaPreview = pointsEvaluation?.puntosAceptados || (puntosAUsar > 0 ? puntosAUsar : undefined);
+      
+      const previewResult = await previewSale(
+        puntosParaPreview,
+        total,  // montoRecibido = total a pagar
+        currentDiscount > 0 ? currentDiscount : undefined,
+        currentRecargoExtra > 0 ? currentRecargoExtra : undefined
+      );
+
+      // ETAPA C: Validar si el preview es válido
+      if (previewResult && previewResult.validaciones.stockSuficiente && previewResult.validaciones.puntosValidos) {
+        // Si el backend corrigió el total, actualizar montoRecibido en el estado
+        const montoFinal = previewResult.totalCobrado || total;
+        if (Math.abs(montoFinal - total) > 0.01) {
+          setMontoRecibido(montoFinal);
+          toast({
+            title: '⚠️ Total actualizado',
+            description: `Monto a pagar: S/ ${montoFinal.toFixed(2)}`,
+            variant: 'default',
+          });
+        } else {
+          setMontoRecibido(total);
+        }
+        
+        // Limpiar metodosPageo al abrir el dialog - permitirá que se agreguen métodos desde cero
+        // basados en el nuevo montoRecibido
+        setMetodosPageo([]);
+        setMontoActual(0);
+        setReferenciaActual('');
+        setIsPaymentOpen(true);
+      } else {
+        // Mostrar mensajes de validación
+        const mensajes = previewResult?.validaciones.mensajes || [];
+        const detalleError = mensajes.length > 0 ? mensajes.join(', ') : 'Revisa los datos e intenta nuevamente';
+        
+        toast({
+          title: 'Error en validación',
+          description: detalleError,
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error in preview:', error);
+      toast({
+        title: 'Error',
+        description: 'Error al validar la venta',
+        variant: 'destructive',
+      });
+    }
   };
 
-  // DEFECTO 4: Función para confirmar venta con flujo completo
+  // DEFECTO 4: Función para confirmar venta (Botón "Confirmar" en dialog de pago)
   const handleConfirmSale = async () => {
     if (!activeTicket || activeTicket.items.length === 0) {
       toast({
@@ -422,35 +497,18 @@ export default function POS() {
       return;
     }
 
-    try {
-      // DEFECTO 4 - ETAPA A: Ejecutar preview primero (validación final)
+    // Validar que el preview fue ejecutado correctamente
+    if (!salePreview || !salePreview.validaciones.stockSuficiente || !salePreview.validaciones.puntosValidos) {
       toast({
-        title: 'Validando venta...',
-        description: 'Ejecutando validación final contra el backend',
+        title: 'Error',
+        description: 'La venta no ha sido validada. Presiona Pagar nuevamente.',
+        variant: 'destructive',
       });
+      return;
+    }
 
-      // Evaluar puntos si hay cliente y puntos a usar
-      if (activeTicket.clientId && puntosAUsar > 0 && !pointsEvaluation) {
-        const evaluation = await pointsService.evaluate({
-          clienteId: activeTicket.clientId,
-          puntosAUsar: puntosAUsar
-        });
-
-        if (!evaluation.esValido) {
-          toast({
-            title: 'Error con puntos',
-            description: evaluation.mensaje || 'Puntos insuficientes',
-            variant: 'destructive',
-          });
-          return;
-        }
-        setPointsEvaluation(evaluation);
-      }
-
-      // Ejecutar preview de la venta
-      await previewSale(puntosAUsar > 0 ? puntosAUsar : undefined);
-      
-      // DEFECTO 4 - ETAPA B: Validar métodos de pago
+    try {
+      // ETAPA A: Validar métodos de pago
       if (metodosPageo.length > 0) {
         // Validar que el pago esté completo
         if (!isPagoCompleto()) {
@@ -463,23 +521,39 @@ export default function POS() {
         }
       }
 
-      // DEFECTO 4 - ETAPA C: Confirmar venta
+      // ETAPA B: Confirmar venta con datos validados
       toast({
         title: 'Procesando venta...',
         description: 'Confirmando venta en el backend',
       });
 
+      // Obtener puntos usados del preview o de la evaluación
+      const puntosUsados = pointsEvaluation?.puntosAceptados || 0;
+      // Usar montoRecibido del preview (debe ser sincronizado con metodosPageo)
+      const montoFinalPagar = montoRecibido || total;
+
       if (metodosPageo.length > 0) {
-        // Usar múltiples métodos de pago
+        // Usar múltiples métodos de pago - la suma debe ser igual a montoRecibido
         const metodoPrincipal = metodosPageo[0]?.metodoPago || selectedPaymentMethod;
-        await completeSale(metodoPrincipal, 'Sistema', getTotalPagado(), metodosPageo, products, refetchProducts, refetchClients);
+        const totalPagado = getTotalPagado();
+        
+        // Validar que la suma de metodosPageo coincida con montoRecibido
+        if (Math.abs(totalPagado - montoFinalPagar) > 0.01) {
+          toast({
+            title: 'Error',
+            description: `Los métodos de pago (S/ ${totalPagado.toFixed(2)}) no coinciden con el total (S/ ${montoFinalPagar.toFixed(2)})`,
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        await completeSale(metodoPrincipal, 'Sistema', montoFinalPagar, metodosPageo, products, refetchProducts, refetchClients, puntosUsados);
       } else {
         // Usar método de pago único
-        await completeSale(selectedPaymentMethod, 'Sistema', montoRecibido, undefined, products, refetchProducts, refetchClients);
+        await completeSale(selectedPaymentMethod, 'Sistema', montoFinalPagar, undefined, products, refetchProducts, refetchClients, puntosUsados);
       }
 
-      // DEFECTO 4 - ETAPA D: Finalización y limpieza completa
-      const currentClientId = activeTicket.clientId;
+      // ETAPA C: Finalización y limpieza completa
       const finalTotal = metodosPageo.length > 0 ? getTotalPagado() : total;
       
       // Limpiar todos los estados
@@ -512,9 +586,9 @@ export default function POS() {
     }
   };
 
-  // Función legacy para compatibilidad (ahora redirige al preview)
+  // Función para confirmar venta desde el botón en el dialog
   const handleCheckout = async () => {
-    await handleShowPreview();
+    await handleConfirmSale();
   };
 
   return (
@@ -708,6 +782,34 @@ export default function POS() {
                       className="h-7 text-xs"
                     />
                   </div>
+                  {/* ✅ NUEVA: Puntos a usar - AL LADO DE NOTAS */}
+                  {activeTicket?.clientName && (
+                    <div className="flex-1">
+                      <label htmlFor="" className='text-xs'>Puntos a usar</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max={clients.find(c => c.id === activeTicket.clientId)?.puntosAcumulados || 0}
+                        value={puntosAUsar || ''}
+                        onChange={(e) => setPuntosAUsar(parseInt(e.target.value) || 0)}
+                        onBlur={() => {
+                          // Gatillador: blur → evaluar puntos
+                          if (puntosAUsar > 0) {
+                            handleEvaluatePoints();
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          // Gatillador: Enter → evaluar puntos
+                          if (e.key === 'Enter' && puntosAUsar > 0) {
+                            handleEvaluatePoints();
+                          }
+                        }}
+                        placeholder="0"
+                        className="h-7 text-xs"
+                      />
+
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -718,18 +820,25 @@ export default function POS() {
                   {activeTicket?.discount > 0 && (
                     <div className="text-[10px] text-muted-foreground">-S/{activeTicket.discount.toFixed(2)} desc.</div>
                   )}
+                  {pointsEvaluation?.descuento > 0 && (
+                    <div className="text-[10px] text-green-600 font-semibold">-S/{pointsDiscount.toFixed(2)} pts</div>
+                  )}
                   <div className="text-[10px] text-muted-foreground">{pointsEarned} pts</div>
                 </div>
                 <div className="text-xl font-bold text-primary">S/ {total.toFixed(2)}</div>
               </div>
               
+              {/* Botón PAGAR - Ejecuta preview y abre dialog */}
+              <Button 
+                className="w-full" 
+                disabled={!activeTicket?.items.length}
+                onClick={handleShowPreview}
+              >
+                <DollarSign className="mr-2 h-4 w-4" />
+                Pagar
+              </Button>
+              
               <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-                <DialogTrigger asChild>
-                  <Button className="w-full" disabled={!activeTicket?.items.length}>
-                    <DollarSign className="mr-2 h-4 w-4" />
-                    Pagar
-                  </Button>
-                </DialogTrigger>
                 <DialogContent className="max-w-sm max-h-[85vh] overflow-y-auto">
                   <DialogHeader className="pb-2">
                     <DialogTitle className="text-base">Procesar Pago</DialogTitle>
@@ -868,48 +977,18 @@ export default function POS() {
                           <span className="text-muted-foreground">+{pointsEarned} pts</span>
                         </div>
                         
-                        {/* DEFECTO 3: Input para puntos a usar */}
-                        <div className="space-y-2">
-                          <Label className="text-xs">Puntos a usar (opcional)</Label>
-                          <div className="flex gap-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              max={clients.find(c => c.id === activeTicket.clientId)?.puntosAcumulados || 0}
-                              value={puntosAUsar || ''}
-                              onChange={(e) => setPuntosAUsar(parseInt(e.target.value) || 0)}
-                              placeholder="0"
-                              className="h-7 text-xs flex-1"
-                            />
-                            {/* DEFECTO 3: Botón para evaluar puntos/promociones */}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-xs px-2"
-                              onClick={handleEvaluatePoints}
-                              disabled={!puntosAUsar || puntosAUsar <= 0}
-                            >
-                              Evaluar
-                            </Button>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground">
-                            Cliente disponible: {clients.find(c => c.id === activeTicket.clientId)?.puntosAcumulados || 0} pts
-                          </p>
-                          
-                          {/* DEFECTO 3: Mostrar resultado de evaluación de puntos */}
-                          {pointsEvaluation && (
-                            <div className="p-2 bg-green-50 border border-green-200 rounded text-xs">
-                              <div className="flex justify-between items-center">
-                                <span className="text-green-700 font-medium">Descuento aplicado:</span>
-                                <span className="text-green-800 font-bold">-S/ {pointsEvaluation.descuentoAplicado.toFixed(2)}</span>
-                              </div>
-                              {pointsEvaluation.mensaje && (
-                                <p className="text-green-600 text-[10px] mt-1">{pointsEvaluation.mensaje}</p>
-                              )}
+                        {/* ✅ REFACTORIZADO: Mostrar resultado de evaluación de puntos (si existe) */}
+                        {pointsEvaluation && (
+                          <div className="p-2 bg-green-50 border border-green-200 rounded text-xs">
+                            <div className="flex justify-between items-center">
+                              <span className="text-green-700 font-medium">Descuento aplicado:</span>
+                              <span className="text-green-800 font-bold">-S/ {pointsEvaluation.descuento.toFixed(2)}</span>
                             </div>
-                          )}
-                        </div>
+                            {pointsEvaluation.mensaje && (
+                              <p className="text-green-600 text-[10px] mt-1">{pointsEvaluation.mensaje}</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
 
