@@ -16,7 +16,7 @@ export const useCategorySelector = (value: string | undefined, categories: strin
   const select = (v: string) => {
     if (v === "CREATE_NEW") {
       setShowNew(true);
-      return;                         // 🚫 no toques selected
+      return;                        
     }
     setShowNew(false);
     setSelected(v);
