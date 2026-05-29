@@ -61,7 +61,7 @@ export const salesService = {
    */
   create: async (saleData: any): Promise<Sale> => {
     try {
-      const sale = await httpClient.post<Sale>(API_ENDPOINTS.SALES.BASE, saleData);
+      const sale = await httpClient.post<Sale>(API_ENDPOINTS.SALES.BASE, saleData, { timeout: 30000 , retries: 0 });
       return normalizeSale(sale);
     } catch (error) {
       console.error('Error creating sale:', error);
@@ -78,6 +78,23 @@ export const salesService = {
       return normalizeSale(sale);
     } catch (error) {
       console.error('Error canceling sale:', error);
+      throw new Error(extractErrorMessage(error));
+    }
+  },
+
+  /**
+   * Previsualizar venta sin persistir datos
+   * Permite validar precios, stock y puntos antes de confirmar la venta
+   */
+  preview: async (previewData: import('@/types').SalePreviewRequest): Promise<import('@/types').SalePreviewResponse> => {
+    try {
+      const response = await httpClient.post<import('@/types').SalePreviewResponse>(
+        API_ENDPOINTS.SALES.PREVIEW,
+        previewData
+      );
+      return response;
+    } catch (error) {
+      console.error('Error previewing sale:', error);
       throw new Error(extractErrorMessage(error));
     }
   },

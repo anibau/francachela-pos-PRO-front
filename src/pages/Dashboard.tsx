@@ -21,6 +21,7 @@ import InventarioStats from "@/components/Dashboard/InventarioStats";
 import VentasStats from '@/components/Dashboard/VentasStats';
 import { GastosStats as GastosStatsNew } from "@/components/Dashboard/GastosStats";
 import { ClientesStats } from "@/components/Dashboard/ClientesStats";
+import CorteStats from "@/components/Dashboard/CorteStats";
 
 
 export default function Dashboard() {
@@ -37,6 +38,8 @@ export default function Dashboard() {
       {/* Estadísticas de Inventario */}
       <InventarioStats />
 
+      {/* TAREA 3: Estadísticas de Corte */}
+      <CorteStats />
 
       {/* Estadísticas de Gastos - REQUERIMIENTO 7c */}
       <GastosStatsNew />

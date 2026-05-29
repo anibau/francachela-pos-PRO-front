@@ -132,6 +132,60 @@ export interface Sale {
   fechaActualizacion?: string;
 }
 
+// Tipos para el flujo de preview de ventas
+export interface SalePreviewRequest {
+  items: {
+    productoId: number;
+    cantidad: number;
+  }[];
+  clienteId?: number;
+  puntosAUsar?: number;
+  descuento?: number;
+  recargoExtra?: number;
+  montoRecibido?: number;
+}
+
+export interface SalePreviewResponse {
+  subtotal: number;
+  descuentoPromos: number;
+  descuentoPuntos: number;
+  ajusteRedondeo: number;
+  total: number;
+  totalCobrado: number;
+  vuelto: number;
+  puntosOtorgados: number;
+  detalleItems: {
+    productoId: number;
+    nombre: string;
+    precio: number;
+    cantidad: number;
+    subtotal: number;
+  }[];
+  validaciones: {
+    stockSuficiente: boolean;
+    puntosValidos: boolean;
+    mensajes: string[];
+  };
+}
+
+// Helper para validar preview response
+export const isPreviewValid = (preview: SalePreviewResponse | null): boolean => {
+  if (!preview) return false;
+  return preview.validaciones.stockSuficiente && preview.validaciones.puntosValidos;
+};
+
+// Tipos para estado de caja
+export interface CashRegisterState {
+  abierta: boolean;
+  cajaId?: number;
+  usuario?: string;
+  fechaApertura?: string;
+  montoInicial?: number;
+  totalVentas?: number;
+  totalGastos?: number;
+  montoEsperado?: number;
+}
+
 export interface Promotion {
   id: number;
   name: string;
@@ -340,6 +394,96 @@ export interface VentasEstadisticasBackend {
   fechaGeneracion: string;
 }
 
+// Interfaces para estadísticas de gastos (Requerimiento 4)
+export interface GastosEstadisticas {
+  totalGastos: number;
+  totalMonto: number;
+  promedioGasto: number;
+  gastosPorCategoria: {
+    [categoria: string]: number;
+  };
+  gastosPorMetodo: {
+    [metodo: string]: number;
+  };
+  topProveedores: Array<{
+    id: number;
+    nombre: string;
+    totalGastos: number;
+    montoTotal: number;
+  }>;
+  fechaInicio?: string;
+  fechaFin?: string;
+  fechaGeneracion?: string;
+}
+
+// Interfaces para clientes top (Requerimiento 5)
+export interface ClienteTop {
+  id: number;
+  nombres: string;
+  apellidos: string;
+  dni: string;
+  fechaNacimiento: string;
+  telefono: string;
+  fechaRegistro: string;
+  puntosAcumulados: number;
+  historialCompras: Array<{
+    fecha: string;
+    monto: number;
+    ventaId: number;
+    puntosGanados: number;
+  }>;
+  historialCanjes: Array<{
+    fecha: string;
+    ventaId: number;
+    descripcion: string;
+    puntosUsados: number;
+  }>;
+  codigoCorto: string;
+  direccion: string;
+  activo: boolean;
+  fechaCreacion: string;
+  fechaActualizacion: string;
+}
+
+export interface TopClientesResponse {
+  clientes: ClienteTop[];
+  total: number;
+  limit: number;
+}
+
+// Interfaces para clientes cumpleañeros (Requerimiento 6)
+export interface ClientesCumpleanosResponse {
+  clientes: ClienteTop[];
+  pagination: {
+    page: number;
+    pages: number;
+    total: number;
+    limit: number;
+  };
+}
+
+// Interfaces para estadísticas por DNI (Requerimiento 7)
+export interface ClienteEstadisticasByDNI {
+  cliente: ClienteTop;
+  estadisticas: {
+    totalCompras: number;
+    montoTotalGastado: number;
+    promedioCompra: number;
+    puntosGanados: number;
+    puntosUsados: number;
+    ultimaCompra?: string;
+    frecuenciaCompras: string; // 'ALTA', 'MEDIA', 'BAJA'
+  };
+}
+
+// Interfaces para WhatsApp (Requerimiento 2)
+export interface WhatsAppWelcomeResponse {
+  success: boolean;
+  message: string;
+  clienteId: number;
+  fechaEnvio: string;
+}
+
 // Enums para promociones unificadas
 export enum TipoPromocion {
   SIMPLE = 'SIMPLE',
@@ -401,4 +545,140 @@ export interface CreateUnifiedPromotionRequest {
     cantidadMinima?: number;
     obligatorio?: boolean;
   }[];
+}
+
+// Tipos para ENTRADAS
+export interface Entrada {
+  id: number;
+  monto: number;
+  descripcion: string;
+  categoria: string;
+  fecha: string;
+  observaciones?: string;
+  fechaCreacion: string;
+  fechaActualizacion: string;
+}
+
+export interface CreateEntradaRequest {
+  monto: number;
+  descripcion: string;
+  categoria: string;
+  fecha: string;
+  observaciones?: string;
+}
+
+export interface EntradasEstadisticas {
+  resumen: {
+    totalEntradas: number;
+    totalMonto: number;
+    promedioMonto: number;
+  };
+  porCategoria: {
+    [categoria: string]: number;
+  };
+  porMes: {
+    [mes: string]: number;
+  };
+  periodo: {
+    inicio: string;
+    fin: string;
+  };
+}
+
+export interface EntradasListResponse {
+  entradas: Entrada[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+  resumen: {
+    totalMonto: number;
+    totalEntradas: number;
+  };
+}
+
+// ===== INTERFACES PARA LAS 6 TAREAS CRÍTICAS =====
+
+// Tarea 1: Interface para endpoint GET /corte
+export interface CorteResponse {
+  periodo: {
+    fechaInicio: string;
+    fechaFin: string;
+  };
+  ventas: {
+    cantidad: number;
+    totalBruto: number;
+    totalCobrado: number;
+    ajustesRedondeo: number;
+    desglosePorMetodo: {
+      [metodo: string]: number;
+    };
+  };
+  entradas: {
+    cantidad: number;
+    total: number;
+    porCategoria: {
+      [categoria: string]: number;
+    };
+  };
+  gastos: {
+    cantidad: number;
+    total: number;
+    porCategoria: {
+      [categoria: string]: number;
+    };
+  };
+  rentabilidad: {
+    ingresosTotales: number;
+    gastosTotales: number;
+    utilidadNeta: number;
+    margenUtilidad: number;
+  };
+}
+
+// Tarea 2: Interface para exportación Excel
+export interface CorteExportResponse {
+  success: boolean;
+  message: string;
+  filename: string;
+  downloadUrl?: string;
+}
+
+// Tarea 3: Interface para estadísticas de corte en Dashboard
+export interface CorteEstadisticas {
+  ingresosTotales: number;
+  gastosTotales: number;
+  utilidadNeta: number;
+  cantidadVentas: number;
+  promedioVenta: number;
+  fechaInicio?: string;
+  fechaFin?: string;
+  fechaGeneracion?: string;
+}
+
+// Interface obsoleta - usar PointsEvaluationResponse de pointsService.ts
+// Eliminada para evitar conflictos
+
+// Tarea 4: Interface para categorías reutilizables
+export interface CategoriaOption {
+  id?: number;
+  nombre: string;
+  descripcion?: string;
+  activo?: boolean;
+}
+
+export interface CategoriasResponse {
+  categorias: CategoriaOption[];
+  total: number;
+}
+
+// Tarea 5: Interface para validación de stock
+export interface StockValidationResponse {
+  disponible: boolean;
+  stockActual: number;
+  stockMinimo: number;
+  usaInventario: boolean;
+  message: string;
 }

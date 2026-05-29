@@ -51,6 +51,7 @@ export const API_ENDPOINTS = {
     RETURN: (id: number) => `/ventas/devolucion/${id}`,
     TODAY: '/ventas/hoy',
     CORTE: '/ventas/corte',
+    PREVIEW: '/ventas/preview',
   },
   
   // Clientes
@@ -98,6 +99,14 @@ export const API_ENDPOINTS = {
     STATISTICS: '/caja/estadisticas',
     BY_ID: (id: number) => `/caja/${id}`,
     BY_RANGE: '/caja/rango',
+    ESTADO: '/caja/estado',
+  },
+
+  // Corte (Tareas 1, 2, 3)
+  CORTE: {
+    BASE: '/corte',
+    EXPORT: '/corte/export',
+    STATISTICS: '/corte/estadisticas',
   },
   
   // Gastos
@@ -111,6 +120,15 @@ export const API_ENDPOINTS = {
     BY_RANGE: '/gastos/rango',
     BY_CATEGORY: (categoria: string) => `/gastos/categoria/${categoria}`,
     BY_CASHIER: (cajero: string) => `/gastos/cajero/${cajero}`,
+  },
+  
+  // Entradas
+  ENTRADAS: {
+    BASE: '/entradas',
+    BY_ID: (id: number) => `/entradas/${id}`,
+    BY_RANGE: '/entradas/rango',
+    TOTAL_RANGE: '/entradas/total-rango',
+    STATISTICS: '/entradas/estadisticas',
   },
   
   // Delivery
@@ -153,6 +171,11 @@ export const API_ENDPOINTS = {
     SEND_CLIENT_INFO: '/whatsapp/send-client-info',
     BIRTHDAY: '/whatsapp/birthday',
     SEND_WELCOME: '/whatsapp/send-welcome',
+  },
+
+  // Puntos (Tarea 6)
+  POINTS: {
+    EVALUATE: '/puntos/evaluar',
   },
   
   // Exportación Excel

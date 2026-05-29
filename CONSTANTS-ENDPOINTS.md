@@ -241,13 +241,15 @@ curl -X POST http://localhost:3000/auth/login   -H "Content-Type: application/js
               "hasNextPage": false,
               "hasPrevPage": false
           }     
-  GET      `/products/{id}`   Obtener producto
   GET    `/productos/search`   (Buscar productos por descripción, código de barras, categoría o proveedor con query)
   GET: `/productos/categorias` ( Obtener todas las categorías de productos)
   GET: `/productos/stock-bajo`  (Obtener productos con stock bajo)
   GET: `/productos/categoria/{categoria}`  (Obtener productos por categoría)
+  GET: `/productos/proveedor/{proveedor}`  (Obtener productos por proveedor)
   GET: `/productos/movimientos`  (Obtener historial de movimientos de inventario)
-
+  GET: `/productos/movimientos/{codigoBarra}`  (Obtener historial de movimientos de inventario por producto)
+  GET: `/productos/codigo/{codigoBarra}`  (Obtener producto por codigo de barras)
+  GET      `/products/{id}`   Obtener producto
   PATCH    `/products/{id}`   Actualizar producto
     ### payload example: 
         {
@@ -286,286 +288,93 @@ curl -X POST http://localhost:3000/auth/login   -H "Content-Type: application/js
 | ------ | ---------------------------------------------- | -------------------------- |
 | POST   | `/ventas`                                       | Registrar venta            |
         ### payload example: 
+        {
+          "clienteId": 1,
+          "listaProductos": [
             {
-              "clienteId": 1,
-              "listaProductos": [
-                {
-                  "productoId": 1,
-                  "cantidad": 2,
-                  "precioUnitario": 4.5
-                }
-              ],
-              "descuento": 5,
-              "metodoPago": "EFECTIVO",
-              "comentario": "Cliente frecuente",
-              "tipoCompra": "LOCAL",
-              "montoRecibido": 50,
-              "puntosUsados": 10
+              "productoId": 1,
+              "cantidad": 2,
+              "precioUnitario": 4.5
             }
+          ],
+          "descuento": 5,
+          "recargoExtra": 3.5,
+          "metodosPageo": [
+            {
+              "metodoPago": "EFECTIVO",
+              "monto": 50
+            },
+            {
+              "metodoPago": "YAPE",
+              "monto": 45,
+              "referencia": "TXN-123456"
+            }
+          ],
+          "comentario": "Cliente preferente - promoción especial",
+          "tipoCompra": "LOCAL",
+          "montoRecibido": 50,
+          "puntosUsados": 10
+        } 
 | GET    | `/ventas`                                       | Listar todas las ventas    |
       ### RESPONSE example: 
                   {
                       "data": [
                           {
-                              "id": 5,
-                              "fecha": "2024-01-19T01:30:00.000Z",
-                              "cliente": {
-                                  "id": 5,
-                                  "nombres": "Roberto",
-                                  "apellidos": "Castillo Morales",
-                                  "dni": "55667788",
-                                  "fechaNacimiento": "1982-09-13",
-                                  "telefono": "977889900",
-                                  "fechaRegistro": "2025-11-29T15:07:42.579Z",
-                                  "puntosAcumulados": 178,
-                                  "historialCompras": [],
-                                  "historialCanjes": [],
-                                  "codigoCorto": "RCM005",
-                                  "direccion": "Jr. Independencia 654, Lima",
-                                  "activo": true,
-                                  "fechaCreacion": "2025-11-29T15:07:42.579Z",
-                                  "fechaActualizacion": "2025-11-29T15:07:42.579Z"
+                            "clienteId": 1,
+                            "listaProductos": [
+                              {
+                                "productoId": 1,
+                                "cantidad": 2,
+                                "precioUnitario": 4.5
+                              }
+                            ],
+                            "descuento": 5,
+                            "recargoExtra": 3.5,
+                            "metodosPageo": [
+                              {
+                                "metodoPago": "EFECTIVO",
+                                "monto": 50
                               },
-                              "clienteId": 5,
-                              "listaProductos": [
-                                  {
-                                      "id": 4,
-                                      "precio": 15,
-                                      "cantidad": 2,
-                                      "subtotal": 30,
-                                      "descripcion": "Chicharrón Preparado"
-                                  },
-                                  {
-                                      "id": 5,
-                                      "precio": 2,
-                                      "cantidad": 4,
-                                      "subtotal": 8,
-                                      "descripcion": "Agua Mineral 500ml"
-                                  }
-                              ],
-                              "subTotal": "38.00",
-                              "descuento": "0.00",
-                              "total": "38.00",
-                              "metodoPago": "EFECTIVO",
-                              "comentario": "Pedido para llevar",
-                              "cajero": "Carlos Rodríguez",
-                              "estado": "COMPLETADO",
-                              "puntosOtorgados": 38,
-                              "puntosUsados": 0,
-                              "ticketId": null,
-                              "tipoCompra": "LOCAL",
-                              "montoRecibido": "0.00",
-                              "vuelto": "0.00",
-                              "fechaCreacion": "2025-11-29T15:07:42.778Z",
-                              "fechaActualizacion": "2025-11-29T15:07:42.778Z"
+                              {
+                                "metodoPago": "YAPE",
+                                "monto": 45,
+                                "referencia": "TXN-123456"
+                              }
+                            ],
+                            "comentario": "Cliente preferente - promoción especial",
+                            "tipoCompra": "LOCAL",
+                            "montoRecibido": 50,
+                            "puntosUsados": 10
                           },
-                          {
-                              "id": 4,
-                              "fecha": "2024-01-17T23:10:00.000Z",
-                              "cliente": {
-                                  "id": 4,
-                                  "nombres": "Ana Sofía",
-                                  "apellidos": "Torres Vega",
-                                  "dni": "44332211",
-                                  "fechaNacimiento": "1995-01-29",
-                                  "telefono": "955443322",
-                                  "fechaRegistro": "2025-11-29T15:07:42.571Z",
-                                  "puntosAcumulados": 67,
-                                  "historialCompras": [],
-                                  "historialCanjes": [],
-                                  "codigoCorto": "AST004",
-                                  "direccion": "Av. Central 321, Lima",
-                                  "activo": true,
-                                  "fechaCreacion": "2025-11-29T15:07:42.571Z",
-                                  "fechaActualizacion": "2025-11-29T15:07:42.571Z"
+                                                    {
+                            "clienteId": 1,
+                            "listaProductos": [
+                              {
+                                "productoId": 1,
+                                "cantidad": 2,
+                                "precioUnitario": 4.5
+                              }
+                            ],
+                            "descuento": 5,
+                            "recargoExtra": 3.5,
+                            "metodosPageo": [
+                              {
+                                "metodoPago": "EFECTIVO",
+                                "monto": 50
                               },
-                              "clienteId": 4,
-                              "listaProductos": [
-                                  {
-                                      "id": 1,
-                                      "precio": 6,
-                                      "cantidad": 1,
-                                      "subtotal": 6,
-                                      "descripcion": "Cerveza Pilsen 650ml"
-                                  },
-                                  {
-                                      "id": 2,
-                                      "precio": 5.5,
-                                      "cantidad": 1,
-                                      "subtotal": 5.5,
-                                      "descripcion": "Cerveza Cristal 630ml"
-                                  }
-                              ],
-                              "subTotal": "11.50",
-                              "descuento": "1.15",
-                              "total": "10.35",
-                              "metodoPago": "PLIN",
-                              "comentario": null,
-                              "cajero": "María González",
-                              "estado": "COMPLETADO",
-                              "puntosOtorgados": 10,
-                              "puntosUsados": 5,
-                              "ticketId": null,
-                              "tipoCompra": "LOCAL",
-                              "montoRecibido": "0.00",
-                              "vuelto": "0.00",
-                              "fechaCreacion": "2025-11-29T15:07:42.773Z",
-                              "fechaActualizacion": "2025-11-29T15:07:42.773Z"
-                          },
-                          {
-                              "id": 3,
-                              "fecha": "2024-01-16T19:20:00.000Z",
-                              "cliente": {
-                                  "id": 3,
-                                  "nombres": "Carlos Alberto",
-                                  "apellidos": "Mendoza Silva",
-                                  "dni": "11223344",
-                                  "fechaNacimiento": "1978-11-07",
-                                  "telefono": "998877665",
-                                  "fechaRegistro": "2025-11-29T15:07:42.563Z",
-                                  "puntosAcumulados": 234,
-                                  "historialCompras": [],
-                                  "historialCanjes": [],
-                                  "codigoCorto": "CAM003",
-                                  "direccion": "Calle Los Pinos 789, Lima",
-                                  "activo": true,
-                                  "fechaCreacion": "2025-11-29T15:07:42.563Z",
-                                  "fechaActualizacion": "2025-11-29T15:07:42.563Z"
-                              },
-                              "clienteId": 3,
-                              "listaProductos": [
-                                  {
-                                      "id": 3,
-                                      "precio": 45,
-                                      "cantidad": 1,
-                                      "subtotal": 45,
-                                      "descripcion": "Pisco Quebranta 750ml"
-                                  },
-                                  {
-                                      "id": 5,
-                                      "precio": 2,
-                                      "cantidad": 2,
-                                      "subtotal": 4,
-                                      "descripcion": "Agua Mineral 500ml"
-                                  }
-                              ],
-                              "subTotal": "49.00",
-                              "descuento": "0.00",
-                              "total": "49.00",
-                              "metodoPago": "TARJETA",
-                              "comentario": null,
-                              "cajero": "Carlos Rodríguez",
-                              "estado": "COMPLETADO",
-                              "puntosOtorgados": 49,
-                              "puntosUsados": 0,
-                              "ticketId": null,
-                              "tipoCompra": "DELIVERY",
-                              "montoRecibido": "0.00",
-                              "vuelto": "0.00",
-                              "fechaCreacion": "2025-11-29T15:07:42.769Z",
-                              "fechaActualizacion": "2025-11-29T15:07:42.769Z"
-                          },
-                          {
-                              "id": 2,
-                              "fecha": "2024-01-15T20:45:00.000Z",
-                              "cliente": {
-                                  "id": 2,
-                                  "nombres": "María Elena",
-                                  "apellidos": "Rodríguez López",
-                                  "dni": "87654321",
-                                  "fechaNacimiento": "1990-07-21",
-                                  "telefono": "912345678",
-                                  "fechaRegistro": "2025-11-29T15:07:42.557Z",
-                                  "puntosAcumulados": 89,
-                                  "historialCompras": [],
-                                  "historialCanjes": [],
-                                  "codigoCorto": "MER002",
-                                  "direccion": "Jr. Las Flores 456, Lima",
-                                  "activo": true,
-                                  "fechaCreacion": "2025-11-29T15:07:42.557Z",
-                                  "fechaActualizacion": "2025-11-29T15:07:42.557Z"
-                              },
-                              "clienteId": 2,
-                              "listaProductos": [
-                                  {
-                                      "id": 2,
-                                      "precio": 5.5,
-                                      "cantidad": 3,
-                                      "subtotal": 16.5,
-                                      "descripcion": "Cerveza Cristal 630ml"
-                                  }
-                              ],
-                              "subTotal": "16.50",
-                              "descuento": "0.00",
-                              "total": "16.50",
-                              "metodoPago": "YAPE",
-                              "comentario": null,
-                              "cajero": "María González",
-                              "estado": "COMPLETADO",
-                              "puntosOtorgados": 16,
-                              "puntosUsados": 0,
-                              "ticketId": null,
-                              "tipoCompra": "LOCAL",
-                              "montoRecibido": "0.00",
-                              "vuelto": "0.00",
-                              "fechaCreacion": "2025-11-29T15:07:42.764Z",
-                              "fechaActualizacion": "2025-11-29T15:07:42.764Z"
-                          },
-                          {
-                              "id": 1,
-                              "fecha": "2024-01-15T17:30:00.000Z",
-                              "cliente": {
-                                  "id": 1,
-                                  "nombres": "Juan Carlos",
-                                  "apellidos": "Pérez García",
-                                  "dni": "12345678",
-                                  "fechaNacimiento": "1985-03-14",
-                                  "telefono": "987654321",
-                                  "fechaRegistro": "2025-11-29T15:07:42.549Z",
-                                  "puntosAcumulados": 150,
-                                  "historialCompras": [],
-                                  "historialCanjes": [],
-                                  "codigoCorto": "JCP001",
-                                  "direccion": "Av. Los Olivos 123, Lima",
-                                  "activo": true,
-                                  "fechaCreacion": "2025-11-29T15:07:42.549Z",
-                                  "fechaActualizacion": "2025-11-29T15:07:42.549Z"
-                              },
-                              "clienteId": 1,
-                              "listaProductos": [
-                                  {
-                                      "id": 1,
-                                      "precio": 6,
-                                      "cantidad": 2,
-                                      "subtotal": 12,
-                                      "descripcion": "Cerveza Pilsen 650ml"
-                                  },
-                                  {
-                                      "id": 4,
-                                      "precio": 15,
-                                      "cantidad": 1,
-                                      "subtotal": 15,
-                                      "descripcion": "Chicharrón Preparado"
-                                  }
-                              ],
-                              "subTotal": "27.00",
-                              "descuento": "2.70",
-                              "total": "24.30",
-                              "metodoPago": "EFECTIVO",
-                              "comentario": "Cliente frecuente",
-                              "cajero": "María González",
-                              "estado": "COMPLETADO",
-                              "puntosOtorgados": 24,
-                              "puntosUsados": 0,
-                              "ticketId": null,
-                              "tipoCompra": "LOCAL",
-                              "montoRecibido": "0.00",
-                              "vuelto": "0.00",
-                              "fechaCreacion": "2025-11-29T15:07:42.755Z",
-                              "fechaActualizacion": "2025-11-29T15:07:42.755Z"
+                              {
+                                "metodoPago": "YAPE",
+                                "monto": 45,
+                                "referencia": "TXN-123456"
+                              }
+                            ],
+                            "comentario": "Cliente preferente - promoción especial",
+                            "tipoCompra": "LOCAL",
+                            "montoRecibido": 50,
+                            "puntosUsados": 10
                           }
                       ],
-                      "total": 5,
+                      "total": 2,
                       "page": 1,
                       "limit": 10,
                       "totalPages": 1,
@@ -575,12 +384,59 @@ curl -X POST http://localhost:3000/auth/login   -H "Content-Type: application/js
 | GET    | `/ventas/{id}`                                  | Obtener detalle de venta   |
 | GET    | `/ventas/cliente/{clienteId}`                 | Obtener estadisticas de ventas por rango de fecha|
 | GET    | `/ventas/estadisticas`                 | Obtener ventas de un cliente especifico|
-| GET    | `/ventas/rango?from=YYYY-MM-DD&to=YYYY-MM-DD` | Ventas por rango de fechas |
+| GET    | `/ventas/rango??fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD` | Ventas por rango de fechas |
 | GET    | `/ventas/ticket/{ticketId}`                      | Ventas por ticket ID         |
 | PATCH  | `/ventas/{id}/anular`                           | Anular venta               |
+| PATCH  | `/ventas/{id}/comentario`                           | actualizar comentario de venta               |
 | POST   | `/ventas/devolucion/{id}`                       | Devolución                 |
 | GET    | `/ventas/hoy`                                 | Ventas del día             |
-
+| GET    | `/ventas/corte`                                 | generar corte de ventas       |
+| POST    | `/ventas/preview`                                 | Previsualizar ventas sin persistir datos   |
+      ### Payload: 
+        {
+          "items": [
+            {
+              "productoId": 1,
+              "cantidad": 2
+            },
+            {
+              "productoId": 3,
+              "cantidad": 1
+            }
+          ],
+          "clienteId": 5,
+          "puntosAUsar": 30,   // CAMPO "puntosAceptados" DE LA RESPONSE  POST /puntos/evaluar
+          "descuento": 0,    //OPCIONAL SI APLICA POR PANEL PRINCIPAL
+          "recargoExtra": 0,  //OPCIONAL SI APLICA POR PANEL PRINCIPAL
+          "montoRecibido": 35  //REQUERIDO : TOTAL DEL PANEL PRINCIPAL
+        }
+      ### Response: 
+          {
+            "subtotal": 45,
+            "descuentoPromos": 5,
+            "descuentoPuntos": 6.2,
+            "ajusteRedondeo": -0.2,
+            "total": 33.6,
+            "totalCobrado": 33.4,
+            "vuelto": 1.6,
+            "puntosOtorgados": 3,
+            "detalleItems": [
+              {
+                "productoId": 0,
+                "nombre": "string",
+                "precio": 0,
+                "cantidad": 0,
+                "subtotal": 0
+              }
+            ],
+            "validaciones": {
+              "stockSuficiente": true,
+              "puntosValidos": true,
+              "mensajes": [
+                "string"
+              ]
+            }
+          }
 ------------------------------------------------------------------------
 
 ## 👤 Clientes
@@ -858,7 +714,18 @@ export enum TipoDescuento {
 | GET    | `/caja/estadisticas`           | Historial de cajas por rango de fecha |
 | GET    | `/caja/{id}`              | Detalle de caja  por ID  |
 | GET    | `/caja/rango`        | Ventas por caja por rango de fecha    |
-
+| GET    | `/caja/estado`        | Obtener estado actual de la caja   |
+    ### Response:
+      {
+        "abierta": true,
+        "cajaId": 12,
+        "usuario": "admin",
+        "fechaApertura": "2026-01-09T08:00:00Z",
+        "montoInicial": 500,
+        "totalVentas": 1250.5,
+        "totalGastos": 150,
+        "montoEsperado": 1600.5
+      }
 
 ------------------------------------------------------------------------
 
@@ -882,7 +749,7 @@ export enum TipoDescuento {
 | GET    | `/gastos/categorias`                             | Listar categorias de gastos disponibles |
 | GET    | `/gastos/estadisticas`                             | Listar estadisticas de gastos por rango de fecha |
 | GET    | `/gastos/search`                             | buscar gastos por descripcion, proveedor o comprobante |
-| GET    | `/gastos/rango?from=YYYY-MM-DD&to=YYYY-MM-DD` | Gastos por rango de fecha |
+| GET    | `/gastos/rango?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD` | Gastos por rango de fecha |
 | GET    | `/gastos/categoria/{categoria}`                 | Detalle de gastos por categoria |
 | GET    | `/gastos/cajero/{cajero}`                 | Detalle de gastos por cajero |
 | GET    | `/gastos/{id}`                                  | Detalle de gasto por id |
@@ -956,6 +823,7 @@ export enum TipoDescuento {
 | GET    | `/movimiento-inventario`                        | Listar movimientos |
 | GET    | `/movimiento-inventario/hoy`                        | Listar movimientos del dia|
 | GET    | `/movimiento-inventario/estadisticas`          | Listar estadisticas de movimientos por rango de fecha|
+| GET    | `/movimiento-inventario/producto/{codigoBarra}`          | obtener movimientos por producto|
 | GET    | `/movimiento-inventario/tipo/{tipo}`          | Listar  movimientos por tipo|
 | GET    | `/movimiento-inventario/cajero/{cajero}`          | Listar  movimientos por cajero|
 | GET    | `/movimiento-inventario/rango`          | Listar movimientos por rango de fecha|
@@ -991,6 +859,7 @@ export enum TipoDescuento {
 | Método | Endpoint                       | Descripción          |
 | ------ | ------------------------------ | -------------------- |
 | GET    | `/excel/export-ventas`         | Exportar ventas      |
+| GET    | `/excel/export-venta-pagos`         | Exportar pagos de ventas (metodods de pago por venta)   |
 | GET    | `/excel/export-productos`      | Exportar productos   |
 | GET    | `/excel/export-clientes`     | Exportar clientes    |
 | GET    | `/excel/export-inventario`     | Exportar inventario  |
@@ -998,6 +867,92 @@ export enum TipoDescuento {
 
 
 ------------------------------------------------------------------------
+## 📊 PUNTOS
+
+| Método | Endpoint                       | Descripción          |
+| ------ | ------------------------------ | -------------------- |
+| POST    | `/puntos/evaluar`         | Evaluar puntos disponibles para uso en venta  |
+    ### Payload: 
+    {
+      "clienteId": 5,
+      "items": [
+        {
+          "productoId": 1,
+          "cantidad": 2
+        },
+        {
+          "productoId": 3,
+          "cantidad": 1
+        }
+      ],
+      "puntosSolicitados": 30
+    }
+
+    ### Response:
+    {
+      "puntosDisponibles": 25,
+      "puntosAceptados": 25,
+      "descuento": 6.2,
+      "mensaje": "Solo se pueden usar 25 puntos",
+      "limitePorProductos": 30,
+      "detalleProductos": [
+        {
+          "productoId": 0,
+          "nombre": "string",
+          "precio": 0,
+          "cantidad": 0,
+          "subtotal": 0,
+          "puntosMaximos": 0
+        }
+      ]
+    }
+
+| GET    | `/puntos/historial/{clienteId}`   | Obtener historial de movimientos de puntos de un cliente  |
+| POST    | `/puntos/ajustar`         | Ajustar puntos de clientes manualmente (solo administradores)   |
+      ### Payload:
+        {
+          "clienteId": 5,
+          "puntos": 50,
+          "motivo": "Corrección por error en sistema",
+          "tipo": "AJUSTE"
+        }
+| GET    | `/puntos/estadisticas`         | Obtener estadisticas generales de puntos  |
+
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+## 📊 ENTRADAS
+
+| Método | Endpoint                       | Descripción          |
+| ------ | ------------------------------ | -------------------- |
+| POST    | `/entradas`         | Crear entrada |
+    ### Payload:
+    {
+      "monto": 150.5,
+      "descripcion": "Donación de cliente por excelente servicio",
+      "categoria": "DONACION",
+      "fecha": "2025-01-09",
+      "observaciones": "Cliente muy satisfecho con el producto"
+    }
+| GET    | `/entradas?page=1&limit=10`         | obtener entradas por paginacion |
+| GET    | `/entradas/rango?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD`   | Obtener hentradas por rango de fechas  |
+| GET    | `/entradas/total-rango?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD`   | calcular total de entradas por rango de fechas  |
+| GET    | `/entradas/estadisticas?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD`         | Obtener estadisticas generales de entradas  |
+| GET    | `/entradas/{id}`         | Obtener entrada por id  |
+| PATCH    | `/entradas/{id}`         | Actualizar entrada por id  |
+| DELETE    | `/entradas/{id}`         | Eliminar entrada por id  |
+
+------------------------------------------------------------------------
+
+## 📊 CORTE
+
+| Método | Endpoint                       | Descripción          |
+| ------ | ------------------------------ | -------------------- |
+| GET    | `/corte?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD`         | obtener corte de caja completo |
+| GET    | `/corte/estadisticas?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD`| obtener estadisticas de corte caja |
+| GET    | `/corte/export?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD`         | obtener corte de caja a excel  |
+
+------------------------------------------------------------------------
+
 
 ## 📜 Licencia
 

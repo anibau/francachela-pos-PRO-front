@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { productsService } from '@/services/productsService';
 import { validateProductName, validateBarcode, validatePrice, validateQuantity } from '@/utils/validators';
 import type { Product } from "@/types";
+import { CategorySelector } from '../ui/CategoriesSelector';
 
 interface ProductValidationErrors {
   productoDescripcion?: string;
@@ -42,7 +43,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const [formData, setFormData] = useState({
     productoDescripcion: '',
     codigoBarra: '',
-    categoria: '',
+    categoria: undefined,
     precio: 0,
     costo: 0,
     cantidadActual: 0,
@@ -56,32 +57,33 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   });
 
   // Estados para selectores dinámicos
-  const [categoriasDisponibles, setCategoriasDisponibles] = useState<string[]>([]);
   const [proveedoresDisponibles, setProveedoresDisponibles] = useState<string[]>([]);
-  const [isLoadingCategorias, setIsLoadingCategorias] = useState(false);
   const [isLoadingProveedores, setIsLoadingProveedores] = useState(false);
-  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [showNewSupplierInput, setShowNewSupplierInput] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
   const [newSupplierName, setNewSupplierName] = useState('');
+
+  // Cargar categorías disponibles
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const data = await productsService.getCategories();
+        setCategories(data);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
 
   // Estados de validación
   const [validationErrors, setValidationErrors] = useState<ProductValidationErrors>({});
   const [hasChanges, setHasChanges] = useState(false);
-
-  // Cargar categorías disponibles
-  const loadCategorias = async () => {
-    setIsLoadingCategorias(true);
-    try {
-      const categories = await productsService.getCategories();
-      setCategoriasDisponibles(categories);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-      toast.error('Error al cargar categorías');
-    } finally {
-      setIsLoadingCategorias(false);
-    }
-  };
 
   // Cargar proveedores disponibles
   const loadProveedores = async () => {
@@ -100,14 +102,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   // Cargar datos al abrir el diálogo
   useEffect(() => {
     if (isOpen) {
-      loadCategorias();
       loadProveedores();
       
       if (editingProduct) {
         setFormData({
           productoDescripcion: editingProduct.productoDescripcion || '',
           codigoBarra: editingProduct.codigoBarra || '',
-          categoria: editingProduct.categoria || '',
+          categoria: editingProduct.categoria || undefined,
           precio: editingProduct.precio || 0,
           costo: editingProduct.costo || 0,
           cantidadActual: editingProduct.cantidadActual || 0,
@@ -134,7 +135,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     setFormData({
       productoDescripcion: '',
       codigoBarra: '',
-      categoria: '',
+      categoria: undefined,
       precio: 0,
       costo: 0,
       cantidadActual: 0,
@@ -148,9 +149,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     });
     setValidationErrors({});
     setHasChanges(false);
-    setShowNewCategoryInput(false);
     setShowNewSupplierInput(false);
-    setNewCategoryName('');
     setNewSupplierName('');
   };
 
@@ -290,17 +289,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     return Object.keys(errors).length === 0;
   };
 
-  const handleCategoryChange = (value: string) => {
-    if (value === 'CREATE_NEW') {
-      setShowNewCategoryInput(true);
-      setFormData({ ...formData, categoria: '' });
-    } else {
-      setShowNewCategoryInput(false);
-      setFormData({ ...formData, categoria: value });
-      if (editingProduct) setHasChanges(true);
-      validateField('categoria', value);
-    }
-  };
+
 
   const handleSupplierChange = (value: string) => {
     if (value === 'CREATE_NEW') {
@@ -311,22 +300,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       setFormData({ ...formData, proveedor: value });
       if (editingProduct) setHasChanges(true);
       validateField('proveedor', value);
-    }
-  };
-
-  const handleNewCategorySubmit = () => {
-    const categoryName = newCategoryName.toUpperCase().trim();
-    if (categoryName) {
-      setFormData({ ...formData, categoria: categoryName });
-      setShowNewCategoryInput(false);
-      setNewCategoryName('');
-      if (editingProduct) setHasChanges(true);
-      validateField('categoria', categoryName);
-      
-      // Agregar a la lista de categorías disponibles
-      if (!categoriasDisponibles.includes(categoryName)) {
-        setCategoriasDisponibles([...categoriasDisponibles, categoryName].sort());
-      }
     }
   };
 
@@ -427,65 +400,29 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           {/* Categoría con selector dinámico */}
           <div className="space-y-2">
             <Label htmlFor="category">Categoría *</Label>
-            <Select
-              value={formData.categoria}
-              onValueChange={handleCategoryChange}
-              required
-            >
-              <SelectTrigger id="category" className={validationErrors.categoria ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Seleccionar categoría" />
-              </SelectTrigger>
-              <SelectContent>
-                {isLoadingCategorias ? (
-                  <SelectItem value="loading" disabled>Cargando categorías...</SelectItem>
-                ) : (
-                  <>
-                    {categoriasDisponibles.map((categoria) => (
-                      <SelectItem key={categoria} value={categoria}>
-                        {categoria}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="CREATE_NEW">
-                      <div className="flex items-center gap-2">
-                        ➕ Crear nueva categoría
-                      </div>
-                    </SelectItem>
-                  </>
-                )}
-              </SelectContent>
-            </Select>
             
             {/* Input para nueva categoría */}
-            {showNewCategoryInput && (
-              <div className="flex gap-2">
-                <Input
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value.toUpperCase())}
-                  placeholder="NUEVA CATEGORÍA"
-                  className="flex-1"
-                />
-                <Button 
-                  type="button" 
-                  size="sm" 
-                  onClick={handleNewCategorySubmit}
-                  disabled={!newCategoryName.trim()}
-                >
-                  Agregar
-                </Button>
-                <Button 
-                  type="button" 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => {
-                    setShowNewCategoryInput(false);
-                    setNewCategoryName('');
-                  }}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            )}
-            
+            <CategorySelector
+              value={formData.categoria}
+              categories={categories}
+              onChange={(value) => {
+                if (!value) return;   // 👈 BLOQUEA "", null, undefined
+
+                setFormData(prev => ({ ...prev, categoria: value }));
+
+                // Si es nueva, la agregamos al listado
+                if (!categories.includes(value)) {
+                  setCategories(prev => [...prev, value].sort());
+                }
+
+                validateField('categoria', value);
+                if (editingProduct) setHasChanges(true);
+              }}
+              error={validationErrors.categoria}
+            />
+
+
+        
             {validationErrors.categoria && (
               <p className="text-xs text-destructive flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />

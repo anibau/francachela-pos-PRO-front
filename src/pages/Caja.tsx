@@ -7,11 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DollarSign, Clock, History, Plus, Calendar, TrendingUp, BarChart3, FileText, Lock, Unlock } from 'lucide-react';
+import { DollarSign, Clock, History, Plus, Calendar, TrendingUp, BarChart3, FileText, Lock, Unlock, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { cashRegisterService } from '@/services/cashRegisterService';
-import type { CashRegister, VentasCorte } from '@/types';
-import { API_ENDPOINTS } from '@/config/api';
+import type { CashRegister, VentasCorte, CorteResponse } from '@/types';
+import { API_ENDPOINTS, API_CONFIG } from '@/config/api';
 import { httpClient } from '@/services/httpClient';
 
 export default function Caja() {
@@ -19,6 +19,7 @@ export default function Caja() {
   const [history, setHistory] = useState<CashRegister[]>([]);
   const [summary, setSummary] = useState(null);
   const [statistics, setStatistics] = useState<VentasCorte | null>(null);
+  const [corteData, setCorteData] = useState<CorteResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentCashAttempted, setCurrentCashAttempted] = useState(false);
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false);
@@ -176,17 +177,79 @@ export default function Caja() {
     queryParams.append("fechaInicio", fechaInicio);
     queryParams.append("fechaFin", fechaFin);
 
-    const url = `${API_ENDPOINTS.SALES.CORTE}?${queryParams.toString()}`;
-
-    const stats = await httpClient.get<VentasCorte>(url);
-
+    // Cargar estadísticas de ventas (existente)
+    const urlVentas = `${API_ENDPOINTS.SALES.CORTE}?${queryParams.toString()}`;
+    const stats = await httpClient.get<VentasCorte>(urlVentas);
     setStatistics(stats);
+
+    // Cargar corte completo (TAREA 1)
+    const urlCorte = `${API_ENDPOINTS.CORTE.BASE}?${queryParams.toString()}`;
+    const corte = await httpClient.get<CorteResponse>(urlCorte);
+    setCorteData(corte);
+
     toast.success("Corte de ventas generado correctamente");
   } catch (error) {
     console.error("Error loading statistics:", error);
     toast.error("Error al generar corte de ventas");
   }
 };
+
+  // TAREA 2: Función para exportar corte a Excel
+  const exportCorteToExcel = async () => {
+  if (!dateFrom || !dateTo) {
+    toast.error("Por favor selecciona un rango de fechas");
+    return;
+  }
+
+  try {
+    const fechaInicio = dateFrom;
+    const fechaFin = dateTo;
+
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      toast.error("No hay sesión activa");
+      return;
+    }
+
+    const queryParams = new URLSearchParams();
+    queryParams.append("fechaInicio", fechaInicio);
+    queryParams.append("fechaFin", fechaFin);
+
+    const url = `${API_ENDPOINTS.CORTE.EXPORT}?${queryParams.toString()}`;
+
+    const response = await fetch(`${API_CONFIG.BASE_URL}${url}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      }
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Error al exportar el archivo");
+    }
+
+    const blob = await response.blob();
+
+    const downloadUrl = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = `corte_${fechaInicio}_${fechaFin}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+
+    toast.success("Archivo Excel descargado correctamente");
+  } catch (error) {
+    console.error("Error exporting to Excel:", error);
+    toast.error("Error al exportar a Excel");
+  }
+};
+
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -692,17 +755,24 @@ export default function Caja() {
                 </div>
                 <div className="space-y-2">
                   <Label>&nbsp;</Label>
-                  <Button onClick={loadStatistics} className="w-full gap-2">
-                    <BarChart3 className="h-4 w-4" />
-                    Generar Corte
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button onClick={loadStatistics} className="flex-1 gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      Generar Corte
+                    </Button>
+                    <Button onClick={exportCorteToExcel} variant="outline" className="gap-2">
+                      <Download className="h-4 w-4" />
+                      Excel
+                    </Button>
+                  </div>
                 </div>
               </div>
 
               {statistics && (
                 <Tabs defaultValue="resumen" className="w-full">
-                  <TabsList className="grid w-full grid-cols-6">
+                  <TabsList className="grid w-full grid-cols-7">
                     <TabsTrigger value="resumen">Resumen</TabsTrigger>
+                    <TabsTrigger value="corte">Corte Completo</TabsTrigger>
                     <TabsTrigger value="metodos">Métodos Pago</TabsTrigger>
                     <TabsTrigger value="tipos">Tipo Compra</TabsTrigger>
                     <TabsTrigger value="productos">Top Productos</TabsTrigger>
@@ -785,6 +855,177 @@ export default function Caja() {
                         </CardContent>
                       </Card>
                     </div>
+                  </TabsContent>
+
+                  {/* TAREA 1: Nueva pestaña Corte Completo */}
+                  <TabsContent value="corte" className="space-y-4">
+                    {corteData ? (
+                      <div className="space-y-6">
+                        {/* Período */}
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <Calendar className="h-5 w-5" />
+                              Período del Corte
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex items-center justify-center gap-4">
+                              <div className="text-center">
+                                <p className="text-sm text-muted-foreground">Fecha Inicio</p>
+                                <p className="text-lg font-semibold">{corteData.periodo.fechaInicio}</p>
+                              </div>
+                              <div className="text-2xl text-muted-foreground">→</div>
+                              <div className="text-center">
+                                <p className="text-sm text-muted-foreground">Fecha Fin</p>
+                                <p className="text-lg font-semibold">{corteData.periodo.fechaFin}</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* Resumen de Rentabilidad */}
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <TrendingUp className="h-5 w-5" />
+                              Rentabilidad
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                              <div className="text-center p-4 bg-green-50 rounded-lg">
+                                <p className="text-sm text-muted-foreground">Ingresos Totales</p>
+                                <p className="text-2xl font-bold text-green-600">
+                                  S/ {corteData.rentabilidad.ingresosTotales.toFixed(2)}
+                                </p>
+                              </div>
+                              <div className="text-center p-4 bg-red-50 rounded-lg">
+                                <p className="text-sm text-muted-foreground">Gastos Totales</p>
+                                <p className="text-2xl font-bold text-red-600">
+                                  S/ {corteData.rentabilidad.gastosTotales.toFixed(2)}
+                                </p>
+                              </div>
+                              <div className={`text-center p-4 rounded-lg ${corteData.rentabilidad.utilidadNeta >= 0 ? 'bg-blue-50' : 'bg-orange-50'}`}>
+                                <p className="text-sm text-muted-foreground">Utilidad Neta</p>
+                                <p className={`text-2xl font-bold ${corteData.rentabilidad.utilidadNeta >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                                  S/ {corteData.rentabilidad.utilidadNeta.toFixed(2)}
+                                </p>
+                              </div>
+                              <div className="text-center p-4 bg-purple-50 rounded-lg">
+                                <p className="text-sm text-muted-foreground">Margen Utilidad</p>
+                                <p className="text-2xl font-bold text-purple-600">
+                                  {corteData.rentabilidad.margenUtilidad.toFixed(1)}%
+                                </p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* Desglose por Secciones */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                          {/* Ventas */}
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">Ventas</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                              <div className="flex justify-between">
+                                <span className="text-sm text-muted-foreground">Cantidad:</span>
+                                <span className="font-semibold">{corteData.ventas.cantidad}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-muted-foreground">Total Bruto:</span>
+                                <span className="font-semibold">S/ {corteData.ventas.totalBruto.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-muted-foreground">Total Cobrado:</span>
+                                <span className="font-semibold">S/ {corteData.ventas.totalCobrado.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-muted-foreground">Ajustes Redondeo:</span>
+                                <span className="font-semibold">S/ {corteData.ventas.ajustesRedondeo.toFixed(2)}</span>
+                              </div>
+                              {Object.keys(corteData.ventas.desglosePorMetodo).length > 0 && (
+                                <div className="pt-2 border-t">
+                                  <p className="text-sm font-medium mb-2">Por Método:</p>
+                                  {Object.entries(corteData.ventas.desglosePorMetodo).map(([metodo, monto]) => (
+                                    <div key={metodo} className="flex justify-between text-sm">
+                                      <span>{metodo}:</span>
+                                      <span>S/ {Number(monto).toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+
+                          {/* Entradas */}
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">Entradas</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                              <div className="flex justify-between">
+                                <span className="text-sm text-muted-foreground">Cantidad:</span>
+                                <span className="font-semibold">{corteData.entradas.cantidad}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-muted-foreground">Total:</span>
+                                <span className="font-semibold">S/ {corteData.entradas.total.toFixed(2)}</span>
+                              </div>
+                              {Object.keys(corteData.entradas.porCategoria).length > 0 && (
+                                <div className="pt-2 border-t">
+                                  <p className="text-sm font-medium mb-2">Por Categoría:</p>
+                                  {Object.entries(corteData.entradas.porCategoria).map(([categoria, monto]) => (
+                                    <div key={categoria} className="flex justify-between text-sm">
+                                      <span>{categoria}:</span>
+                                      <span>S/ {Number(monto).toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+
+                          {/* Gastos */}
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">Gastos</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                              <div className="flex justify-between">
+                                <span className="text-sm text-muted-foreground">Cantidad:</span>
+                                <span className="font-semibold">{corteData.gastos.cantidad}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-muted-foreground">Total:</span>
+                                <span className="font-semibold">S/ {corteData.gastos.total.toFixed(2)}</span>
+                              </div>
+                              {Object.keys(corteData.gastos.porCategoria).length > 0 && (
+                                <div className="pt-2 border-t">
+                                  <p className="text-sm font-medium mb-2">Por Categoría:</p>
+                                  {Object.entries(corteData.gastos.porCategoria).map(([categoria, monto]) => (
+                                    <div key={categoria} className="flex justify-between text-sm">
+                                      <span>{categoria}:</span>
+                                      <span>S/ {Number(monto).toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                        <p className="text-lg font-semibold mb-2">No hay datos de corte</p>
+                        <p className="text-muted-foreground">
+                          Genera un corte para ver la información completa
+                        </p>
+                      </div>
+                    )}
                   </TabsContent>
 
                   <TabsContent value="metodos" className="space-y-4">

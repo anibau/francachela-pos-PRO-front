@@ -9,7 +9,8 @@ import type { Product, Client, PaymentMethod } from '@/types';
 import { PAYMENT_METHODS, PAYMENT_METHOD_OPTIONS } from '@/constants/paymentMethods';
 import { usePOS } from '@/contexts/POSContext';
 import { roundMoney, roundToNearestDime } from '@/utils/moneyUtils';
-import { Search, Plus, Minus, Trash2, User, FileText, DollarSign, X, ShoppingCart, Send, Calculator, ChevronDown, ChevronUp } from 'lucide-react';
+import { calculateTicketTotal } from '@/utils/calculateTicketTotal';
+import { Search, Plus, Minus, Trash2, User, FileText, DollarSign, X, ShoppingCart, Send, Calculator, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,6 +22,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/hooks/use-toast';
 import { calculateTotalPoints, calculateProductPoints } from '@/utils/pointsCalculator';
+import { pointsService } from '@/services/pointsService';
 
 export default function POS() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,6 +31,10 @@ export default function POS() {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(PAYMENT_METHODS.EFECTIVO);
+  
+  // Estados para flujo POS profesional
+  const [isCashRegisterDialogOpen, setIsCashRegisterDialogOpen] = useState(false);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
 
   // Los descuentos y recargos ahora se manejan directamente en el ticket activo
   const [montoRecibido, setMontoRecibido] = useState<number | undefined>();
@@ -42,6 +48,10 @@ export default function POS() {
   }>>([]);
   const [montoActual, setMontoActual] = useState<number>(0);
   const [referenciaActual, setReferenciaActual] = useState<string>('');
+  
+  // DEFECTO 3: Estados para puntos a usar y evaluación
+  const [puntosAUsar, setPuntosAUsar] = useState<number>(0);
+  const [pointsEvaluation, setPointsEvaluation] = useState<any>(null);
   
   const PRODUCTS_PER_PAGE = 9;
 
@@ -66,8 +76,15 @@ export default function POS() {
     applyDiscount,
     applyRecargoExtra,
     getActiveTicket,
-    getTicketTotal,
     completeSale,
+    // Nuevos métodos para flujo profesional
+    cashRegisterState,
+    salePreview,
+    isLoadingPreview,
+    isLoadingCashState,
+    checkCashRegisterState,
+    previewSale,
+    clearPreview,
   } = usePOS();
 
   // Obtener valores del ticket activo
@@ -85,6 +102,29 @@ export default function POS() {
       });
     }
   }, [productsError]);
+
+  // ETAPA 1-2: Verificar estado de caja al cargar el POS
+  useEffect(() => {
+    const initializePOS = async () => {
+      await checkCashRegisterState();
+      
+      // Si no hay caja abierta, mostrar modal obligatorio
+      if (cashRegisterState && !cashRegisterState.abierta) {
+        setIsCashRegisterDialogOpen(true);
+      }
+    };
+
+    initializePOS();
+  }, [checkCashRegisterState]);
+
+  // Reaccionar a cambios en el estado de la caja
+  useEffect(() => {
+    if (cashRegisterState && !cashRegisterState.abierta) {
+      setIsCashRegisterDialogOpen(true);
+    } else if (cashRegisterState && cashRegisterState.abierta) {
+      setIsCashRegisterDialogOpen(false);
+    }
+  }, [cashRegisterState]);
 
   // Resetear montoRecibido cuando se cierra el diálogo de pago
   useEffect(() => {
@@ -109,7 +149,6 @@ export default function POS() {
       }
     }
   }, [activeTicket?.items.length, activeTicket?.id]);
-
 
 
   // Filtrar productos localmente (patrón como en Clientes.tsx)
@@ -143,14 +182,50 @@ export default function POS() {
     currentPage * PRODUCTS_PER_PAGE
   );
 
-  const rawTotal = getTicketTotal();
-  const total = rawTotal; // Ya está redondeado correctamente en getTicketTotal
+  // 🎯 MOTOR ÚNICO DE CÁLCULO - Total del ticket con todos los factores
+  // Fórmula: subtotal - descuento + recargo - descuentoPuntos
+  const pointsDiscount = pointsEvaluation?.descuento || 0;
+  const total = calculateTicketTotal(
+    activeTicket?.items || [],
+    currentDiscount,
+    currentRecargoExtra,
+    pointsDiscount
+  );
+  
   const pointsEarned = activeTicket ? calculateTotalPoints(activeTicket.items) : 0;
+
 
   const handleAddProduct = (product: Product) => {
     // Validar que hay un ticket activo seleccionado
     if (!activeTicket) {
-      toast.error('Selecciona un ticket antes de agregar productos');
+      toast({
+        title: 'Error',
+        description: 'Selecciona un ticket antes de agregar productos',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // ETAPA 3: Validar stock disponible
+    if (product.usaInventario && product.cantidadActual <= 0) {
+      toast({
+        title: 'Stock insuficiente',
+        description: `No hay stock disponible para ${product.productoDescripcion}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Verificar si el producto ya está en el ticket para validar cantidad total
+    const existingItem = activeTicket.items.find(item => item.productId === product.id);
+    const currentQuantityInTicket = existingItem ? existingItem.cantidad : 0;
+    
+    if (product.usaInventario && (currentQuantityInTicket + 1) > product.cantidadActual) {
+      toast({
+        title: 'Stock insuficiente',
+        description: `Solo hay ${product.cantidadActual} unidades disponibles de ${product.productoDescripcion}`,
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -224,10 +299,12 @@ export default function POS() {
       return;
     }
 
+    // Usar montoRecibido (del preview) como el monto total a cubrir, no el total calculado
+    const totalParaPago = montoRecibido || total;
     const totalPagado = metodosPageo.reduce((sum, metodo) => sum + metodo.monto, 0);
-    const montoRestante = total - totalPagado;
+    const montoRestante = totalParaPago - totalPagado;
 
-    if (montoActual > montoRestante) {
+    if (montoActual > montoRestante + 0.01) { // Pequeña tolerancia por redondeo
       toast({
         title: 'Error',
         description: `El monto no puede ser mayor al restante: S/ ${montoRestante.toFixed(2)}`,
@@ -264,8 +341,9 @@ export default function POS() {
   };
 
   const getMontoRestante = () => {
-    // Calcular lo que falta considerando el redondeo a décimas
-    return roundToNearestDime(total - getTotalPagado());
+    // Usar montoRecibido del preview como el monto total a cubrir
+    const totalParaPago = montoRecibido || total;
+    return roundToNearestDime(totalParaPago - getTotalPagado());
   };
 
   const isPagoCompleto = () => {
@@ -284,7 +362,62 @@ export default function POS() {
     window.open(whatsappUrl, '_blank');
   }; */
 
-  const handleCheckout = async () => {
+  // DEFECTO 3: Función para evaluar puntos/promociones
+  const handleEvaluatePoints = async () => {
+    if (!activeTicket?.clientId || !puntosAUsar || puntosAUsar <= 0) {
+      toast({
+        title: 'Error',
+        description: 'Selecciona un cliente e ingresa puntos válidos',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Construir items con estructura correcta para el backend
+      const itemsForEvaluation = activeTicket.items.map(item => ({
+        productoId: item.productId,
+        cantidad: item.cantidad
+      }));
+
+      const evaluation = await pointsService.evaluate({
+        clienteId: activeTicket.clientId,
+        items: itemsForEvaluation,
+        puntosSolicitados: puntosAUsar
+      });
+
+      // Validar: si se aceptaron menos puntos de los solicitados, mostrar warning
+      const esValido = evaluation.puntosAceptados === puntosAUsar;
+      console.log('Evaluación de puntos:', evaluation);
+      console.log('Es válido:', esValido);
+      if (!esValido) {
+        toast({
+          title: 'Puntos ajustados',
+          description: `Solicitados: ${puntosAUsar}, Aceptados: ${evaluation.puntosAceptados}. ${evaluation.mensaje}`,
+          variant: 'default',
+        });
+      }
+
+      // Guardar evaluación para mostrar en UI
+      setPointsEvaluation(evaluation);
+      
+      toast({
+        title: '✅ Puntos evaluados',
+        description: `Descuento: S/ ${evaluation.descuento.toFixed(2)} (${evaluation.puntosAceptados} pts)`,
+      });
+    } catch (error) {
+      console.error('Error evaluating points:', error);
+      toast({
+        title: 'Error',
+        description: 'Error al evaluar puntos',
+        variant: 'destructive',
+      });
+      setPointsEvaluation(null);
+    }
+  };
+
+  // DEFECTO 4: Función para abrir dialog de pago y ejecutar preview (Botón "Pagar")
+  const handleShowPreview = async () => {
     if (!activeTicket || activeTicket.items.length === 0) {
       toast({
         title: 'Error',
@@ -294,47 +427,168 @@ export default function POS() {
       return;
     }
 
-    // Verificar si se están usando múltiples métodos de pago
-    if (metodosPageo.length > 0) {
-      // Validar que el pago esté completo
-      if (!isPagoCompleto()) {
+    try {
+      // ETAPA A: Ejecutar PREVIEW DE LA VENTA (validación final del backend)
+      toast({
+        title: 'Validando venta...',
+        description: 'Ejecutando validación final contra el backend',
+      });
+
+      // Usar puntosAceptados si ya fue evaluado, sino usar puntosAUsar
+      const puntosParaPreview = pointsEvaluation?.puntosAceptados || (puntosAUsar > 0 ? puntosAUsar : undefined);
+      
+      const previewResult = await previewSale(
+        puntosParaPreview,
+        total,  // montoRecibido = total a pagar
+        currentDiscount > 0 ? currentDiscount : undefined,
+        currentRecargoExtra > 0 ? currentRecargoExtra : undefined
+      );
+
+      // ETAPA C: Validar si el preview es válido
+      if (previewResult && previewResult.validaciones.stockSuficiente && previewResult.validaciones.puntosValidos) {
+        // Si el backend corrigió el total, actualizar montoRecibido en el estado
+        const montoFinal = previewResult.totalCobrado || total;
+        if (Math.abs(montoFinal - total) > 0.01) {
+          setMontoRecibido(montoFinal);
+          toast({
+            title: '⚠️ Total actualizado',
+            description: `Monto a pagar: S/ ${montoFinal.toFixed(2)}`,
+            variant: 'default',
+          });
+        } else {
+          setMontoRecibido(total);
+        }
+        
+        // Limpiar metodosPageo al abrir el dialog - permitirá que se agreguen métodos desde cero
+        // basados en el nuevo montoRecibido
+        setMetodosPageo([]);
+        setMontoActual(0);
+        setReferenciaActual('');
+        setIsPaymentOpen(true);
+      } else {
+        // Mostrar mensajes de validación
+        const mensajes = previewResult?.validaciones.mensajes || [];
+        const detalleError = mensajes.length > 0 ? mensajes.join(', ') : 'Revisa los datos e intenta nuevamente';
+        
         toast({
-          title: 'Error',
-          description: `Falta pagar S/ ${getMontoRestante().toFixed(2)}`,
+          title: 'Error en validación',
+          description: detalleError,
           variant: 'destructive',
         });
-        return;
       }
+    } catch (error) {
+      console.error('Error in preview:', error);
+      toast({
+        title: 'Error',
+        description: 'Error al validar la venta',
+        variant: 'destructive',
+      });
+    }
+  };
 
-      // Usar múltiples métodos de pago
-      const metodoPrincipal = metodosPageo[0]?.metodoPago || selectedPaymentMethod;
-      await completeSale(metodoPrincipal, 'Sistema', getTotalPagado(), metodosPageo, products, refetchProducts, refetchClients);
-    } else {
-      // Usar método de pago único (comportamiento original)
-      await completeSale(selectedPaymentMethod, 'Sistema', montoRecibido, undefined, products, refetchProducts, refetchClients);
+  // DEFECTO 4: Función para confirmar venta (Botón "Confirmar" en dialog de pago)
+  const handleConfirmSale = async () => {
+    if (!activeTicket || activeTicket.items.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'No hay productos en el ticket',
+        variant: 'destructive',
+      });
+      return;
     }
 
-    // Limpiar estados de múltiples métodos de pago
-    setMetodosPageo([]);
-    setMontoActual(0);
-    setReferenciaActual('');
-    setIsPaymentOpen(false);
-    
-    // Guardar referencia al cliente antes de completar la venta
-    const currentClientId = activeTicket.clientId;
-    
-    // Obtener el cliente actualizado para obtener los puntos actualizados
-    const client = clients.find(c => c.id === currentClientId);
-    
-    toast({
-      title: 'Venta completada',
-      description: `Total: S/ ${total.toFixed(2)} | Puntos: ${pointsEarned}`,
-    });
-    
-    setIsPaymentOpen(false);
+    // Validar que el preview fue ejecutado correctamente
+    if (!salePreview || !salePreview.validaciones.stockSuficiente || !salePreview.validaciones.puntosValidos) {
+      toast({
+        title: 'Error',
+        description: 'La venta no ha sido validada. Presiona Pagar nuevamente.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-    setMontoRecibido(undefined);
-    setSelectedPaymentMethod(PAYMENT_METHODS.EFECTIVO);
+    try {
+      // ETAPA A: Validar métodos de pago
+      if (metodosPageo.length > 0) {
+        // Validar que el pago esté completo
+        if (!isPagoCompleto()) {
+          toast({
+            title: 'Error',
+            description: `Falta pagar S/ ${getMontoRestante().toFixed(2)}`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+
+      // ETAPA B: Confirmar venta con datos validados
+      toast({
+        title: 'Procesando venta...',
+        description: 'Confirmando venta en el backend',
+      });
+
+      // Obtener puntos usados del preview o de la evaluación
+      const puntosUsados = pointsEvaluation?.puntosAceptados || 0;
+      // Usar montoRecibido del preview (debe ser sincronizado con metodosPageo)
+      const montoFinalPagar = montoRecibido || total;
+
+      if (metodosPageo.length > 0) {
+        // Usar múltiples métodos de pago - la suma debe ser igual a montoRecibido
+        const metodoPrincipal = metodosPageo[0]?.metodoPago || selectedPaymentMethod;
+        const totalPagado = getTotalPagado();
+        
+        // Validar que la suma de metodosPageo coincida con montoRecibido
+        if (Math.abs(totalPagado - montoFinalPagar) > 0.01) {
+          toast({
+            title: 'Error',
+            description: `Los métodos de pago (S/ ${totalPagado.toFixed(2)}) no coinciden con el total (S/ ${montoFinalPagar.toFixed(2)})`,
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        await completeSale(metodoPrincipal, 'Sistema', montoFinalPagar, metodosPageo, products, refetchProducts, refetchClients, puntosUsados);
+      } else {
+        // Usar método de pago único
+        await completeSale(selectedPaymentMethod, 'Sistema', montoFinalPagar, undefined, products, refetchProducts, refetchClients, puntosUsados);
+      }
+
+      // ETAPA C: Finalización y limpieza completa
+      const finalTotal = metodosPageo.length > 0 ? getTotalPagado() : total;
+      
+      // Limpiar todos los estados
+      setMetodosPageo([]);
+      setMontoActual(0);
+      setReferenciaActual('');
+      setIsPaymentOpen(false);
+      setIsPreviewDialogOpen(false);
+      setPuntosAUsar(0);
+      setPointsEvaluation(null);
+      setMontoRecibido(undefined);
+      setSelectedPaymentMethod(PAYMENT_METHODS.EFECTIVO);
+      
+      // Limpiar preview
+      clearPreview();
+      
+      // Mensaje de éxito final
+      toast({
+        title: '✅ Venta completada exitosamente',
+        description: `Total cobrado: S/ ${finalTotal.toFixed(2)} | Puntos: ${pointsEarned}`,
+      });
+
+    } catch (error) {
+      console.error('Error in sale confirmation:', error);
+      toast({
+        title: 'Error en la venta',
+        description: 'Error al procesar la venta. Intenta nuevamente.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Función para confirmar venta desde el botón en el dialog
+  const handleCheckout = async () => {
+    await handleConfirmSale();
   };
 
   return (
@@ -470,11 +724,11 @@ export default function POS() {
                           </div>
                         </div>
                         <div className="flex items-center gap-0.5">
-                          <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => updateItemQuantity(itemIndex, -1)}>
+                          <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => updateItemQuantity(itemIndex, -1, product)}>
                             <Minus className="h-3 w-3" />
                           </Button>
                           <span className="w-5 text-center text-sm font-medium">{item.cantidad}</span>
-                          <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => updateItemQuantity(itemIndex, 1)}>
+                          <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => updateItemQuantity(itemIndex, 1, product)}>
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
@@ -528,6 +782,34 @@ export default function POS() {
                       className="h-7 text-xs"
                     />
                   </div>
+                  {/* ✅ NUEVA: Puntos a usar - AL LADO DE NOTAS */}
+                  {activeTicket?.clientName && (
+                    <div className="flex-1">
+                      <label htmlFor="" className='text-xs'>Puntos a usar</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max={clients.find(c => c.id === activeTicket.clientId)?.puntosAcumulados || 0}
+                        value={puntosAUsar || ''}
+                        onChange={(e) => setPuntosAUsar(parseInt(e.target.value) || 0)}
+                        onBlur={() => {
+                          // Gatillador: blur → evaluar puntos
+                          if (puntosAUsar > 0) {
+                            handleEvaluatePoints();
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          // Gatillador: Enter → evaluar puntos
+                          if (e.key === 'Enter' && puntosAUsar > 0) {
+                            handleEvaluatePoints();
+                          }
+                        }}
+                        placeholder="0"
+                        className="h-7 text-xs"
+                      />
+
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -538,18 +820,25 @@ export default function POS() {
                   {activeTicket?.discount > 0 && (
                     <div className="text-[10px] text-muted-foreground">-S/{activeTicket.discount.toFixed(2)} desc.</div>
                   )}
-                  <div className="text-[10px] text-muted-foreground">{pointsEarned} pts</div>
+                  {pointsEvaluation?.descuento > 0 && (
+                    <div className="text-[10px] text-green-600 font-semibold">-S/{pointsDiscount.toFixed(2)} pts</div>
+                  )}
+                  <div className="text-[10px] text-muted-foreground">{total} pts</div>
                 </div>
                 <div className="text-xl font-bold text-primary">S/ {total.toFixed(2)}</div>
               </div>
               
+              {/* Botón PAGAR - Ejecuta preview y abre dialog */}
+              <Button 
+                className="w-full" 
+                disabled={!activeTicket?.items.length}
+                onClick={handleShowPreview}
+              >
+                <DollarSign className="mr-2 h-4 w-4" />
+                Pagar
+              </Button>
+              
               <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-                <DialogTrigger asChild>
-                  <Button className="w-full" disabled={!activeTicket?.items.length}>
-                    <DollarSign className="mr-2 h-4 w-4" />
-                    Pagar
-                  </Button>
-                </DialogTrigger>
                 <DialogContent className="max-w-sm max-h-[85vh] overflow-y-auto">
                   <DialogHeader className="pb-2">
                     <DialogTitle className="text-base">Procesar Pago</DialogTitle>
@@ -681,10 +970,25 @@ export default function POS() {
 
                     {/* Client info */}
                     {activeTicket?.clientName && (
-                      <div className="flex items-center gap-2 p-2 bg-primary/5 rounded text-xs">
-                        <User className="h-3 w-3 text-primary" />
-                        <span className="font-medium">{activeTicket.clientName}</span>
-                        <span className="text-muted-foreground">+{pointsEarned} pts</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 p-2 bg-primary/5 rounded text-xs">
+                          <User className="h-3 w-3 text-primary" />
+                          <span className="font-medium">{activeTicket.clientName}</span>
+                          <span className="text-muted-foreground">+{pointsEarned} pts</span>
+                        </div>
+                        
+                        {/* ✅ REFACTORIZADO: Mostrar resultado de evaluación de puntos (si existe) */}
+                        {pointsEvaluation && (
+                          <div className="p-2 bg-green-50 border border-green-200 rounded text-xs">
+                            <div className="flex justify-between items-center">
+                              <span className="text-green-700 font-medium">Descuento aplicado:</span>
+                              <span className="text-green-800 font-bold">-S/ {pointsEvaluation.descuento.toFixed(2)}</span>
+                            </div>
+                            {pointsEvaluation.mensaje && (
+                              <p className="text-green-600 text-[10px] mt-1">{pointsEvaluation.mensaje}</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -771,6 +1075,130 @@ export default function POS() {
           </div>
         )}
       </div>
+    
+
+    {/* Dialog obligatorio para verificar caja abierta */}
+    <Dialog open={isCashRegisterDialogOpen} onOpenChange={() => {}}>
+      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-500" />
+            Caja Cerrada
+          </DialogTitle>
+          <DialogDescription>
+            No hay una caja abierta. Debes abrir una caja antes de realizar ventas.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="text-sm text-muted-foreground">
+            {isLoadingCashState ? (
+              'Verificando estado de caja...'
+            ) : (
+              'Para continuar con las ventas, necesitas abrir una caja desde el módulo de Caja.'
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              className="flex-1"
+              onClick={() => window.location.href = '/caja'}
+            >
+              Ir a Caja
+            </Button>
+            <Button 
+              className="flex-1"
+              onClick={checkCashRegisterState}
+              disabled={isLoadingCashState}
+            >
+              {isLoadingCashState ? 'Verificando...' : 'Verificar Estado'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* Dialog de preview de venta */}
+    <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Preview de Venta
+          </DialogTitle>
+          <DialogDescription>
+            Revisa los detalles antes de confirmar la venta
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          {isLoadingPreview ? (
+            <div className="text-center py-4">
+              <div className="text-sm text-muted-foreground">Validando venta...</div>
+            </div>
+          ) : salePreview ? (
+            <div className="space-y-3">
+              <div className="text-sm">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>S/ {salePreview.subtotal?.toFixed(2)}</span>
+                </div>
+                {(salePreview.descuentoPuntos > 0 || salePreview.descuentoPromos > 0) && (
+                  <div className="flex justify-between text-red-600">
+                    <span>Descuento:</span>
+                    <span>-S/ {(salePreview.descuentoPuntos?.toFixed(2)|| salePreview.descuentoPromos?.toFixed(2))}</span>
+                  </div>
+                )}
+                {salePreview.ajusteRedondeo > 0 && (
+                  <div className="flex justify-between text-blue-600">
+                    <span>Recargo:</span>
+                    <span>+S/ {salePreview.ajusteRedondeo?.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold border-t pt-2">
+                  <span>Total:</span>
+                  <span>S/ {salePreview.total?.toFixed(2)}</span>
+                </div>
+                {salePreview.puntosOtorgados > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Puntos a ganar:</span>
+                    <span>{salePreview.puntosOtorgados} pts</span>
+                  </div>
+                )}
+              </div>
+              
+              {salePreview.validaciones.mensajes && salePreview.validaciones.mensajes.length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                  <div className="text-sm font-medium text-yellow-800 mb-1">Advertencias:</div>
+                  {salePreview.validaciones.mensajes.map((advertencia, index) => (
+                    <div key={index} className="text-xs text-yellow-700">• {advertencia}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <div className="text-sm text-muted-foreground">Error al generar preview</div>
+            </div>
+          )}
+          
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              className="flex-1"
+              onClick={() => setIsPreviewDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              className="flex-1"
+              onClick={handleConfirmSale}
+              disabled={isLoadingPreview || !salePreview}
+            >
+              Confirmar Venta
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 }

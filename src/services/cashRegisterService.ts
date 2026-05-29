@@ -287,4 +287,20 @@ export const cashRegisterService = {
       throw new Error(extractErrorMessage(error));
     }
   },
+
+  /**
+   * Obtener estado actual de la caja (abierta/cerrada)
+   * Usado para validar si se puede operar en el POS
+   */
+  getEstado: async (): Promise<import('@/types').CashRegisterState> => {
+    try {
+      const response = await httpClient.get<import('@/types').CashRegisterState>(
+        API_ENDPOINTS.CASH_REGISTER.ESTADO
+      );
+      return response;
+    } catch (error) {
+      console.error('Error getting cash register state:', error);
+      throw new Error(extractErrorMessage(error));
+    }
+  },
 };
