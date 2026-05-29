@@ -130,14 +130,10 @@ class FrancachelaHttpClient implements HttpClient {
       }
     }
 
-    // Setup abort controller for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     const requestConfig: RequestInit = {
       ...fetchConfig,
       headers,
-      signal: controller.signal,
     };
 
     this.log(`Making ${fetchConfig.method || 'GET'} request to:`, fullUrl);
@@ -146,6 +142,9 @@ class FrancachelaHttpClient implements HttpClient {
     let lastError: Error;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
+       // Setup abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
       try {
         const response = await fetch(fullUrl, requestConfig);
         clearTimeout(timeoutId);

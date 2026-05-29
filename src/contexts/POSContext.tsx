@@ -515,7 +515,10 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           createTicket();
         }
       } catch (error) {
-        console.error("Error completing sale:", error);
+        if ((error as any)?.name === 'AbortError') {
+          toast.error("La venta está siendo procesada. Verifique en ventas antes de reintentar.");
+          return;
+        }
         toast.error("Error al completar la venta");
         throw error;
       }

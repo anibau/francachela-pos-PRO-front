@@ -12,7 +12,7 @@ import { useEntradas } from '@/hooks/useEntradas';
 import type { CreateEntradaRequest } from '@/types';
 import { format, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import CategoriesSelector from '@/components/ui/CategoriesSelector';
+import { CategorySelector } from '@/components/ui/CategoriesSelector';
 import { toast } from 'sonner';
 
 const CATEGORIAS_ENTRADAS = [
@@ -258,7 +258,7 @@ export function EntradasSection() {
         <div>
           <Label>Categoría</Label>
           {/* DEFECTO 2: Usar GET /entradas para filtrar categorías existentes */}
-          <CategoriesSelector
+          <CategorySelector
             value={formData.categoria}
             onValueChange={handleCategoriaChange}
             placeholder="Seleccionar categoría de entrada..."

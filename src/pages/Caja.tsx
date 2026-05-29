@@ -196,56 +196,60 @@ export default function Caja() {
 
   // TAREA 2: Función para exportar corte a Excel
   const exportCorteToExcel = async () => {
-    if (!dateFrom || !dateTo) {
-      toast.error("Por favor selecciona un rango de fechas");
+  if (!dateFrom || !dateTo) {
+    toast.error("Por favor selecciona un rango de fechas");
+    return;
+  }
+
+  try {
+    const fechaInicio = dateFrom;
+    const fechaFin = dateTo;
+
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      toast.error("No hay sesión activa");
       return;
     }
 
-    try {
-      const fechaInicio = dateFrom;
-      const fechaFin = dateTo;
+    const queryParams = new URLSearchParams();
+    queryParams.append("fechaInicio", fechaInicio);
+    queryParams.append("fechaFin", fechaFin);
 
-      const queryParams = new URLSearchParams();
-      queryParams.append("fechaInicio", fechaInicio);
-      queryParams.append("fechaFin", fechaFin);
+    const url = `${API_ENDPOINTS.CORTE.EXPORT}?${queryParams.toString()}`;
 
-      const url = `${API_ENDPOINTS.CORTE.EXPORT}?${queryParams.toString()}`;
-      
-      // Crear un enlace temporal para descargar el archivo
-      const response = await fetch(`${API_CONFIG.BASE_URL}${url}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al exportar el archivo');
+    const response = await fetch(`${API_CONFIG.BASE_URL}${url}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       }
+    });
 
-      // Obtener el blob del archivo
-      const blob = await response.blob();
-      
-      // Crear URL temporal para el blob
-      const downloadUrl = window.URL.createObjectURL(blob);
-      
-      // Crear enlace temporal y hacer click automático
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `corte_${fechaInicio}_${fechaFin}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      
-      // Limpiar
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-      
-      toast.success("Archivo Excel descargado correctamente");
-    } catch (error) {
-      console.error("Error exporting to Excel:", error);
-      toast.error("Error al exportar a Excel");
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Error al exportar el archivo");
     }
-  };
+
+    const blob = await response.blob();
+
+    const downloadUrl = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = `corte_${fechaInicio}_${fechaFin}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+
+    toast.success("Archivo Excel descargado correctamente");
+  } catch (error) {
+    console.error("Error exporting to Excel:", error);
+    toast.error("Error al exportar a Excel");
+  }
+};
+
 
   return (
     <div className="space-y-6 animate-fade-in">

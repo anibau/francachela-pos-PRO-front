@@ -823,7 +823,7 @@ export default function POS() {
                   {pointsEvaluation?.descuento > 0 && (
                     <div className="text-[10px] text-green-600 font-semibold">-S/{pointsDiscount.toFixed(2)} pts</div>
                   )}
-                  <div className="text-[10px] text-muted-foreground">{pointsEarned} pts</div>
+                  <div className="text-[10px] text-muted-foreground">{total} pts</div>
                 </div>
                 <div className="text-xl font-bold text-primary">S/ {total.toFixed(2)}</div>
               </div>

@@ -12,16 +12,8 @@ import { toast } from 'sonner';
 import { expensesService } from '@/services/expensesService';
 import { EntradasSection } from '@/components/gastos/EntradasSection';
 import type { Expense } from '@/types';
+import { CategorySelector } from '@/components/ui/CategoriesSelector';
 
-// Categorías de gastos según el backend
-const EXPENSE_CATEGORIES = [
-  'OPERATIVO',
-  'ADMINISTRATIVO', 
-  'MARKETING',
-  'MANTENIMIENTO',
-  'SERVICIOS',
-  'OTROS'
-];
 
 const PAYMENT_METHODS = [
   'EFECTIVO',
@@ -29,6 +21,11 @@ const PAYMENT_METHODS = [
   'YAPE',
   'PLIN'
 ];
+
+interface ExpenseValidationErrors {
+  category?: string;
+}
+
 
 export default function Gastos() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -55,6 +52,9 @@ export default function Gastos() {
   const [isLoadingGastos, setIsLoadingGastos] = useState(false);
   const [filtroFechaInicio, setFiltroFechaInicio] = useState('');
   const [filtroFechaFin, setFiltroFechaFin] = useState('');
+// Estados para validación de formulario
+  const [validationErrors, setValidationErrors] = useState<ExpenseValidationErrors>({});
+  
 
   const [formData, setFormData] = useState({
     description: '',
@@ -157,32 +157,35 @@ export default function Gastos() {
   };
 
   const loadData = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Ahora los servicios ya retornan arrays garantizados
-      const [allExpenses, todayData, categoriesData] = await Promise.all([
-        expensesService.getAll(),
-        expensesService.getToday(),
-        expensesService.getCategories()
-      ]);
-      
-      setExpenses(allExpenses);
-      setTodayExpenses(todayData);
-      setCategories(categoriesData);
-    } catch (error) {
-      console.error('Unexpected error loading expenses:', error);
-      // Los servicios ya manejan los errores y retornan valores por defecto
-      setExpenses([]);
-      setTodayExpenses([]);
-      setCategories(EXPENSE_CATEGORIES);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  try {
+    setIsLoading(true);
+
+    const [allExpenses, todayData, categoriesData] = await Promise.all([
+      expensesService.getAll(),
+      expensesService.getToday(),
+      expensesService.getCategories()
+    ]);
+
+    setExpenses(allExpenses);
+    setTodayExpenses(todayData);
+    setCategories(categoriesData); // solo backend
+  } catch (error) {
+    console.error('Unexpected error loading expenses:', error);
+
+    // Fallo = lista vacía, no fake data
+    setExpenses([]);
+    setTodayExpenses([]);
+    setCategories([]);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    validateField('category', formData.category);
     
     if (!formData.description || !formData.amount || !formData.category || !formData.paymentMethod) {
       toast.error('Por favor completa todos los campos requeridos');
@@ -289,6 +292,21 @@ export default function Gastos() {
     });
   };
 
+  // Función para validar campos del formulario
+  const validateField = (field: string, value: any) => {
+  const errors = { ...validationErrors };
+
+  switch (field) {
+    case 'category':
+      if (!value) errors.category = 'La categoría es requerida';
+      else delete errors.category;
+      break;
+  }
+
+  setValidationErrors(errors);
+  };
+
+
   const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleString('es-PE', {
       year: 'numeric',
@@ -369,17 +387,16 @@ export default function Gastos() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Categoría *</Label>
-                  <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar categoría" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EXPENSE_CATEGORIES.map((cat) => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <CategorySelector
+                    value={formData.category}
+                    onChange={(value) => {
+                      setFormData({ ...formData, category: value });
+                      validateField('category', value);
+                    }}
+                    error={validationErrors.category}
+                  />
                 </div>
+
                 <div className="space-y-2">
                   <Label>Método de Pago *</Label>
                   <Select value={formData.paymentMethod} onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}>
@@ -774,11 +791,13 @@ export default function Gastos() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {EXPENSE_CATEGORIES.map((category) => {
+                {categories.map((category) => {
                   const categoryExpenses = expenses.filter(e => e.category === category);
                   const categoryTotal = categoryExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
                   const percentage = totalExpenses > 0 ? (categoryTotal / totalExpenses) * 100 : 0;
-                  
+
+                  if (categoryTotal === 0) return null; // no mostrar categorías vacías
+
                   return (
                     <div key={category} className="space-y-2">
                       <div className="flex justify-between items-center">
@@ -796,6 +815,7 @@ export default function Gastos() {
                     </div>
                   );
                 })}
+
               </div>
             </CardContent>
           </Card>
