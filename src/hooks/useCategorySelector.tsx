@@ -18,7 +18,7 @@ export const useCategorySelector = (value: string | undefined, categories: strin
       setShowNew(true);
       return;                        
     }
-    setShowNew(false);
+    setShowNew(false);    
     setSelected(v);
   };
 
