@@ -13,7 +13,7 @@ export const useCategorySelector = (value: string | undefined, categories: strin
     setSelected(value || undefined);  
   }, [value]);
 
-  const select = (v: string) => {
+  const select = (v: string) => {  
     if (v === "CREATE_NEW") {
       setShowNew(true);
       return;                        
