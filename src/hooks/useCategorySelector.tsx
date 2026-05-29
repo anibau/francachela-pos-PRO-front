@@ -10,7 +10,7 @@ export const useCategorySelector = (value: string | undefined, categories: strin
   const [selected, setSelected] = useState<string | undefined>(safeValue);
 
   useEffect(() => {
-    setSelected(value || undefined);   // 🔥 ESTE era el bug
+    setSelected(value || undefined);  
   }, [value]);
 
   const select = (v: string) => {
