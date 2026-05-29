@@ -26,7 +26,7 @@ export const useCategorySelector = (value: string | undefined, categories: strin
     const v = newValue.trim();
     if (!v) return;
 
-    setSelected(v);                   // ✅ nunca vacío
+    setSelected(v);                
     setShowNew(false);
     setNewValue("");
   };
