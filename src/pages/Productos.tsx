@@ -18,7 +18,10 @@ import { ProductCategory, ProductSupplier } from "@/types";
 import { ProductForm } from '../components/productos/ProductForm';
 import InventoryMovementDialog from '../components/productos/InventoryMovementDialog';
 import { Label } from '@/components/ui/label';
-import { API_ENDPOINTS, API_CONFIG } from '@/config/api';
+import { API_ENDPOINTS } from '@/config/api';
+import { downloadAuthenticatedBlob } from '@/utils/apiExport';
+import { CanAccess } from '@/components/auth/CanAccess';
+import { LoadingState } from '@/components/ui/state-views';
 import { httpClient } from '@/services/httpClient';
 
 interface ProductValidationErrors {
@@ -513,88 +516,43 @@ export default function Productos() {
   };
 
   const exportProductsToExcel = async () => {
-  const toastId = toast.loading('Generando archivo Excel...');
-  try {
-    const response = await fetch(`${API_CONFIG.BASE_URL}${API_ENDPOINTS.EXCEL.PRODUCTS}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error('Error al generar el archivo Excel');
+    const toastId = toast.loading('Generando archivo Excel...');
+    try {
+      await downloadAuthenticatedBlob(
+        API_ENDPOINTS.EXCEL.PRODUCTS,
+        `productos_${new Date().toISOString().split('T')[0]}.xlsx`,
+      );
+      toast.success('Productos exportados correctamente', { id: toastId });
+    } catch (error) {
+      toast.error('Error al exportar productos', { id: toastId });
     }
-    
-    const blob = await response.blob();
-
-    const downloadUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = `productos_${new Date().toISOString().split('T')[0]}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(downloadUrl);
-
-        toast.success('Productos exportados correctamente', { id: toastId });
-      } catch (error) {
-        console.error('Error exporting products:', error);
-        toast.error('Error al exportar productos', { id: toastId });
-      }
   };
 
   const exportMovementsToExcel = async () => {
-  const toastId = toast.loading('Generando archivo Excel...');
-  try {
-    const today = new Date();
-    const startOfMonth = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      1
-    ).toISOString().split('T')[0];
-
-    const endOfDay = today.toISOString().split('T')[0];
-
-    const queryParams = new URLSearchParams({
-      fechaInicio: startOfMonth,
-      fechaFin: endOfDay,
-      tipoReporte: 'INVENTARIO',
-      incluirDetalles: 'true',
-    });
-
-    const response = await fetch(`${API_CONFIG.BASE_URL}${API_ENDPOINTS.EXCEL.INVENTORY}?${queryParams.toString()}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error('Error al generar el archivo Excel');
+    const toastId = toast.loading('Generando archivo Excel...');
+    try {
+      const today = new Date();
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+      const endOfDay = today.toISOString().split('T')[0];
+      const queryParams = new URLSearchParams({
+        fechaInicio: startOfMonth,
+        fechaFin: endOfDay,
+        tipoReporte: 'INVENTARIO',
+        incluirDetalles: 'true',
+      });
+      await downloadAuthenticatedBlob(
+        `${API_ENDPOINTS.EXCEL.INVENTORY}?${queryParams.toString()}`,
+        `movimientos_inventario_${new Date().toISOString().split('T')[0]}.xlsx`,
+      );
+      toast.success('Movimientos exportados correctamente', { id: toastId });
+    } catch (error) {
+      toast.error('Error al exportar movimientos', { id: toastId });
     }
-    
-    const blob = await response.blob();
-
-    const downloadUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = `movimientos_inventario_${new Date().toISOString().split('T')[0]}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(downloadUrl);
-
-    toast.success('Movimientos exportados correctamente', { id: toastId });
-      } catch (error) {
-        console.error('Error exporting movements:', error);
-        toast.error('Error al exportar movimientos', { id: toastId });
-      }
   };
 
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64">Cargando productos...</div>;
+    return <LoadingState message="Cargando productos..." />;
   }
 
   return (
@@ -613,10 +571,13 @@ export default function Productos() {
             </div>
             
             <div className="flex gap-2 w-full sm:w-auto">
-              <Button onClick={exportProductsToExcel} variant="outline" size="sm">
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Exportar Excel
-              </Button>
+              <CanAccess roles={['ADMIN', 'SUPERVISOR']}>
+                <Button onClick={exportProductsToExcel} variant="outline" size="sm">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Exportar Excel
+                </Button>
+              </CanAccess>
+              <CanAccess roles={['ADMIN', 'SUPERVISOR']}>
               <Dialog open={isDialogOpen} onOpenChange={(open) => {
                 setIsDialogOpen(open);
                 if (!open) resetForm();
@@ -641,6 +602,7 @@ export default function Productos() {
                 isSubmitting={createProduct.isPending || updateProduct.isPending}
               />
             </Dialog>
+              </CanAccess>
             </div>
           </div>
 

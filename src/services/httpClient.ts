@@ -6,6 +6,29 @@ interface RequestConfig extends RequestInit {
   timeout?: number;
   retries?: number;
   requiresAuth?: boolean;
+  responseType?: 'json' | 'blob';
+}
+
+function extractErrorMessage(data: unknown, status: number): string {
+  if (data && typeof data === 'object') {
+    const obj = data as Record<string, unknown>;
+    if (obj.error && typeof obj.error === 'object') {
+      const nested = obj.error as { message?: string | string[] };
+      if (Array.isArray(nested.message)) {
+        return nested.message.join(', ');
+      }
+      if (typeof nested.message === 'string') {
+        return nested.message;
+      }
+    }
+    if (typeof obj.message === 'string') {
+      return obj.message;
+    }
+    if (typeof obj.error === 'string') {
+      return obj.error;
+    }
+  }
+  return `HTTP ${status}`;
 }
 
 interface HttpClient {
@@ -55,18 +78,27 @@ class FrancachelaHttpClient implements HttpClient {
     }
   }
 
-  private async handleResponse<T>(response: Response): Promise<T> {
+  private async handleResponse<T>(
+    response: Response,
+    responseType: 'json' | 'blob' = 'json',
+  ): Promise<T> {
     const contentType = response.headers.get('content-type');
-    
+
     this.log(`Response content-type: ${contentType}`);
-    
-    // Handle non-JSON responses (like file downloads)
-    if (!contentType || !contentType.includes('application/json')) {
-      this.log('Non-JSON response detected');
+
+    if (responseType === 'blob' || !contentType?.includes('application/json')) {
+      this.log('Non-JSON or blob response detected');
       if (response.ok) {
         return response.blob() as unknown as T;
       }
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = extractErrorMessage(errorData, response.status);
+      } catch {
+        // sin cuerpo JSON
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
@@ -90,13 +122,7 @@ class FrancachelaHttpClient implements HttpClient {
       return data;
     }
 
-    // Handle error responses
-    if (data && typeof data === 'object') {
-      const apiError = data as ApiError;
-      throw new Error(apiError.message || apiError.error || `HTTP ${response.status}`);
-    }
-
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    throw new Error(extractErrorMessage(data, response.status));
   }
 
   private async makeRequest<T>(
@@ -107,6 +133,7 @@ class FrancachelaHttpClient implements HttpClient {
       timeout = this.defaultTimeout,
       retries = this.defaultRetries,
       requiresAuth = true,
+      responseType = 'json',
       ...fetchConfig
     } = config;
 
@@ -162,7 +189,7 @@ class FrancachelaHttpClient implements HttpClient {
           throw new Error('No tienes permisos para acceder a este recurso');
         }
 
-        return await this.handleResponse<T>(response);
+        return await this.handleResponse<T>(response, responseType);
       } catch (error) {
         clearTimeout(timeoutId);
         lastError = error as Error;

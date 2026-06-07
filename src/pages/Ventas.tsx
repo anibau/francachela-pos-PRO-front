@@ -15,6 +15,9 @@ import { showErrorToast, showSuccessToast, showLoadingToast, dismissToast } from
 import VentasPagosDisplay from "@/components/VentasPagosDisplay";
 import { API_ENDPOINTS } from '@/config/api';
 import { httpClient } from '@/services/httpClient';
+import { downloadAuthenticatedBlob } from '@/utils/apiExport';
+import { CanAccess } from '@/components/auth/CanAccess';
+import { LoadingState, EmptyState } from '@/components/ui/state-views';
 
 export default function Ventas() {
   const [ventas, setVentas] = useState<Sale[]>([]);
@@ -127,69 +130,41 @@ export default function Ventas() {
   };
 
   const exportToExcel = async () => {
-  let loadingToastId: string | number;
+    let loadingToastId: string | number | undefined;
+    try {
+      const params = new URLSearchParams();
+      if (dateFilter.startDate) {
+        params.append('fechaInicio', `${dateFilter.startDate} 00:00:00`);
+      }
+      if (dateFilter.endDate) {
+        params.append('fechaFin', `${dateFilter.endDate} 23:59:59`);
+      }
+      params.append('tipoReporte', 'VENTAS');
+      params.append('incluirDetalles', 'true');
 
-  try {
-    // Construir parámetros de fecha
-    const params = new URLSearchParams();
+      const fechaArchivo = new Date().toISOString().split('T')[0];
+      loadingToastId = showLoadingToast('Generando archivos Excel...');
 
-    if (dateFilter.startDate) {
-      params.append('fechaInicio', `${dateFilter.startDate} 00:00:00`);
+      await downloadAuthenticatedBlob(
+        `${API_ENDPOINTS.EXCEL.SALES}?${params.toString()}`,
+        `ventas_${fechaArchivo}.xlsx`,
+      );
+      await downloadAuthenticatedBlob(
+        `${API_ENDPOINTS.EXCEL.SALES_PAYMENTS}?${params.toString()}`,
+        `venta-pagos_${fechaArchivo}.xlsx`,
+      );
+
+      if (loadingToastId) dismissToast(loadingToastId);
+      showSuccessToast('Archivos Excel exportados correctamente');
+    } catch (error) {
+      if (loadingToastId) dismissToast(loadingToastId);
+      showErrorToast(error, 'Error al exportar archivos Excel');
     }
-    if (dateFilter.endDate) {
-      params.append('fechaFin', `${dateFilter.endDate} 23:59:59`);
-    }
-
-    params.append('tipoReporte', 'VENTAS');
-    params.append('incluirDetalles', 'true');
-
-    const ventasUrl = `${API_ENDPOINTS.EXCEL.SALES}?${params.toString()}`;
-    const ventasPagosUrl = `${API_ENDPOINTS.EXCEL.SALES_PAYMENTS}?${params.toString()}`;
-
-    loadingToastId = showLoadingToast('Generando archivos Excel...');
-
-    // 🔥 Peticiones simultáneas con httpClient
-    const [ventasBlob, ventasPagosBlob] = await Promise.all([
-      httpClient.get<Blob>(ventasUrl, { responseType: 'blob' }),
-      httpClient.get<Blob>(ventasPagosUrl, { responseType: 'blob' }),
-    ]);
-
-    const fechaArchivo = new Date().toISOString().split('T')[0];
-
-    // 📥 Descargar ventas
-    const ventasDownloadUrl = URL.createObjectURL(ventasBlob);
-    const ventasLink = document.createElement('a');
-    ventasLink.href = ventasDownloadUrl;
-    ventasLink.download = `ventas_${fechaArchivo}.xlsx`;
-    document.body.appendChild(ventasLink);
-    ventasLink.click();
-    document.body.removeChild(ventasLink);
-    URL.revokeObjectURL(ventasDownloadUrl);
-
-    // 📥 Descargar ventas-pagos (delay opcional)
-    setTimeout(() => {
-      const ventasPagosDownloadUrl = URL.createObjectURL(ventasPagosBlob);
-      const ventasPagosLink = document.createElement('a');
-      ventasPagosLink.href = ventasPagosDownloadUrl;
-      ventasPagosLink.download = `venta-pagos_${fechaArchivo}.xlsx`;
-      document.body.appendChild(ventasPagosLink);
-      ventasPagosLink.click();
-      document.body.removeChild(ventasPagosLink);
-      URL.revokeObjectURL(ventasPagosDownloadUrl);
-    }, 500);
-
-    dismissToast(loadingToastId);
-    showSuccessToast('Archivos Excel exportados correctamente (2 archivos descargados)');
-  } catch (error) {
-    if (loadingToastId) dismissToast(loadingToastId);
-    console.error('Error exporting sales:', error);
-    showErrorToast(error, 'Error al exportar archivos Excel');
-  }
   };
 
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64">Cargando ventas...</div>;
+    return <LoadingState message="Cargando ventas..." />;
   }
 
   return (
@@ -200,10 +175,12 @@ export default function Ventas() {
           <p className="text-muted-foreground">Registro detallado de todas las transacciones</p>
         </div>
         
-        <Button onClick={exportToExcel} className="w-full sm:w-auto">
-          <FileSpreadsheet className="h-4 w-4 mr-2" />
-          Exportar Excel
-        </Button>
+        <CanAccess roles={['ADMIN']}>
+          <Button onClick={exportToExcel} className="w-full sm:w-auto">
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Exportar Excel
+          </Button>
+        </CanAccess>
       </div>
 
       <Card>
@@ -244,6 +221,16 @@ export default function Ventas() {
         </CardContent>
       </Card>
 
+      {filteredVentas.length === 0 ? (
+        <EmptyState
+          title="No hay ventas"
+          description={
+            dateFilter.startDate || dateFilter.endDate
+              ? 'No se encontraron ventas con los filtros aplicados'
+              : 'Aún no hay ventas registradas'
+          }
+        />
+      ) : (
       <div className="grid gap-4">
         {filteredVentas
           .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
@@ -268,11 +255,13 @@ export default function Ventas() {
                   <Button size="icon" variant="ghost" onClick={() => openCommentDialog(venta)} title="Editar comentario">
                     <MessageSquare className="h-4 w-4" />
                   </Button>
-                  {(venta.estado === 'COMPLETADO' || venta.estado === 'completada') && (
-                    <Button size="icon" variant="ghost" onClick={() => handleCancelSale(venta.id)} disabled={cancelingIds.has(venta.id)} title="Anular" className="hover:text-destructive">
-                      {cancelingIds.has(venta.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
-                    </Button>
-                  )}
+                  <CanAccess roles={['ADMIN']}>
+                    {(venta.estado === 'COMPLETADO' || venta.estado === 'completada') && (
+                      <Button size="icon" variant="ghost" onClick={() => handleCancelSale(venta.id)} disabled={cancelingIds.has(venta.id)} title="Anular" className="hover:text-destructive">
+                        {cancelingIds.has(venta.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+                      </Button>
+                    )}
+                  </CanAccess>
                 </div>
               </div>
             </CardHeader>
@@ -315,6 +304,7 @@ export default function Ventas() {
           </Card>
         ))}
       </div>
+      )}
 
       {filteredVentas.length > ITEMS_PER_PAGE && (
         <Pagination>

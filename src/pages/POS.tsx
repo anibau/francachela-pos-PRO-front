@@ -23,6 +23,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/hooks/use-toast';
 import { calculateTotalPoints, calculateProductPoints } from '@/utils/pointsCalculator';
 import { pointsService } from '@/services/pointsService';
+import { productsService } from '@/services/productsService';
+import { unifiedPromotionsService } from '@/services/unifiedPromotionsService';
+import { calculateSubtotal } from '@/utils/calculateTicketTotal';
+import { LoadingState, ErrorState } from '@/components/ui/state-views';
 
 export default function POS() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,6 +56,7 @@ export default function POS() {
   // DEFECTO 3: Estados para puntos a usar y evaluación
   const [puntosAUsar, setPuntosAUsar] = useState<number>(0);
   const [pointsEvaluation, setPointsEvaluation] = useState<any>(null);
+  const [promoDiscount, setPromoDiscount] = useState(0);
   
   const PRODUCTS_PER_PAGE = 9;
 
@@ -150,6 +155,39 @@ export default function POS() {
     }
   }, [activeTicket?.items.length, activeTicket?.id]);
 
+  useEffect(() => {
+    const evaluatePromos = async () => {
+      if (!activeTicket?.items.length) {
+        setPromoDiscount(0);
+        return;
+      }
+      try {
+        const subtotal = calculateSubtotal(activeTicket.items);
+        const result = await unifiedPromotionsService.evaluate({
+          items: activeTicket.items.map((item) => ({
+            productoId: item.productId,
+            cantidad: item.cantidad,
+            precioUnitario: item.precio,
+          })),
+          montoTotal: subtotal,
+        });
+        setPromoDiscount(result.descuentoTotal || 0);
+      } catch {
+        setPromoDiscount(0);
+      }
+    };
+    evaluatePromos();
+  }, [activeTicket?.items, activeTicket?.id]);
+
+  const handleBarcodeSearch = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter' || !searchTerm.trim()) return;
+    const product = await productsService.getByBarcode(searchTerm.trim());
+    if (product) {
+      handleAddProduct(product);
+      setSearchTerm('');
+      setCurrentPage(1);
+    }
+  };
 
   // Filtrar productos localmente (patrón como en Clientes.tsx)
   const filteredProducts = (products || []).filter(producto => {
@@ -187,7 +225,7 @@ export default function POS() {
   const pointsDiscount = pointsEvaluation?.descuento || 0;
   const total = calculateTicketTotal(
     activeTicket?.items || [],
-    currentDiscount,
+    currentDiscount + promoDiscount,
     currentRecargoExtra,
     pointsDiscount
   );
@@ -547,10 +585,10 @@ export default function POS() {
           return;
         }
         
-        await completeSale(metodoPrincipal, 'Sistema', montoFinalPagar, metodosPageo, products, refetchProducts, refetchClients, puntosUsados);
+        await completeSale(metodoPrincipal, 'Sistema', montoFinalPagar, metodosPageo, products, refetchProducts, refetchClients, puntosUsados, clients, promoDiscount);
       } else {
         // Usar método de pago único
-        await completeSale(selectedPaymentMethod, 'Sistema', montoFinalPagar, undefined, products, refetchProducts, refetchClients, puntosUsados);
+        await completeSale(selectedPaymentMethod, 'Sistema', montoFinalPagar, undefined, products, refetchProducts, refetchClients, puntosUsados, clients, promoDiscount);
       }
 
       // ETAPA C: Finalización y limpieza completa
@@ -752,8 +790,9 @@ export default function POS() {
                 <div className="flex gap-2">
                   <div>
 
-                  <label htmlFor="" className='text-xs'> Descuento </label>
+                  <label htmlFor="pos-descuento" className='text-xs'> Descuento </label>
                   <MoneyInput
+                    id="pos-descuento"
                     value={currentDiscount}
                     onChange={(value) => {
                       applyDiscount(value);
@@ -763,8 +802,9 @@ export default function POS() {
                   />
                   </div>
                   <div>
-                  <label htmlFor="" className='text-xs'> Recargo Extra </label>                 
+                  <label htmlFor="pos-recargo" className='text-xs'> Recargo Extra </label>
                   <MoneyInput
+                    id="pos-recargo"
                     value={currentRecargoExtra}
                     onChange={(value) => {
                       applyRecargoExtra(value);
@@ -774,8 +814,9 @@ export default function POS() {
                   />
                   </div>
                   <div className="flex-1">
-                    <label htmlFor="" className='text-xs'>Notas </label>
+                    <label htmlFor="pos-notas" className='text-xs'>Notas </label>
                     <Input
+                      id="pos-notas"
                       value={activeTicket?.notes || ''}
                       onChange={(e) => setTicketNotes(e.target.value)}
                       placeholder="Notas..."
@@ -1016,20 +1057,26 @@ export default function POS() {
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               type="text"
-              placeholder="Buscar..."
+              placeholder="Buscar o escanear código..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
+              onKeyDown={handleBarcodeSearch}
               className="pl-8 h-8 text-sm"
+              aria-label="Buscar producto o código de barras"
             />
           </div>
         </div>
 
         <ScrollArea className="flex-1 min-h-0 max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)] lg:max-h-[calc(100vh-8rem)]">
           <div className="space-y-1.5 pr-2">
-            {displayProducts.length === 0 ? (
+            {productsLoading ? (
+              <LoadingState message="Cargando productos..." />
+            ) : productsError ? (
+              <ErrorState message="Error al cargar productos" onRetry={() => refetchProducts()} />
+            ) : displayProducts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                 <Search className="h-8 w-8 mb-2" />
                 <p className="text-sm">Sin resultados</p>

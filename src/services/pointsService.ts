@@ -31,6 +31,23 @@ export interface PointsEvaluationResponse {
   }>;
 }
 
+export interface PointsMovement {
+  id: number;
+  tipo: string;
+  puntos: number;
+  saldoDespues: number;
+  motivo?: string;
+  fecha: string;
+  ventaId?: number;
+}
+
+export interface AdjustPointsRequest {
+  clienteId: number;
+  puntos: number;
+  motivo: string;
+  tipo: 'AJUSTE' | 'ACUMULACION' | 'CANJE' | 'REVERSO';
+}
+
 export const pointsService = {
   /**
    * Evaluar puntos disponibles y calcular descuento
@@ -68,5 +85,47 @@ export const pointsService = {
       console.error('Error evaluating points:', error);
       throw new Error(extractErrorMessage(error));
     }
-  }
+  },
+
+  getHistorial: async (clienteId: number): Promise<PointsMovement[]> => {
+    try {
+      if (API_CONFIG.USE_MOCKS) {
+        await simulateDelay();
+        return [];
+      }
+      const response = await httpClient.get<PointsMovement[]>(
+        API_ENDPOINTS.POINTS.HISTORIAL(clienteId),
+      );
+      return Array.isArray(response) ? response : [];
+    } catch (error) {
+      console.error('Error getting points history:', error);
+      throw new Error(extractErrorMessage(error));
+    }
+  },
+
+  adjust: async (request: AdjustPointsRequest): Promise<void> => {
+    try {
+      if (API_CONFIG.USE_MOCKS) {
+        await simulateDelay();
+        return;
+      }
+      await httpClient.post(API_ENDPOINTS.POINTS.AJUSTAR, request);
+    } catch (error) {
+      console.error('Error adjusting points:', error);
+      throw new Error(extractErrorMessage(error));
+    }
+  },
+
+  getStatistics: async (): Promise<Record<string, unknown>> => {
+    try {
+      if (API_CONFIG.USE_MOCKS) {
+        await simulateDelay();
+        return {};
+      }
+      return await httpClient.get<Record<string, unknown>>(API_ENDPOINTS.POINTS.ESTADISTICAS);
+    } catch (error) {
+      console.error('Error getting points statistics:', error);
+      throw new Error(extractErrorMessage(error));
+    }
+  },
 };

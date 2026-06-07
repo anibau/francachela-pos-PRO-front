@@ -1,4 +1,5 @@
 import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
+import { DEFAULT_LIST_PARAMS } from '@/constants/apiDefaults';
 import { httpClient, simulateDelay } from './httpClient';
 import { ensureArray } from '@/utils/apiValidators';
 import type { Product } from '@/types';
@@ -18,10 +19,10 @@ export const productsService = {
         return [];
       }
       
-      // Usar backend real - NO usar 'search', usar el endpoint correcto
+      const merged = { ...DEFAULT_LIST_PARAMS, ...params };
       const queryParams = new URLSearchParams();
-      if (params?.page) queryParams.append('page', params.page.toString());
-      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      queryParams.append('page', merged.page.toString());
+      queryParams.append('limit', merged.limit.toString());
       if (params?.categoria) queryParams.append('categoria', params.categoria);
       if (params?.mostrar !== undefined) queryParams.append('mostrar', params.mostrar.toString());
       
@@ -55,6 +56,22 @@ export const productsService = {
     } catch (error) {
       console.error('Error getting product by ID:', error);
       throw new Error(extractErrorMessage(error));
+    }
+  },
+
+  /**
+   * Buscar producto por código de barras
+   */
+  getByBarcode: async (codigoBarra: string): Promise<Product | null> => {
+    try {
+      if (!codigoBarra?.trim()) return null;
+      const product = await httpClient.get<Product>(
+        API_ENDPOINTS.PRODUCTS.BY_BARCODE(codigoBarra.trim()),
+      );
+      return normalizeProduct(product);
+    } catch (error) {
+      console.warn('Product not found by barcode:', codigoBarra);
+      return null;
     }
   },
 

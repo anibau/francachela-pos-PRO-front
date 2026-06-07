@@ -9,6 +9,7 @@ import type {
   CashRegisterState 
 } from "@/types";
 import { salesService } from "@/services/salesService";
+import { whatsappService } from "@/services/whatsappService";
 import { clientsService } from "@/services/clientsService";
 import { cashRegisterService } from "@/services/cashRegisterService";
 import { roundMoney, roundToNearestDime } from "@/utils/moneyUtils";
@@ -365,7 +366,9 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
       products?: Product[],
       refetchProducts?: () => void,
       refetchClients?: () => void,
-      puntosUsados: number = 0
+      puntosUsados: number = 0,
+      clients?: Client[],
+      promoDescuento: number = 0,
     ) => {
       const ticket = getActiveTicket();
 
@@ -377,9 +380,10 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
       try {
         // 🎯 USAR EL MOTOR ÚNICO DE CÁLCULO
         const puntosDescuento = puntosUsados > 0 ? (puntosUsados * 0.1) : 0;
+        const descuentoTotal = roundMoney(ticket.discount + promoDescuento);
         const totalRedondeado = calculateTicketTotal(
           ticket.items,
-          ticket.discount,
+          descuentoTotal,
           ticket.recargoExtra,
           puntosDescuento
         );
@@ -468,8 +472,8 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           listaProductos: listaProductosConDescuento,
           // Solo incluir descuento si es descuento manual Y no hay mayoreo
           // Para evitar duplicación (descuento manual + descuento en precioUnitario)
-          ...(ticket.discount > 0 &&
-            !hasMayoreo && { descuento: roundMoney(ticket.discount) }),
+          ...(descuentoTotal > 0 &&
+            !hasMayoreo && { descuento: descuentoTotal }),
           recargoExtra: recargoExtraRedondeado || 0,
           metodosPageo: metodosPageoArray,
           comentario: ticket.notes || "",
@@ -485,6 +489,20 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         const sale = await salesService.create(saleData);
 
         console.log("[POSContext] Venta creada:", sale);
+
+        if (ticket.clientId && clients?.length) {
+          const client = clients.find((c) => c.id === ticket.clientId);
+          const rawPhone = client?.telefono?.replace(/\D/g, '');
+          if (rawPhone) {
+            const phone = rawPhone.startsWith('51') ? rawPhone : `51${rawPhone}`;
+            await whatsappService.sendVentaNotification({
+              phone,
+              total: totalRedondeado,
+              puntosGanados: puntosOtorgados,
+              ventaId: sale.ticketId || String(sale.id),
+            });
+          }
+        }
 
         // NOTA: Los puntos del cliente se actualizan automáticamente en el backend
         // al crear la venta, por lo que no necesitamos hacer PATCH '/clientes/id' aquí

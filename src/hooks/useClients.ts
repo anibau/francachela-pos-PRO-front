@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientsService } from '@/services/clientsService';
+import { DEFAULT_LIST_PARAMS } from '@/constants/apiDefaults';
 import type { Client } from '@/types';
 import type { PaginationParams, ClientStatistics } from '@/types/api';
 import type { ClienteQueryParams } from '@/types/backend';
@@ -20,9 +21,10 @@ export const clientKeys = {
 
 // Hooks para consultas
 export const useClients = (params?: ClienteQueryParams) => {
+  const queryParams = params ?? DEFAULT_LIST_PARAMS;
   return useQuery({
-    queryKey: clientKeys.list(params),
-    queryFn: () => clientsService.getAll(params),
+    queryKey: clientKeys.list(queryParams),
+    queryFn: () => clientsService.getAll(queryParams),
     staleTime: 5 * 60 * 1000, // 5 minutos
     gcTime: 10 * 60 * 1000, // 10 minutos
   });

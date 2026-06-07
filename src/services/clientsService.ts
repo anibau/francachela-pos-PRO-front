@@ -1,4 +1,5 @@
 import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
+import { DEFAULT_LIST_PARAMS } from '@/constants/apiDefaults';
 import { httpClient, simulateDelay } from './httpClient';
 import type { Client, ClienteTop, ClientesCumpleanosResponse, TopClientesResponse, ClienteEstadisticasByDNI } from '@/types';
 import type { ClienteQueryParams, PaginatedResponse } from '@/types/backend';
@@ -16,11 +17,11 @@ export const clientsService = {
         return [];
       }
       
-      // Usar backend real
+      const merged = { ...DEFAULT_LIST_PARAMS, ...params };
       const queryParams = new URLSearchParams();
-      if (params?.search) queryParams.append('search', params.search);
-      if (params?.page) queryParams.append('page', params.page.toString());
-      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (merged.search) queryParams.append('search', merged.search);
+      queryParams.append('page', merged.page.toString());
+      queryParams.append('limit', merged.limit.toString());
       if (params?.activo !== undefined) queryParams.append('activo', params.activo.toString());
       
       const url = `${API_ENDPOINTS.CLIENTS.BASE}${queryParams.toString() ? `?${queryParams}` : ''}`;

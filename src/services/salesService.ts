@@ -1,4 +1,5 @@
 import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
+import { DEFAULT_LIST_PARAMS } from '@/constants/apiDefaults';
 import { httpClient, simulateDelay } from './httpClient';
 import type { Sale } from '@/types';
 import { normalizeSale, normalizeSales } from '@/utils/dataTransform';
@@ -15,10 +16,11 @@ export const salesService = {
         return [];
       }
       
+      const merged = { ...DEFAULT_LIST_PARAMS, ...params };
       const queryParams = new URLSearchParams();
-      if (params?.search) queryParams.append('search', params.search);
-      if (params?.page) queryParams.append('page', params.page.toString());
-      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (merged.search) queryParams.append('search', merged.search);
+      queryParams.append('page', merged.page.toString());
+      queryParams.append('limit', merged.limit.toString());
       
       const url = `${API_ENDPOINTS.SALES.BASE}${queryParams.toString() ? `?${queryParams}` : ''}`;
       const response = await httpClient.get<any>(url);
@@ -49,7 +51,14 @@ export const salesService = {
   getToday: async (): Promise<Sale[]> => {
     try {
       const response = await httpClient.get<any>(API_ENDPOINTS.SALES.TODAY);
-      return normalizeSales(Array.isArray(response) ? response : response?.data ? response.data : []);
+      const list = Array.isArray(response)
+        ? response
+        : response?.ventas
+          ? response.ventas
+          : response?.data
+            ? response.data
+            : [];
+      return normalizeSales(list);
     } catch (error) {
       console.error('Error getting today sales:', error);
       throw new Error(extractErrorMessage(error));

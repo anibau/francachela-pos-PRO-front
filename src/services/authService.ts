@@ -308,10 +308,13 @@ export const authService = {
         API_ENDPOINTS.AUTH.PROFILE
       );
       
+      const backendRole = (response as { rol?: string; role?: string }).rol
+        || (response as { rol?: string; role?: string }).role
+        || 'CAJERO';
       return {
         id: response.id,
         username: response.username,
-        role: mapBackendRole(response.role),
+        role: mapBackendRole(backendRole),
         nombre: response.nombre,
       };
     } catch (error) {

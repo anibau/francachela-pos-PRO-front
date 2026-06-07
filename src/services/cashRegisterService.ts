@@ -61,8 +61,10 @@ export const cashRegisterService = {
       if (filters?.endDate) queryParams.append('fechaFin', filters.endDate);
       
       const url = `${API_ENDPOINTS.CASH_REGISTER.BY_RANGE}${queryParams.toString() ? `?${queryParams}` : ''}`;
-      const result = await httpClient.get<CashRegister[]>(url);
-      // Asegurar que siempre retorna un array
+      const result = await httpClient.get<CashRegister[] | { data: CashRegister[] }>(url);
+      if (result && typeof result === 'object' && 'data' in result) {
+        return ensureArray((result as { data: CashRegister[] }).data, []);
+      }
       return ensureArray(result, []);
     } catch (error) {
       console.error('Error getting cash register history:', error);
@@ -246,8 +248,8 @@ export const cashRegisterService = {
       }
       
       const queryParams = new URLSearchParams();
-      if (filters?.startDate) queryParams.append('from', filters.startDate);
-      if (filters?.endDate) queryParams.append('to', filters.endDate);
+      if (filters?.startDate) queryParams.append('fechaInicio', filters.startDate);
+      if (filters?.endDate) queryParams.append('fechaFin', filters.endDate);
       
       const url = `${API_ENDPOINTS.CASH_REGISTER.STATISTICS}${queryParams.toString() ? `?${queryParams}` : ''}`;
       return await httpClient.get<CashRegisterStatistics>(url);

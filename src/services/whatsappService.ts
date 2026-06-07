@@ -8,7 +8,8 @@ export const whatsappService = {
   async sendWelcomeMessage(idCliente: number): Promise<any> {
     try {
       return await httpClient.post(
-        `${API_ENDPOINTS.WHATSAPP.SEND_WELCOME}/${idCliente}`
+        API_ENDPOINTS.WHATSAPP.SEND_WELCOME(idCliente),
+        {},
       );
     } catch {
       throw new Error('Error al enviar mensaje de bienvenida');
@@ -49,5 +50,22 @@ export const whatsappService = {
     } catch {
       throw new Error('Error al cerrar sesión de WhatsApp');
     }
+  },
+
+  async sendVentaNotification(payload: {
+    phone: string;
+    total: number;
+    puntosGanados: number;
+    ventaId: string;
+  }): Promise<void> {
+    try {
+      await httpClient.post(API_ENDPOINTS.WHATSAPP.SEND_VENTA, payload);
+    } catch (error) {
+      console.warn('WhatsApp post-venta no enviado:', error);
+    }
+  },
+
+  async sendBirthdayMessages(): Promise<void> {
+    await httpClient.post(API_ENDPOINTS.WHATSAPP.BIRTHDAY, {});
   },
 };

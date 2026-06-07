@@ -14,6 +14,7 @@ import {
   ArrowLeft
 } from "lucide-react";
 import WhatsAppSettings from '@/components/home/WhatsAppSettings';
+import { CanAccess } from '@/components/auth/CanAccess';
 
 const menuCards = [
   {
@@ -106,32 +107,33 @@ export default function Home() {
         </p>
       </div>
 
-      {/* WhatsApp Settings Card */}
-      <div className="flex justify-center">
-        <Card 
-          className="w-full max-w-md hover:shadow-lg transition-all hover:scale-105 cursor-pointer group"
-          onClick={() => setShowWhatsAppSettings(true)}
-        >
-          <CardHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg bg-green-100 group-hover:bg-green-200 transition-colors">
-                <MessageCircle className="h-6 w-6 text-green-600" />
+      <CanAccess roles={['ADMIN']}>
+        <div className="flex justify-center">
+          <Card
+            className="w-full max-w-md hover:shadow-lg transition-all hover:scale-105 cursor-pointer group"
+            onClick={() => setShowWhatsAppSettings(true)}
+          >
+            <CardHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-lg bg-green-100 group-hover:bg-green-200 transition-colors">
+                  <MessageCircle className="h-6 w-6 text-green-600" />
+                </div>
+                <CardTitle className="text-xl group-hover:text-green-600 transition-colors">
+                  Configuración WhatsApp
+                </CardTitle>
               </div>
-              <CardTitle className="text-xl group-hover:text-green-600 transition-colors">
-                Configuración WhatsApp
-              </CardTitle>
-            </div>
-            <CardDescription className="font-medium">
-              Gestionar conexión y mensajes automáticos
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Configura la conexión de WhatsApp para envío automático de mensajes de bienvenida y notificaciones a clientes.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+              <CardDescription className="font-medium">
+                Gestionar conexión y mensajes automáticos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Configura la conexión de WhatsApp para envío automático de mensajes de bienvenida y notificaciones a clientes.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </CanAccess>
 
       {/* Main Menu Cards */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">

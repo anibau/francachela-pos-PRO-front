@@ -16,6 +16,9 @@ import { validateName, validateDNI, validatePhone, validateBirthday, calculateAg
 import type { Client } from "@/types";
 import { API_ENDPOINTS } from '@/config/api';
 import { httpClient } from '@/services/httpClient';
+import { downloadAuthenticatedBlob } from '@/utils/apiExport';
+import { CanAccess } from '@/components/auth/CanAccess';
+import { LoadingState } from '@/components/ui/state-views';
 
 // Validaciones en tiempo real
 interface ValidationErrors {
@@ -262,9 +265,7 @@ export default function Clientes() {
   const handleSendWhatsApp = async (dni: string) => {
   const toastId = toast.loading('Enviando información por WhatsApp...');
   try {
-    const url = `${API_ENDPOINTS.WHATSAPP.SEND_CLIENT_INFO}/${dni}`;
-
-    await httpClient.post(url);
+    await httpClient.post(API_ENDPOINTS.WHATSAPP.SEND_CLIENT_INFO(dni), {});
 
     toast.success('Información enviada por WhatsApp exitosamente', {
       id: toastId,
@@ -287,12 +288,10 @@ export default function Clientes() {
 
  
   // Función para enviar mensaje de cumpleaños
-  const handleSendBirthdayMessage = async (clienteId: number) => {
-  const toastId = toast.loading('Enviando mensaje de cumpleaños...');
+  const handleSendBirthdayMessage = async () => {
+  const toastId = toast.loading('Enviando mensajes de cumpleaños...');
   try {
-    const url = `${API_ENDPOINTS.WHATSAPP.BIRTHDAY}/${clienteId}`;
-
-    await httpClient.post(url);
+    await whatsappService.sendBirthdayMessages();
 
     toast.success(
       '¡Mensaje de cumpleaños enviado exitosamente!',
@@ -372,39 +371,21 @@ export default function Clientes() {
   });
 
   const exportToExcel = async () => {
-  const toastId = toast.loading('Generando archivo Excel...');
-  try {
-    const response = await httpClient.get<Blob>(
-      API_ENDPOINTS.EXCEL.CLIENTS,
-      {
-        responseType: 'blob',
-      }
-    );
-
-    const blob = new Blob([response], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-
-    const downloadUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = `clientes_${new Date().toISOString().split('T')[0]}.xlsx`;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(downloadUrl);
-
-    toast.success('Clientes exportados correctamente', { id: toastId });
-      } catch (error) {
-        console.error('Error exporting clients:', error);
-        toast.error('Error al exportar clientes', { id: toastId });
-      }
+    const toastId = toast.loading('Generando archivo Excel...');
+    try {
+      await downloadAuthenticatedBlob(
+        '/excel/export-clientes',
+        `clientes_${new Date().toISOString().split('T')[0]}.xlsx`,
+      );
+      toast.success('Clientes exportados correctamente', { id: toastId });
+    } catch (error) {
+      toast.error('Error al exportar clientes', { id: toastId });
+    }
   };
 
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64">Cargando clientes...</div>;
+    return <LoadingState message="Cargando clientes..." />;
   }
 
   // Mostrar mensaje cuando no hay clientes (después de que termine de cargar)
@@ -419,10 +400,16 @@ export default function Clientes() {
         </div>
         
         <div className="flex gap-2 w-full sm:w-auto">
-          <Button onClick={exportToExcel} variant="outline" className="flex-1 sm:flex-none">
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Exportar Excel
-          </Button>
+          <CanAccess roles={['ADMIN']}>
+            <Button onClick={exportToExcel} variant="outline" className="flex-1 sm:flex-none">
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Exportar Excel
+            </Button>
+            <Button onClick={handleSendBirthdayMessage} variant="outline" className="flex-1 sm:flex-none">
+              <Gift className="h-4 w-4 mr-2" />
+              Cumpleaños del día
+            </Button>
+          </CanAccess>
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
             if (!open) resetForm();
@@ -800,22 +787,14 @@ export default function Clientes() {
                 <Button size="icon" variant="ghost" onClick={() => handleSendWhatsApp(cliente.dni)} title="Enviar información por WhatsApp">
                   <MessageCircle className="h-4 w-4" />
                 </Button>
-                <Button 
-                  size="icon" 
-                  variant="ghost" 
-                  onClick={() => handleSendBirthdayMessage(cliente.id)} 
-                  disabled={!cliente.esCumpleañosHoy}
-                  title={cliente.esCumpleañosHoy ? "¡Enviar felicitación de cumpleaños!" : "No es cumpleaños hoy"}
-                  className={cliente.esCumpleañosHoy ? "text-yellow-600 hover:text-yellow-700" : ""}
-                >
-                  <Gift className="h-4 w-4" />
-                </Button>
                 <Button size="icon" variant="ghost" onClick={() => openEditDialog(cliente)}>
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <Button size="icon" variant="ghost" onClick={() => handleDelete(cliente.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <CanAccess roles={['ADMIN']}>
+                  <Button size="icon" variant="ghost" onClick={() => handleDelete(cliente.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </CanAccess>
               </div>
             </CardHeader>
             <CardContent>

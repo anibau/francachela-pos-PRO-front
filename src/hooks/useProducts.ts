@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productsService } from '@/services/productsService';
+import { DEFAULT_LIST_PARAMS } from '@/constants/apiDefaults';
 import type { Product } from '@/types';
 import type { ProductoQueryParams } from '@/types/backend';
 
@@ -17,9 +18,10 @@ export const productKeys = {
 
 // Hooks para consultas
 export const useProducts = (params?: ProductoQueryParams) => {
+  const queryParams = params ?? DEFAULT_LIST_PARAMS;
   return useQuery({
-    queryKey: productKeys.list(params),
-    queryFn: () => productsService.getAll(params),
+    queryKey: productKeys.list(queryParams),
+    queryFn: () => productsService.getAll(queryParams),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });

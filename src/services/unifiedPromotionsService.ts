@@ -1,5 +1,7 @@
 import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
+import { DEFAULT_LIST_PARAMS } from '@/constants/apiDefaults';
 import { httpClient, simulateDelay } from './httpClient';
+import type { PaginatedResponse } from '@/types/backend';
 
 // Enums para tipos de promoción y descuento
 export enum TipoPromocion {
@@ -118,8 +120,18 @@ export const unifiedPromotionsService = {
         return [];
       }
       
-      const response = await httpClient.get<UnifiedPromotion[]>('/promociones/unificadas');
-      return response || [];
+      const query = new URLSearchParams({
+        page: String(DEFAULT_LIST_PARAMS.page),
+        limit: String(DEFAULT_LIST_PARAMS.limit),
+      });
+      const response = await httpClient.get<PaginatedResponse<UnifiedPromotion> | UnifiedPromotion[]>(
+        `${API_ENDPOINTS.UNIFIED_PROMOTIONS.BASE}?${query}`,
+      );
+      if (Array.isArray(response)) return response;
+      if (response && typeof response === 'object' && 'data' in response) {
+        return (response as PaginatedResponse<UnifiedPromotion>).data;
+      }
+      return [];
     } catch (error) {
       console.error('Error getting unified promotions:', error);
       throw error;
@@ -136,7 +148,7 @@ export const unifiedPromotionsService = {
         return [];
       }
       
-      const response = await httpClient.get<UnifiedPromotion[]>('/promociones/unificadas/activas');
+      const response = await httpClient.get<UnifiedPromotion[]>(API_ENDPOINTS.UNIFIED_PROMOTIONS.ACTIVE);
       return response || [];
     } catch (error) {
       console.error('Error getting active unified promotions:', error);
@@ -278,7 +290,10 @@ export const unifiedPromotionsService = {
         };
       }
       
-      const response = await httpClient.post<EvaluatePromotionResponse>('/promociones/evaluar', data);
+      const response = await httpClient.post<EvaluatePromotionResponse>(
+        API_ENDPOINTS.UNIFIED_PROMOTIONS.EVALUATE,
+        data,
+      );
       return response;
     } catch (error) {
       console.error('Error evaluating promotions:', error);

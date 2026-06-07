@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Receipt, Plus, Search, Calendar, DollarSign, TrendingUp, Filter, Pencil, Trash2 } from 'lucide-react';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { toast } from 'sonner';
 import { expensesService } from '@/services/expensesService';
 import { EntradasSection } from '@/components/gastos/EntradasSection';
@@ -574,14 +575,16 @@ export default function Gastos() {
                               {expense.cajero}
                             </td>
                             <td className="p-2 text-center">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(expense.id)}
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <CanAccess roles={['ADMIN']}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(expense.id)}
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </CanAccess>
                             </td>
                           </tr>
                         ))}
@@ -744,14 +747,16 @@ export default function Gastos() {
                               {expense.cajero}
                             </td>
                             <td className="p-2 text-center">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(expense.id)}
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <CanAccess roles={['ADMIN']}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(expense.id)}
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </CanAccess>
                             </td>
                           </tr>
                         ))}

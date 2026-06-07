@@ -38,8 +38,8 @@ import type {
 import { productsService } from './productsService';
 import { clientsService } from './clientsService';
 import { salesService } from './salesService';
-import { promotionsService } from './promotionsService';
-import { combosService } from './combosService';
+import { unifiedPromotionsService, TipoPromocion } from './unifiedPromotionsService';
+import { deliveryService } from './deliveryService';
 import { cashRegisterService } from './cashRegisterService';
 import { expensesService } from './expensesService';
 import { inventoryService } from './inventoryService';
@@ -292,144 +292,75 @@ export const salesAPI = {
 };
 
 // ============================================================================
-// PROMOCIONES - Redirigir al nuevo servicio especializado
+// PROMOCIONES / COMBOS — servicio unificado
 // ============================================================================
+const mapUnifiedToPromotion = (p: Awaited<ReturnType<typeof unifiedPromotionsService.getAll>>[number]): Promotion => ({
+  id: p.id,
+  name: p.nombre,
+  description: p.descripcion,
+  discount: parseFloat(p.descuento) || 0,
+  startDate: p.fechaInicio,
+  endDate: p.fechaFin,
+  active: p.activo,
+  type: p.tipoPromocion,
+});
+
+const mapUnifiedToCombo = (p: Awaited<ReturnType<typeof unifiedPromotionsService.getAll>>[number]): Combo => ({
+  id: p.id,
+  name: p.nombre,
+  description: p.descripcion,
+  price: parseFloat(p.precioCombo || p.descuento) || 0,
+  products: p.productos.map((pp) => ({
+    productId: pp.productoId,
+    quantity: pp.cantidadExacta || pp.cantidadMinima || 1,
+  })),
+  active: p.activo,
+  savings: parseFloat(p.descuento) || 0,
+});
+
 export const promotionsAPI = {
   getAll: async (): Promise<Promotion[]> => {
     try {
-      return await promotionsService.getAll();
+      const list = await unifiedPromotionsService.getAll();
+      return list.map(mapUnifiedToPromotion);
     } catch (error) {
       return handleApiError(error);
     }
   },
-
-  getById: async (id: number): Promise<Promotion> => {
-    try {
-      return await promotionsService.getById(id);
-    } catch (error) {
-      return handleApiError(error);
-    }
+  getById: async (id: number) => {
+    const p = await unifiedPromotionsService.getById(id);
+    return mapUnifiedToPromotion(p);
   },
-
-  create: async (promotion: Omit<Promotion, 'id'>): Promise<Promotion> => {
-    try {
-      return await promotionsService.create(promotion);
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
-  update: async (id: number, promotion: Partial<Promotion>): Promise<Promotion> => {
-    try {
-      return await promotionsService.update(id, promotion);
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
-  delete: async (id: number): Promise<void> => {
-    try {
-      await promotionsService.delete(id);
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
-  // Métodos adicionales del nuevo servicio
   getActive: async (): Promise<Promotion[]> => {
-    try {
-      return await promotionsService.getActive();
-    } catch (error) {
-      return handleApiError(error);
-    }
+    const list = await unifiedPromotionsService.getActive();
+    return list.map(mapUnifiedToPromotion);
   },
-
-  activate: async (id: number): Promise<Promotion> => {
-    try {
-      return await promotionsService.activate(id);
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
-  deactivate: async (id: number): Promise<Promotion> => {
-    try {
-      return await promotionsService.deactivate(id);
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
+  activate: async (id: number) => mapUnifiedToPromotion(await unifiedPromotionsService.activate(id)),
+  deactivate: async (id: number) => mapUnifiedToPromotion(await unifiedPromotionsService.deactivate(id)),
+  create: async () => { throw new Error('Usar unifiedPromotionsService.create'); },
+  update: async () => { throw new Error('Usar unifiedPromotionsService.update'); },
+  delete: async (id: number) => unifiedPromotionsService.delete(id),
 };
 
-// ============================================================================
-// SERVICIOS PENDIENTES DE MIGRACIÓN (usando mocks temporalmente)
-// ============================================================================
-
-// Combos
 export const combosAPI = {
   getAll: async (): Promise<Combo[]> => {
     try {
-      return await combosService.getAll();
+      const list = await unifiedPromotionsService.getAll();
+      return list.filter((p) => p.tipoPromocion === TipoPromocion.COMBO).map(mapUnifiedToCombo);
     } catch (error) {
       return handleApiError(error);
     }
   },
-
-  getById: async (id: number): Promise<Combo> => {
-    try {
-      return await combosService.getById(id);
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
-  create: async (combo: Omit<Combo, 'id'>): Promise<Combo> => {
-    try {
-      return await combosService.create(combo);
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
-  update: async (id: number, combo: Partial<Combo>): Promise<Combo> => {
-    try {
-      return await combosService.update(id, combo);
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
-  delete: async (id: number): Promise<void> => {
-    try {
-      await combosService.delete(id);
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
   getActive: async (): Promise<Combo[]> => {
-    try {
-      return await combosService.getActive();
-    } catch (error) {
-      return handleApiError(error);
-    }
+    const list = await unifiedPromotionsService.getActive();
+    return list.filter((p) => p.tipoPromocion === TipoPromocion.COMBO).map(mapUnifiedToCombo);
   },
-
-  activate: async (id: number): Promise<Combo> => {
-    try {
-      return await combosService.activate(id);
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
-
-  deactivate: async (id: number): Promise<Combo> => {
-    try {
-      return await combosService.deactivate(id);
-    } catch (error) {
-      return handleApiError(error);
-    }
-  },
+  getById: async (id: number) => mapUnifiedToCombo(await unifiedPromotionsService.getById(id)),
+  activate: async (id: number) => mapUnifiedToCombo(await unifiedPromotionsService.activate(id)),
+  deactivate: async (id: number) => mapUnifiedToCombo(await unifiedPromotionsService.deactivate(id)),
+  create: async () => { throw new Error('Usar unifiedPromotionsService.create con tipo COMBO'); },
+  update: async () => { throw new Error('Usar unifiedPromotionsService.update'); },
+  delete: async (id: number) => unifiedPromotionsService.delete(id),
 };
 
 // ============================================================================
@@ -703,34 +634,30 @@ export const settingsAPI = {
   },
 };
 
-// Delivery (placeholder)
 export const deliveryAPI = {
   getAll: async (): Promise<DeliveryOrder[]> => {
     try {
-      return []; // Mock vacío por ahora
+      const list = await deliveryService.getAll();
+      return list.map((d) => ({
+        id: d.id,
+        client: d.cliente as unknown as Client,
+        address: d.direccion,
+        phone: d.phone || d.cliente?.telefono || '',
+        products: [],
+        total: Number(d.deliveryFee) || 0,
+        status: (d.estado?.toLowerCase() || 'pending') as DeliveryOrder['status'],
+        deliveryFee: Number(d.deliveryFee) || 0,
+        driver: d.repartidor,
+        notes: d.notes,
+      }));
     } catch (error) {
       return handleApiError(error);
     }
   },
-
   create: async (order: Omit<DeliveryOrder, 'id'>): Promise<DeliveryOrder> => {
-    try {
-      const newOrder = {
-        ...order,
-        id: Date.now(),
-      };
-      return newOrder;
-    } catch (error) {
-      return handleApiError(error);
-    }
+    throw new Error('Usar deliveryService — creación pendiente de UI');
   },
-
   update: async (id: number, order: Partial<DeliveryOrder>): Promise<DeliveryOrder> => {
-    try {
-      // Mock implementation
-      return { id, ...order } as DeliveryOrder;
-    } catch (error) {
-      return handleApiError(error);
-    }
+    return { id, ...order } as DeliveryOrder;
   },
 };

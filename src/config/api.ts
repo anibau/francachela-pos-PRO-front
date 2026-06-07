@@ -29,6 +29,7 @@ export const API_ENDPOINTS = {
   PRODUCTS: {
     BASE: '/productos',
     BY_ID: (id: number) => `/productos/${id}`,
+    BY_BARCODE: (codigo: string) => `/productos/codigo/${encodeURIComponent(codigo)}`,
     SEARCH: '/productos/search',
     CATEGORIES: '/productos/categorias',
     LOW_STOCK: '/productos/stock-bajo',
@@ -168,14 +169,28 @@ export const API_ENDPOINTS = {
     QR: '/whatsapp/qr',
     RECONNECT: '/whatsapp/reconnect',
     LOGOUT: '/whatsapp/logout',
-    SEND_CLIENT_INFO: '/whatsapp/send-client-info',
+    SEND_CLIENT_INFO: (dni: string) => `/whatsapp/send-client-info/${dni}`,
     BIRTHDAY: '/whatsapp/birthday',
-    SEND_WELCOME: '/whatsapp/send-welcome',
+    SEND_WELCOME: (clienteId: number) => `/whatsapp/send-welcome/${clienteId}`,
+    SEND_VENTA: '/whatsapp/send-venta',
   },
 
-  // Puntos (Tarea 6)
+  // Puntos
   POINTS: {
     EVALUATE: '/puntos/evaluar',
+    HISTORIAL: (clienteId: number) => `/puntos/historial/${clienteId}`,
+    AJUSTAR: '/puntos/ajustar',
+    ESTADISTICAS: '/puntos/estadisticas',
+  },
+
+  // Promociones unificadas
+  UNIFIED_PROMOTIONS: {
+    BASE: '/promociones/unificadas',
+    ACTIVE: '/promociones/unificadas/activas',
+    BY_ID: (id: number) => `/promociones/unificadas/${id}`,
+    EVALUATE: '/promociones/evaluar',
+    ACTIVATE: (id: number) => `/promociones/unificadas/${id}/activate`,
+    DEACTIVATE: (id: number) => `/promociones/unificadas/${id}/deactivate`,
   },
   
   // Exportación Excel

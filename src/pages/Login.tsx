@@ -1,89 +1,37 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
 import { Lock, User } from 'lucide-react';
+import { loginSchema, type LoginFormValues } from '@/schemas/loginSchema';
 
 export default function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  /**
-   * Validar los campos del formulario
-   * @returns true si es válido, false si hay errores
-   */
-  const validateForm = (): boolean => {
-    const newErrors: typeof errors = {};
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { username: '', password: '' },
+  });
 
-    if (!username || username.trim().length === 0) {
-      newErrors.username = 'El nombre de usuario es requerido';
-    } else if (username.trim().length < 3) {
-      newErrors.username = 'El nombre de usuario debe tener al menos 3 caracteres';
-    }
-
-    if (!password || password.trim().length === 0) {
-      newErrors.password = 'La contraseña es requerida';
-    } else if (password.length < 6) {
-      newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validar antes de intentar login
-    if (!validateForm()) {
-      return;
-    }
-
+  const onSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
-    setErrors({});
-    
     try {
-      // Enviar username y password al servicio
-      // El backend espera { username: string, password: string }
-      await login(username.trim(), password);
+      await login(values.username, values.password);
       toast.success('¡Bienvenido a Francachela POS!');
       navigate('/home');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error al iniciar sesión';
       toast.error(errorMessage);
-      console.error('Login error:', error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  /**
-   * Manejar cambios en el campo de username
-   */
-  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUsername(e.target.value);
-    // Limpiar error de username si está siendo editado
-    if (errors.username) {
-      setErrors({ ...errors, username: undefined });
-    }
-  };
-
-  /**
-   * Manejar cambios en el campo de password
-   */
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value);
-    // Limpiar error de password si está siendo editado
-    if (errors.password) {
-      setErrors({ ...errors, password: undefined });
     }
   };
 
@@ -95,62 +43,58 @@ export default function Login() {
           <CardDescription>Ingresa tus credenciales para acceder al sistema</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Usuario</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="username"
-                  type="text"
-                  placeholder="Ingresa tu usuario (ej: admin)"
-                  value={username}
-                  onChange={handleUsernameChange}
-                  className={`pl-10 ${errors.username ? 'border-red-500' : ''}`}
-                  disabled={isLoading}
-                  autoComplete="username"
-                  aria-invalid={!!errors.username}
-                  aria-describedby={errors.username ? 'username-error' : undefined}
-                />
-              </div>
-              {errors.username && (
-                <p id="username-error" className="text-sm text-red-500 mt-1">
-                  {errors.username}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Ingresa tu contraseña"
-                  value={password}
-                  onChange={handlePasswordChange}
-                  className={`pl-10 ${errors.password ? 'border-red-500' : ''}`}
-                  disabled={isLoading}
-                  autoComplete="current-password"
-                  aria-invalid={!!errors.password}
-                  aria-describedby={errors.password ? 'password-error' : undefined}
-                />
-              </div>
-              {errors.password && (
-                <p id="password-error" className="text-sm text-red-500 mt-1">
-                  {errors.password}
-                </p>
-              )}
-            </div>
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={isLoading}
-              aria-busy={isLoading}
-            >
-              {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-            </Button>
-          </form>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Usuario</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          {...field}
+                          className="pl-10"
+                          placeholder="Ingresa tu usuario (ej: admin)"
+                          disabled={isLoading}
+                          autoComplete="username"
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contraseña</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          {...field}
+                          type="password"
+                          className="pl-10"
+                          placeholder="Ingresa tu contraseña"
+                          disabled={isLoading}
+                          autoComplete="current-password"
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" disabled={isLoading} aria-busy={isLoading}>
+                {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+              </Button>
+            </form>
+          </Form>
         </CardContent>
       </Card>
     </div>
