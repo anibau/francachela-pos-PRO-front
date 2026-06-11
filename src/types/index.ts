@@ -137,6 +137,7 @@ export interface SalePreviewRequest {
   items: {
     productoId: number;
     cantidad: number;
+    precioUnitario?: number;
   }[];
   clienteId?: number;
   puntosAUsar?: number;

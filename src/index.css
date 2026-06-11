@@ -173,3 +173,9 @@ All colors MUST be HSL.
     @apply bg-muted rounded-full hover:bg-muted/80;
   }
 }
+
+@layer utilities {
+  .touch-target {
+    @apply min-h-11 min-w-11;
+  }
+}

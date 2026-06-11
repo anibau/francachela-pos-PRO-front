@@ -7,6 +7,7 @@ export interface PointsEvaluationRequest {
   items: Array<{
     productoId: number;
     cantidad: number;
+    precioUnitario?: number;
   }>;
   puntosSolicitados: number;
 }

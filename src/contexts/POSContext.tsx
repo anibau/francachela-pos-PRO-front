@@ -12,9 +12,15 @@ import { salesService } from "@/services/salesService";
 import { whatsappService } from "@/services/whatsappService";
 import { clientsService } from "@/services/clientsService";
 import { cashRegisterService } from "@/services/cashRegisterService";
-import { roundMoney, roundToNearestDime } from "@/utils/moneyUtils";
-import { calculateTicketTotal } from "@/utils/calculateTicketTotal";
 import { toast } from "sonner";
+import { roundMoney } from "@/utils/moneyUtils";
+import { buildCreatePayloadFromPreview } from "@/features/pos/utils/buildCreatePayload";
+import {
+  canAddOneUnit,
+  canIncreaseQty,
+  getAvailableStock,
+} from "@/features/pos/utils/stockUtils";
+import type { PointsEvaluationResponse } from "@/services/pointsService";
 
 // Interfaz extendida para items en el ticket del POS
 interface POSItem extends SaleItem {
@@ -23,14 +29,18 @@ interface POSItem extends SaleItem {
   isWholesale?: boolean;
 }
 
-interface Ticket {
+export interface Ticket {
   id: string;
   items: POSItem[];
   clientId?: number;
   clientName?: string;
+  clientPuntos?: number;
   notes?: string;
   discount: number;
   recargoExtra: number;
+  puntosAUsar?: number;
+  pointsEvaluation?: PointsEvaluationResponse | null;
+  salePreview?: SalePreviewResponse | null;
 }
 
 interface POSContextType {
@@ -49,23 +59,25 @@ interface POSContextType {
   addItem: (product: Product, isWholesale?: boolean) => void;
   updateItemQuantity: (itemIndex: number, delta: number, product?: Product) => void;
   removeItem: (itemIndex: number) => void;
-  setTicketClient: (clientId?: number, clientName?: string) => void;
+  setTicketClient: (clientId?: number, clientName?: string, clientPuntos?: number) => void;
   setTicketNotes: (notes: string) => void;
   applyDiscount: (discount: number) => void;
   applyRecargoExtra: (recargoExtra: number) => void;
   getActiveTicket: () => Ticket | undefined;
-  // getTicketTotal: (ticketId?: string) => number;
+  updateActiveTicketPoints: (
+    update: Partial<Pick<Ticket, "puntosAUsar" | "pointsEvaluation">>,
+  ) => void;
+  invalidateActiveTicketPreview: () => void;
   
-  // Nuevos métodos para flujo profesional
   checkCashRegisterState: () => Promise<void>;
   previewSale: (puntosAUsar?: number, montoRecibido?: number, descuento?: number, recargoExtra?: number) => Promise<SalePreviewResponse | null>;
   clearPreview: () => void;
   
-  // Método de venta refactorizado
   completeSale: (
+    salePreview: SalePreviewResponse,
     paymentMethod: PaymentMethod,
     cashierName: string,
-    montoRecibido?: number,
+    puntosUsados?: number,
     metodosPageo?: Array<{
       monto: number;
       metodoPago: PaymentMethod;
@@ -73,7 +85,9 @@ interface POSContextType {
     }>,
     products?: Product[],
     refetchProducts?: () => void,
-    refetchClients?: () => void
+    refetchClients?: () => void,
+    clients?: Client[],
+    efectivoEntregado?: number,
   ) => Promise<void>;
 }
 
@@ -88,9 +102,33 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
   
   // Estados para flujo profesional
   const [cashRegisterState, setCashRegisterState] = useState<CashRegisterState | null>(null);
-  const [salePreview, setSalePreview] = useState<SalePreviewResponse | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isLoadingCashState, setIsLoadingCashState] = useState(false);
+
+  const getActiveTicket = useCallback(() => {
+    return tickets.find((t) => t.id === activeTicketId);
+  }, [tickets, activeTicketId]);
+
+  const activeSalePreview = getActiveTicket()?.salePreview ?? null;
+
+  const invalidateActiveTicketPreview = useCallback(() => {
+    setTickets((prev) =>
+      prev.map((t) =>
+        t.id === activeTicketId ? { ...t, salePreview: null } : t,
+      ),
+    );
+  }, [activeTicketId]);
+
+  const updateActiveTicketPoints = useCallback(
+    (update: Partial<Pick<Ticket, "puntosAUsar" | "pointsEvaluation">>) => {
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id === activeTicketId ? { ...t, ...update, salePreview: null } : t,
+        ),
+      );
+    },
+    [activeTicketId],
+  );
 
   const createTicket = useCallback(() => {
     const newId = String(ticketCounter + 1);
@@ -116,85 +154,60 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
     [activeTicketId, tickets]
   );
 
-  const getActiveTicket = useCallback(() => {
-    return tickets.find((t) => t.id === activeTicketId);
-  }, [tickets, activeTicketId]);
-
   const addItem = useCallback(
     (product: Product, isWholesale: boolean = false) => {
-      // TAREA 5: Validaciones de stock antes de agregar
-      if (product.usaInventario) {
-        if (product.cantidadActual <= 0) {
+      setTickets((prev) => {
+        const ticket = prev.find((t) => t.id === activeTicketId);
+        if (!ticket) return prev;
+
+        if (!canAddOneUnit(product, ticket.items, product.id)) {
+          const avail = getAvailableStock(product, ticket.items, product.id);
           toast.error("Stock insuficiente", {
-            description: `El producto "${product.productoDescripcion}" no tiene stock disponible.`
+            description:
+              avail <= 0
+                ? `"${product.productoDescripcion}" sin stock disponible.`
+                : `Solo quedan ${product.cantidadActual} u. de "${product.productoDescripcion}" (${avail} por agregar).`,
           });
-          return;
+          return prev;
         }
-      }
 
-      setTickets((prev) =>
-        prev.map((ticket) => {
-          if (ticket.id !== activeTicketId) return ticket;
+        return prev.map((t) => {
+          if (t.id !== activeTicketId) return t;
 
-          // Asegurar que el precio está redondeado a 2 decimales
           const precio = roundMoney(isWholesale ? product.precioMayoreo : product.precio);
-
-          // Buscar si existe el item con mismo producto y tipo de precio
-          const existingItemIndex = ticket.items.findIndex(
-            (item) =>
-              item.productId === product.id && item.isWholesale === isWholesale
+          const existingItemIndex = t.items.findIndex(
+            (item) => item.productId === product.id && item.isWholesale === isWholesale,
           );
 
+          let items: POSItem[];
           if (existingItemIndex !== -1) {
-            // TAREA 5: Validar stock antes de aumentar cantidad
-            const existingItem = ticket.items[existingItemIndex];
+            const existingItem = t.items[existingItemIndex];
             const nuevaCantidad = existingItem.cantidad + 1;
-            
-            if (product.usaInventario && nuevaCantidad > product.cantidadActual) {
-              toast.error("Stock insuficiente", {
-                description: `Solo hay ${product.cantidadActual} unidades disponibles de "${product.productoDescripcion}".`
-              });
-              return ticket; // No modificar el ticket
-            }
-
-            // Actualizar cantidad
-            const updatedItems = [...ticket.items];
-            updatedItems[existingItemIndex] = {
+            items = [...t.items];
+            items[existingItemIndex] = {
               ...existingItem,
               cantidad: nuevaCantidad,
               subtotal: roundMoney(nuevaCantidad * existingItem.precio),
             };
-
-            return {
-              ...ticket,
-              items: updatedItems,
+          } else {
+            const newItem: POSItem = {
+              id: product.id,
+              productId: product.id,
+              descripcion: product.productoDescripcion,
+              cantidad: 1,
+              precio,
+              subtotal: precio,
+              puntosValor: product.valorPuntos || 0,
+              isWholesale,
             };
+            items = [...t.items, newItem];
           }
 
-          // Agregar nuevo item
-          // Usar el valorPuntos del producto SOLO si es mayor a 0
-          // Si es 0 o no existe, el badge no debería mostrarse
-          const puntosValor = product.valorPuntos || 0;
-
-          const newItem: POSItem = {
-            id: product.id,
-            productId: product.id,
-            descripcion: product.productoDescripcion,
-            cantidad: 1,
-            precio,
-            subtotal: precio,
-            puntosValor,
-            isWholesale,
-          };
-
-          return {
-            ...ticket,
-            items: [...ticket.items, newItem],
-          };
-        })
-      );
+          return { ...t, items, salePreview: null, pointsEvaluation: null };
+        });
+      });
     },
-    [activeTicketId]
+    [activeTicketId],
   );
 
   const updateItemQuantity = useCallback(
@@ -203,34 +216,32 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         prev.map((ticket) => {
           if (ticket.id !== activeTicketId) return ticket;
 
-          const updatedItems = [...ticket.items];
-          const item = updatedItems[itemIndex];
+          const item = ticket.items[itemIndex];
+          if (!item) return ticket;
           const nuevaCantidad = Math.max(1, item.cantidad + delta);
 
-          // TAREA 5: Validar stock al aumentar cantidad
-          if (delta > 0 && product && product.usaInventario) {
-            if (nuevaCantidad > product.cantidadActual) {
+          if (delta > 0 && product?.usaInventario) {
+            if (!canIncreaseQty(product, ticket.items, item.productId)) {
+              const avail = getAvailableStock(product, ticket.items, item.productId);
               toast.error("Stock insuficiente", {
-                description: `Solo hay ${product.cantidadActual} unidades disponibles de "${product.productoDescripcion}".`
+                description: `Solo quedan ${product.cantidadActual} u. de "${product.productoDescripcion}" (${avail} por agregar).`,
               });
-              return ticket; // No modificar el ticket
+              return ticket;
             }
           }
 
+          const updatedItems = [...ticket.items];
           updatedItems[itemIndex] = {
             ...item,
             cantidad: nuevaCantidad,
             subtotal: roundMoney(item.precio * nuevaCantidad),
           };
 
-          return {
-            ...ticket,
-            items: updatedItems,
-          };
-        })
+          return { ...ticket, items: updatedItems, salePreview: null, pointsEvaluation: null };
+        }),
       );
     },
-    [activeTicketId]
+    [activeTicketId],
   );
 
   const removeItem = useCallback(
@@ -242,6 +253,8 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           return {
             ...ticket,
             items: ticket.items.filter((_, index) => index !== itemIndex),
+            salePreview: null,
+            pointsEvaluation: null,
           };
         })
       );
@@ -250,16 +263,24 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
   );
 
   const setTicketClient = useCallback(
-    (clientId?: number, clientName?: string) => {
+    (clientId?: number, clientName?: string, clientPuntos?: number) => {
       setTickets((prev) =>
         prev.map((ticket) =>
           ticket.id === activeTicketId
-            ? { ...ticket, clientId, clientName }
-            : ticket
-        )
+            ? {
+                ...ticket,
+                clientId,
+                clientName,
+                clientPuntos,
+                puntosAUsar: 0,
+                pointsEvaluation: null,
+                salePreview: null,
+              }
+            : ticket,
+        ),
       );
     },
-    [activeTicketId]
+    [activeTicketId],
   );
 
   const setTicketNotes = useCallback(
@@ -327,7 +348,8 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
       const previewRequest: SalePreviewRequest = {
         items: ticket.items.map(item => ({
           productoId: item.productId,
-          cantidad: item.cantidad
+          cantidad: item.cantidad,
+          precioUnitario: item.precio,
         })),
         clienteId: ticket.clientId,
         puntosAUsar: puntosAUsar,
@@ -337,8 +359,12 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
       };
 
       const preview = await salesService.preview(previewRequest);
-      setSalePreview(preview);
-      return preview; // ✅ RETORNAR la respuesta
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id === activeTicketId ? { ...t, salePreview: preview } : t,
+        ),
+      );
+      return preview;
     } catch (error) {
       console.error('Error previewing sale:', error);
       toast.error('Error al previsualizar venta');
@@ -346,18 +372,22 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoadingPreview(false);
     }
-  }, [getActiveTicket]);
+  }, [getActiveTicket, activeTicketId]);
 
-  // Método para limpiar preview
   const clearPreview = useCallback(() => {
-    setSalePreview(null);
-  }, []);
+    setTickets((prev) =>
+      prev.map((t) =>
+        t.id === activeTicketId ? { ...t, salePreview: null } : t,
+      ),
+    );
+  }, [activeTicketId]);
 
   const completeSale = useCallback(
     async (
+      salePreview: SalePreviewResponse,
       paymentMethod: PaymentMethod,
-      cashierName: string,
-      montoRecibido: number = 0,
+      _cashierName: string,
+      puntosUsados: number = 0,
       metodosPageo?: Array<{
         monto: number;
         metodoPago: PaymentMethod;
@@ -366,9 +396,8 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
       products?: Product[],
       refetchProducts?: () => void,
       refetchClients?: () => void,
-      puntosUsados: number = 0,
       clients?: Client[],
-      promoDescuento: number = 0,
+      efectivoEntregado?: number,
     ) => {
       const ticket = getActiveTicket();
 
@@ -378,113 +407,28 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        // 🎯 USAR EL MOTOR ÚNICO DE CÁLCULO
-        const puntosDescuento = puntosUsados > 0 ? (puntosUsados * 0.1) : 0;
-        const descuentoTotal = roundMoney(ticket.discount + promoDescuento);
-        const totalRedondeado = calculateTicketTotal(
-          ticket.items,
-          descuentoTotal,
-          ticket.recargoExtra,
-          puntosDescuento
-        );
-
-        // Calcular puntos (1 punto por cada sol gastado)
-        const puntosOtorgados = Math.floor(totalRedondeado);
-
-        // Log para debugging
-        console.log("[POSContext] Ticket actual:", {
-          id: ticket.id,
-          clientId: ticket.clientId,
-          clientName: ticket.clientName,
-          itemsCount: ticket.items.length,
+        const saleData = buildCreatePayloadFromPreview({
+          ticket: {
+            clientId: ticket.clientId,
+            notes: ticket.notes,
+            discount: ticket.discount,
+            recargoExtra: ticket.recargoExtra,
+            items: ticket.items.map((item) => ({
+              productId: item.productId,
+              cantidad: item.cantidad,
+              precio: item.precio,
+              isWholesale: item.isWholesale,
+            })),
+          },
+          salePreview,
+          paymentMethod,
+          puntosUsados,
+          metodosPageo,
+          products,
+          efectivoEntregado,
         });
 
-        // Calcular descuento por mayoreo
-        let descuentoMayoreo = 0;
-        const listaProductosConDescuento = ticket.items.map((item) => {
-          let descuentoPorItem = 0;
-
-          if (item.isWholesale && products) {
-            // Buscar el producto original para obtener precio normal
-            const producto = products.find((p) => p.id === item.productId);
-            if (producto && producto.precio && producto.precioMayoreo) {
-              // El descuento por mayoreo se calcula como: precio_normal - precio_mayoreo
-              descuentoPorItem = roundMoney(producto.precio - producto.precioMayoreo);
-            }
-          }
-
-          descuentoMayoreo += descuentoPorItem * item.cantidad;
-
-          // Retornar solo los campos que el backend espera
-          return {
-            productoId: item.productId,
-            cantidad: item.cantidad,
-            precioUnitario: item.precio, // Precio que se está usando (normal o mayoreo)
-          };
-        });
-
-        // Crear venta en el backend
-        // NOTA: No incluir descuento cuando hay mayoreo porque el descuento ya está
-        // reflejado en el precioUnitario de los productos (ej: 3.5 en lugar de 4.5)
-        // Solo enviar descuento manual si no hay mayoreo
-        const hasMayoreo = descuentoMayoreo > 0;
-
-        // Construir metodosPageo - siempre como array
-        let metodosPageoArray: Array<{
-          monto: number;
-          metodoPago: PaymentMethod;
-          referencia?: string;
-        }>;
-
-        if (metodosPageo && metodosPageo.length > 0) {
-          // Redondear cada monto usando roundMoney y sincronizar con total
-          metodosPageoArray = metodosPageo.map((metodo) => ({
-            monto: metodo.monto,
-            metodoPago: metodo.metodoPago,
-            ...(metodo.referencia && { referencia: metodo.referencia }),
-          }));
-        } else {
-          // Método de pago único: usar el total redondeado
-          metodosPageoArray = [
-            {
-              monto: totalRedondeado,
-              metodoPago: paymentMethod,
-            },
-          ];
-        }
-
-        const recargoExtraRedondeado = roundToNearestDime(ticket.recargoExtra || 0);
-
-        // Calcular el monto total pagado (suma de todos los métodos de pago)
-        // Debe coincidir exactamente con totalRedondeado
-        const totalPagado = roundToNearestDime(
-          metodosPageoArray.reduce((sum, metodo) => sum + metodo.monto, 0)
-        );
-
-        // Si hay montoRecibido, usarlo; si no, usar el total pagado
-        const montoRecibidoFinal =
-          montoRecibido && montoRecibido > 0 
-            ? roundToNearestDime(montoRecibido)
-            : totalPagado;
-
-        const saleData = {
-          clienteId: ticket.clientId || null,
-          listaProductos: listaProductosConDescuento,
-          // Solo incluir descuento si es descuento manual Y no hay mayoreo
-          // Para evitar duplicación (descuento manual + descuento en precioUnitario)
-          ...(descuentoTotal > 0 &&
-            !hasMayoreo && { descuento: descuentoTotal }),
-          recargoExtra: recargoExtraRedondeado || 0,
-          metodosPageo: metodosPageoArray,
-          comentario: ticket.notes || "",
-          tipoCompra: "LOCAL",
-          montoRecibido: montoRecibidoFinal,
-          puntosUsados: puntosUsados,  // ✅ Usar el valor pasado como parámetro
-          // El total debe coincidir exactamente con la suma de metodosPageo
-          //total: totalRedondeado,
-        };
-
-        console.log("[POSContext] Payload de venta:", saleData);
+        console.log("[POSContext] Payload de venta (desde preview):", saleData);
 
         const sale = await salesService.create(saleData);
 
@@ -497,8 +441,8 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
             const phone = rawPhone.startsWith('51') ? rawPhone : `51${rawPhone}`;
             await whatsappService.sendVentaNotification({
               phone,
-              total: totalRedondeado,
-              puntosGanados: puntosOtorgados,
+              total: salePreview.totalCobrado,
+              puntosGanados: salePreview.puntosOtorgados,
               ventaId: sale.ticketId || String(sale.id),
             });
           }
@@ -533,7 +477,7 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
           createTicket();
         }
       } catch (error) {
-        if ((error as any)?.name === 'AbortError') {
+        if ((error )?.name === 'AbortError') {
           toast.error("La venta está siendo procesada. Verifique en ventas antes de reintentar.");
           return;
         }
@@ -551,10 +495,9 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         activeTicketId,
         // Estados para flujo profesional
         cashRegisterState,
-        salePreview,
+        salePreview: activeSalePreview,
         isLoadingPreview,
         isLoadingCashState,
-        // Métodos existentes
         createTicket,
         switchTicket,
         closeTicket,
@@ -566,7 +509,8 @@ export function POSProvider({ children }: { children: React.ReactNode }) {
         applyDiscount,
         applyRecargoExtra,
         getActiveTicket,
-        // Nuevos métodos para flujo profesional
+        updateActiveTicketPoints,
+        invalidateActiveTicketPreview,
         checkCashRegisterState,
         previewSale,
         clearPreview,

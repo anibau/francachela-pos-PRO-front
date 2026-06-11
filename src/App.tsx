@@ -24,6 +24,7 @@ const Ventas = lazy(() => import("./pages/Ventas"));
 const Promociones = lazy(() => import("./pages/Promociones"));
 const Delivery = lazy(() => import("./pages/Delivery"));
 const Puntos = lazy(() => import("./pages/Puntos"));
+const AdminPuntosConfig = lazy(() => import("./pages/admin/AdminPuntosConfig"));
 const VentasCortePage = lazy(() => import("./pages/VentasCorte"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -59,7 +60,7 @@ function POSRoute() {
   return (
     <ProtectedRoute>
       <POSProvider>
-        <AppLayout>
+        <AppLayout fullBleed>
           <POS />
         </AppLayout>
       </POSProvider>
@@ -90,6 +91,7 @@ const App = () => (
                 <Route path="/promociones" element={<LayoutRoute><Promociones /></LayoutRoute>} />
                 <Route path="/delivery" element={<LayoutRoute><Delivery /></LayoutRoute>} />
                 <Route path="/puntos" element={<LayoutRoute><Puntos /></LayoutRoute>} />
+                <Route path="/admin/configuracion-puntos" element={<LayoutRoute><AdminPuntosConfig /></LayoutRoute>} />
                 <Route path="/gastos" element={<LayoutRoute><Gastos /></LayoutRoute>} />
                 <Route path="/caja" element={<LayoutRoute><Caja /></LayoutRoute>} />
                 <Route path="*" element={<NotFound />} />

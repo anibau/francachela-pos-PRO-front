@@ -183,6 +183,11 @@ export const API_ENDPOINTS = {
     ESTADISTICAS: '/puntos/estadisticas',
   },
 
+  // Admin
+  ADMIN: {
+    CONFIG_PUNTOS: '/admin/config-puntos',
+  },
+
   // Promociones unificadas
   UNIFIED_PROMOTIONS: {
     BASE: '/promociones/unificadas',

@@ -2,6 +2,10 @@ import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
 import { DEFAULT_LIST_PARAMS } from '@/constants/apiDefaults';
 import { httpClient, simulateDelay } from './httpClient';
 import type { PaginatedResponse } from '@/types/backend';
+import {
+  mapBackendPromoToFrontend,
+  type BackendPromoEvaluation,
+} from '@/features/pos/utils/promoMapper';
 
 // Enums para tipos de promoción y descuento
 export enum TipoPromocion {
@@ -290,11 +294,11 @@ export const unifiedPromotionsService = {
         };
       }
       
-      const response = await httpClient.post<EvaluatePromotionResponse>(
+      const raw = await httpClient.post<BackendPromoEvaluation>(
         API_ENDPOINTS.UNIFIED_PROMOTIONS.EVALUATE,
         data,
       );
-      return response;
+      return mapBackendPromoToFrontend(raw, data.montoTotal);
     } catch (error) {
       console.error('Error evaluating promotions:', error);
       throw error;

@@ -1,4 +1,4 @@
-import { ShoppingCart, LayoutDashboard, Package, Users, Gift, Home, TrendingUp, Receipt, DollarSign, Truck, Star, BarChart3 } from "lucide-react";
+import { ShoppingCart, LayoutDashboard, Package, Users, Gift, Home, TrendingUp, Receipt, DollarSign, Truck, Star, BarChart3, Settings2 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import type { UserRole } from "@/contexts/AuthContext";
@@ -31,6 +31,7 @@ const menuItems: MenuItem[] = [
   { title: "Promociones", url: "/promociones", icon: Gift, roles: ['ADMIN'] },
   { title: "Delivery", url: "/delivery", icon: Truck },
   { title: "Puntos", url: "/puntos", icon: Star, roles: ['ADMIN'] },
+  { title: "Config. Puntos", url: "/admin/configuracion-puntos", icon: Settings2, roles: ['ADMIN'] },
   { title: "Gastos", url: "/gastos", icon: Receipt },
   { title: "Caja", url: "/caja", icon: DollarSign },
 ];
